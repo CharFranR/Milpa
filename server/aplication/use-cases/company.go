@@ -9,6 +9,7 @@ import (
 	domain "github.com/CharFranR/Hackaton2026/domain/entities"
 	"github.com/CharFranR/Hackaton2026/domain/port/primary"
 	"github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"github.com/CharFranR/Hackaton2026/internal/auth"
 )
 
 type CompanyUseCaseImpl struct {
@@ -33,10 +34,14 @@ func NewCompanyUseCase(
 }
 
 func (uc *CompanyUseCaseImpl) CreateCompany(ctx context.Context, req dto.RegisterCompanyRequest) (*dto.CompanyDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	now := uc.timer.Now()
 
-	// TODO: ownerID should come from authenticated user context (JWT)
-	company, err := domain.NewCompany(domain.User{ID: uuid.New()}, req.Name, now)
+	company, err := domain.NewCompany(domain.User{ID: principal.UserID}, req.Name, now)
 	if err != nil {
 		return nil, err
 	}

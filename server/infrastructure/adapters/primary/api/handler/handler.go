@@ -1,19 +1,12 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	domain "github.com/CharFranR/Hackaton2026/domain/entities"
 )
-
-type ctxKey string
-
-const UserIDKey ctxKey = "user_id"
 
 type envelope struct {
 	Data  any    `json:"data,omitempty"`
@@ -30,11 +23,6 @@ func respondError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(envelope{Error: msg})
-}
-
-func userIDFromCtx(ctx context.Context) uuid.UUID {
-	id, _ := ctx.Value(UserIDKey).(uuid.UUID)
-	return id
 }
 
 func statusCode(err error) int {

@@ -1,12 +1,11 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"strings"
 
 	"github.com/CharFranR/Hackaton2026/domain/port/secondary"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api/handler"
+	"github.com/CharFranR/Hackaton2026/internal/auth"
 )
 
 type AuthMiddleware struct {
@@ -32,7 +31,11 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), handler.UserIDKey, claims.UserID)
+		principal := auth.Principal{
+			UserID: claims.UserID,
+			Role:   claims.Role,
+		}
+		ctx := auth.WithPrincipal(r.Context(), principal)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

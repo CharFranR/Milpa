@@ -9,6 +9,7 @@ import (
 	domain "github.com/CharFranR/Hackaton2026/domain/entities"
 	"github.com/CharFranR/Hackaton2026/domain/port/primary"
 	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"github.com/CharFranR/Hackaton2026/internal/auth"
 )
 
 type InquiryUseCaseImpl struct {
@@ -24,9 +25,14 @@ func NewInquiryUseCase(inquiryRepo port.InquiryRepository, timer port.TimeProvid
 }
 
 func (uc *InquiryUseCaseImpl) CreateInquiry(ctx context.Context, req dto.CreateInquiryRequest) (*dto.InquiryDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	now := uc.timer.Now()
 
-	inquiry, err := domain.NewInquiry(uuid.Nil, req.OfferingID, req.Message, now)
+	inquiry, err := domain.NewInquiry(principal.UserID, req.OfferingID, req.Message, now)
 	if err != nil {
 		return nil, err
 	}
