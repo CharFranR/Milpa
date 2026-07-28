@@ -9,6 +9,7 @@ import (
 
 	"milpa/aplication/dto"
 	"milpa/domain/port/primary"
+	"milpa/internal/validate"
 )
 
 type InquiryHandler struct {
@@ -23,6 +24,14 @@ func (h *InquiryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateInquiryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := validate.Request([]validate.Rule{
+		{Field: "offering_id", Value: req.OfferingID},
+		{Field: "message", Value: req.Message},
+	}); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

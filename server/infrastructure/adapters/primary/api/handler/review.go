@@ -8,6 +8,7 @@ import (
 
 	"milpa/aplication/dto"
 	"milpa/domain/port/primary"
+	"milpa/internal/validate"
 )
 
 type ReviewHandler struct {
@@ -22,6 +23,13 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := validate.Request([]validate.Rule{
+		{Field: "company_id", Value: req.CompanyID},
+	}); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
