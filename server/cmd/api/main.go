@@ -47,6 +47,10 @@ func main() {
 	}
 	defer database.CloseConnection(pool)
 
+	log.Println("running database migrations...")
+	database.MakeMigrations(context.Background(), dsn)
+	log.Println("migrations complete")
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET is required")
