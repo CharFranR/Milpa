@@ -9,25 +9,40 @@ import (
 	domain "github.com/CharFranR/Hackaton2026/domain/entities"
 	"github.com/CharFranR/Hackaton2026/domain/port/primary"
 	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"github.com/CharFranR/Hackaton2026/internal/auth"
 )
 
 type OfferingUseCaseImpl struct {
 	offeringRepo port.OfferingRepository
+	companyRepo  port.CompanyRepository
 	timer        port.TimeProvider
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, companyRepo port.CompanyRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
 		offeringRepo: offeringRepo,
+		companyRepo:  companyRepo,
 		timer:        timer,
 	}
 }
 
 func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.CreateOfferingRequest) (*dto.OfferingDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	company, err := uc.companyRepo.FindByID(ctx, req.CompanyID)
+	if err != nil {
+		return nil, domain.ErrNotFound
+	}
+	if company.Owner.ID != principal.UserID {
+		return nil, domain.ErrForbidden
+	}
+
 	now := uc.timer.Now()
 
-	// TODO: companyID should come from the authenticated user's company context
-	offering, err := domain.NewOffering(uuid.Nil, req.Name, req.Type, now)
+	offering, err := domain.NewOffering(req.CompanyID, req.Name, req.Type, now)
 	if err != nil {
 		return nil, err
 	}

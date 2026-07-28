@@ -9,6 +9,7 @@ import (
 	domain "github.com/CharFranR/Hackaton2026/domain/entities"
 	"github.com/CharFranR/Hackaton2026/domain/port/primary"
 	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"github.com/CharFranR/Hackaton2026/internal/auth"
 )
 
 type ReviewUseCaseImpl struct {
@@ -24,9 +25,14 @@ func NewReviewUseCase(reviewRepo port.ReviewRepository, timer port.TimeProvider)
 }
 
 func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateReviewRequest) (*dto.ReviewDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	now := uc.timer.Now()
 
-	review, err := domain.NewReview(uuid.Nil, req.CompanyID, req.Rating, req.Comment, now)
+	review, err := domain.NewReview(principal.UserID, req.CompanyID, req.Rating, req.Comment, now)
 	if err != nil {
 		return nil, err
 	}

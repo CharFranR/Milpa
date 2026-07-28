@@ -21,6 +21,7 @@ type OfferingDTO struct {
 }
 
 type CreateOfferingRequest struct {
+	CompanyID   uuid.UUID           `json:"company_id"`
 	Type        domain.OfferingType `json:"type"`
 	Name        string              `json:"name"`
 	Description string              `json:"description,omitempty"`
