@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
+	"milpa/domain/port/primary"
 )
 
 type CategoryHandler struct {

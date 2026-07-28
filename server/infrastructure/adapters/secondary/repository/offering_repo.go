@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
-	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	domain "milpa/domain/entities"
+	port "milpa/domain/port/secondary"
 )
 
 type OfferingRepositoryImpl struct {

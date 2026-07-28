@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/CharFranR/Hackaton2026/infrastructure/config"
-	"github.com/CharFranR/Hackaton2026/infrastructure/database"
+	"milpa/infrastructure/config"
+	"milpa/infrastructure/database"
 )
 
 func main() {

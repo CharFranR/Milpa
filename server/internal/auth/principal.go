@@ -1,7 +1,8 @@
 package auth
 
 import (
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
+	domain "milpa/domain/entities"
+
 	"github.com/google/uuid"
 )
 

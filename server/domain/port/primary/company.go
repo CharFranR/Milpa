@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
+	"milpa/aplication/dto"
 )
 
 type CompanyUseCase interface {

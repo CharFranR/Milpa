@@ -4,8 +4,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api/handler"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api/middleware"
+	"milpa/infrastructure/adapters/primary/api/handler"
+	"milpa/infrastructure/adapters/primary/api/middleware"
 )
 
 func NewRouter(

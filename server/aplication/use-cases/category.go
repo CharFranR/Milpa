@@ -3,10 +3,10 @@ package usecases
 import (
 	"context"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
-	"github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
+	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
 )
 
 type CategoryUseCaseImpl struct {

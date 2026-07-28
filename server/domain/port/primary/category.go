@@ -3,7 +3,7 @@ package primary
 import (
 	"context"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
+	"milpa/aplication/dto"
 )
 
 type CategoryUseCase interface {

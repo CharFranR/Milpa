@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
-	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	"milpa/aplication/dto"
+	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
 )
 
 type CachedCategoryUseCase struct {

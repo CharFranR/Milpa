@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
+	"milpa/aplication/dto"
+	"milpa/domain/port/primary"
 )
 
 type ReviewHandler struct {

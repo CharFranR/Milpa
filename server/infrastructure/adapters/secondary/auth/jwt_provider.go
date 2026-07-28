@@ -7,13 +7,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
-	port "github.com/CharFranR/Hackaton2026/domain/port/secondary"
+	domain "milpa/domain/entities"
+	port "milpa/domain/port/secondary"
 )
 
 type JWTProvider struct {
-	secret      []byte
-	expiration  time.Duration
+	secret     []byte
+	expiration time.Duration
 }
 
 func NewJWTProvider(secret string, expiration time.Duration) *JWTProvider {
@@ -27,7 +27,7 @@ func NewJWTProvider(secret string, expiration time.Duration) *JWTProvider {
 }
 
 type customClaims struct {
-	UserID string            `json:"user_id"`
+	UserID string             `json:"user_id"`
 	Role   domain.RoleOptions `json:"role"`
 	jwt.RegisteredClaims
 }

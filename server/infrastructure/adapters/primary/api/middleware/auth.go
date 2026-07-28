@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/CharFranR/Hackaton2026/domain/port/secondary"
-	"github.com/CharFranR/Hackaton2026/internal/auth"
+	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
 )
 
 type AuthMiddleware struct {

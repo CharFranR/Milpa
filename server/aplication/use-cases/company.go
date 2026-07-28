@@ -5,18 +5,18 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/CharFranR/Hackaton2026/aplication/dto"
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
-	"github.com/CharFranR/Hackaton2026/domain/port/secondary"
-	"github.com/CharFranR/Hackaton2026/internal/auth"
+	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
+	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
 )
 
 type CompanyUseCaseImpl struct {
-	companyRepo port.CompanyRepository
-	userRepo    port.UserRepository
+	companyRepo  port.CompanyRepository
+	userRepo     port.UserRepository
 	categoryRepo port.CategoryRepository
-	timer       port.TimeProvider
+	timer        port.TimeProvider
 }
 
 func NewCompanyUseCase(

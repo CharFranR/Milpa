@@ -11,16 +11,16 @@ import (
 
 	"github.com/joho/godotenv"
 
-	usecases "github.com/CharFranR/Hackaton2026/aplication/use-cases"
-	"github.com/CharFranR/Hackaton2026/domain/port/primary"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api/handler"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/primary/api/middleware"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/secondary/auth"
-	"github.com/CharFranR/Hackaton2026/infrastructure/adapters/secondary/cache"
-	repo "github.com/CharFranR/Hackaton2026/infrastructure/adapters/secondary/repository"
-	timepkg "github.com/CharFranR/Hackaton2026/infrastructure/adapters/secondary/time"
-	"github.com/CharFranR/Hackaton2026/infrastructure/database"
+	usecases "milpa/aplication/use-cases"
+	"milpa/domain/port/primary"
+	"milpa/infrastructure/adapters/primary/api"
+	"milpa/infrastructure/adapters/primary/api/handler"
+	"milpa/infrastructure/adapters/primary/api/middleware"
+	"milpa/infrastructure/adapters/secondary/auth"
+	"milpa/infrastructure/adapters/secondary/cache"
+	repo "milpa/infrastructure/adapters/secondary/repository"
+	timepkg "milpa/infrastructure/adapters/secondary/time"
+	"milpa/infrastructure/database"
 )
 
 func main() {

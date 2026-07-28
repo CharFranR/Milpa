@@ -3,18 +3,19 @@ package dto
 import (
 	"time"
 
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
+	domain "milpa/domain/entities"
+
 	"github.com/google/uuid"
 )
 
 type OfferingDTO struct {
-	ID          uuid.UUID          `json:"id"`
-	CompanyID   uuid.UUID          `json:"company_id"`
+	ID          uuid.UUID           `json:"id"`
+	CompanyID   uuid.UUID           `json:"company_id"`
 	Type        domain.OfferingType `json:"type"`
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Price       float64            `json:"price"`
-	ImageURL    string             `json:"image_url"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Price       float64             `json:"price"`
+	ImageURL    string              `json:"image_url"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

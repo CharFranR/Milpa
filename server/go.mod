@@ -1,4 +1,4 @@
-module github.com/CharFranR/Hackaton2026
+module milpa
 
 go 1.26.4
 

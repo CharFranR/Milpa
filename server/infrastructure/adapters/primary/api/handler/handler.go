@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	domain "github.com/CharFranR/Hackaton2026/domain/entities"
+	domain "milpa/domain/entities"
 )
 
 type envelope struct {
