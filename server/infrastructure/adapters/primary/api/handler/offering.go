@@ -9,6 +9,7 @@ import (
 
 	"milpa/aplication/dto"
 	"milpa/domain/port/primary"
+	"milpa/internal/validate"
 )
 
 type OfferingHandler struct {
@@ -23,6 +24,14 @@ func (h *OfferingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateOfferingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := validate.Request([]validate.Rule{
+		{Field: "company_id", Value: req.CompanyID},
+		{Field: "name", Value: req.Name},
+	}); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

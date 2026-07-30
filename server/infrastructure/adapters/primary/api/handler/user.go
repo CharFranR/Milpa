@@ -9,6 +9,7 @@ import (
 
 	"milpa/aplication/dto"
 	"milpa/domain/port/primary"
+	"milpa/internal/validate"
 )
 
 type UserHandler struct {
@@ -26,6 +27,17 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validate.Request([]validate.Rule{
+		{Field: "email", Value: req.Email},
+		{Field: "password", Value: req.Password},
+		{Field: "confirm_password", Value: req.ConfirmPassword},
+		{Field: "first_name", Value: req.FirstName},
+		{Field: "last_name", Value: req.LastName},
+	}); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	result, err := h.uc.Register(r.Context(), req)
 	if err != nil {
 		handleError(w, err)
@@ -39,6 +51,14 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := validate.Request([]validate.Rule{
+		{Field: "email", Value: req.Email},
+		{Field: "password", Value: req.Password},
+	}); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
