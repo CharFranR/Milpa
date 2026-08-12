@@ -38,7 +38,7 @@ export const testimonials = [
     initials: 'LC',
     name: 'Restaurante La Cosecha',
     role: 'Restaurante, Bogotá',
-    text: 'Desde que usamos EcoMercado para proveernos, la calidad de nuestros platos mejoró notablemente. Tratamos directo con quien siembra y el sabor se nota.',
+    text: 'Desde que usamos Milpa para proveernos, la calidad de nuestros platos mejoró notablemente. Tratamos directo con quien siembra y el sabor se nota.',
   },
   {
     initials: 'SM',
@@ -50,15 +50,15 @@ export const testimonials = [
     initials: 'TN',
     name: 'Tienda Natural Verde',
     role: 'Tienda orgánica, Cali',
-    text: 'EcoMercado es el puente que necesitábamos para llenar nuestro local con productos de verdad. Los productores responden rápido y la frescura es otra.',
+    text: 'Milpa es el puente que necesitábamos para llenar nuestro local con productos de verdad. Los productores responden rápido y la frescura es otra.',
   },
 ]
 
 export const faqs = [
   {
-    question: '¿EcoMercado procesa pagos?',
+    question: '¿Milpa procesa pagos?',
     answer:
-      'No. EcoMercado es una plataforma de contacto directo: tú negocias y acuerdas el pago directamente con el productor. Así se mantienen precios justos para ambos lados.',
+      'No. Milpa es una plataforma de contacto directo: tú negocias y acuerdas el pago directamente con el productor. Así se mantienen precios justos para ambos lados.',
   },
   {
     question: '¿Cómo sé que los productores son confiables?',
@@ -71,7 +71,7 @@ export const faqs = [
       'Sí. Regístrate como productor, completa la información de tu finca y publica tus productos con su precio y disponibilidad. Es gratis.',
   },
   {
-    question: '¿En qué regiones opera EcoMercado?',
+    question: '¿En qué regiones opera Milpa?',
     answer:
       'Hoy operamos en más de 340 municipios de Cundinamarca, Boyacá, Valle del Cauca, Tolima, Nariño, Santander, Antioquia y Córdoba, y seguimos creciendo.',
   },

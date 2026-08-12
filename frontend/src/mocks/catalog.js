@@ -124,14 +124,14 @@ export const products = [
 ]
 
 export const regions = [
-  'Cundinamarca',
-  'Boyacá',
-  'Valle del Cauca',
-  'Tolima',
-  'Nariño',
-  'Santander',
-  'Antioquia',
-  'Córdoba',
+  'León',
+  'Managua',
+  'Jinotega',
+  'Chinandega',
+  'Matagalpa',
+  'Nueva Segovia',
+  'Estelí',
+  'Rivas',
   'Otra región',
 ]
 

@@ -1,12 +1,6 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 
-const SOCIALS = [
-  { name: 'Facebook', icon: 'facebook', label: 'Facebook de EcoMercado' },
-  { name: 'Instagram', icon: 'alternate_email', label: 'Instagram de EcoMercado' },
-  { name: 'Email', icon: 'alternate_email', label: 'Escribir a EcoMercado' },
-]
-
 const PLATFORM_LINKS = [
   { label: 'Marketplace', href: '#' },
   { label: 'Para compradores', href: '#' },
@@ -38,26 +32,14 @@ export default function Footer() {
                 <Icon name="eco" size={20} weight={600} className="text-accent" />
               </span>
               <span className="text-lg tracking-tight">
-                <span className="font-extrabold text-accent">Eco</span>
-                <span className="font-medium">Mercado</span>
+                <span className="font-extrabold text-accent">Mil</span>
+                <span className="font-medium">pa</span>
               </span>
             </p>
             <p className="mt-4 max-w-xs text-sm text-gray-400">
               Conectando el campo con la ciudad. Productos frescos, directamente del productor a tu
               mesa.
             </p>
-            <div className="mt-5 flex gap-2">
-              {SOCIALS.map((s) => (
-                <a
-                  key={s.name}
-                  href="#"
-                  aria-label={s.label}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-gray-300 transition-colors hover:bg-brand hover:text-white"
-                >
-                  <Icon name={s.icon} size={20} />
-                </a>
-              ))}
-            </div>
           </div>
 
           <nav aria-label="Plataforma">
@@ -126,7 +108,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
-          <p className="text-sm text-gray-500">© 2025 EcoMercado. Todos los derechos reservados.</p>
+          <p className="text-sm text-gray-500">© 2025 Milpa. Todos los derechos reservados.</p>
           <ul className="flex gap-5">
             {['Privacidad', 'Términos', 'Cookies'].map((label) => (
               <li key={label}>

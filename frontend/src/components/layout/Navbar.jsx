@@ -5,7 +5,6 @@ import Button from '../ui/Button'
 
 const NAV_LINKS = [
   { label: 'Inicio', href: '#inicio' },
-  { label: 'Marketplace', href: '#' },
   { label: 'Cómo funciona', href: '#como-funciona' },
 ]
 
@@ -32,15 +31,15 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#inicio" className="flex items-center gap-2" aria-label="EcoMercado — inicio">
+        <a href="#inicio" className="flex items-center gap-2" aria-label="Milpa — inicio">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
             <Icon name="eco" size={20} weight={600} />
           </span>
           <span className={cn('text-lg tracking-tight', textColor)}>
             <span className={cn('font-extrabold', transparent ? 'text-accent' : 'text-brand')}>
-              Eco
+              Mil
             </span>
-            <span className="font-medium">Mercado</span>
+            <span className="font-medium">pa</span>
           </span>
         </a>
 

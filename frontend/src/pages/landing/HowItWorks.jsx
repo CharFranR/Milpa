@@ -6,7 +6,7 @@ export default function HowItWorks() {
   return (
     <section id="como-funciona" className="scroll-mt-20 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <SectionHeading eyebrow="Simple y transparente" title="Así funciona EcoMercado" centered />
+        <SectionHeading eyebrow="Simple y transparente" title="Así funciona Milpa" centered />
         <ol className="relative grid gap-6 md:grid-cols-3">
           {howItWorks.map((step, index) => (
             <li key={step.title} className="relative rounded-2xl border border-gray-100 bg-gray-50 p-7">
