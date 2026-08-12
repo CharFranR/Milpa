@@ -2,6 +2,7 @@ import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Hero from './landing/Hero'
 import Stats from './landing/Stats'
+import Categories from './landing/Categories'
 
 export default function Landing() {
   return (
@@ -10,6 +11,7 @@ export default function Landing() {
       <main id="inicio" className="flex-1">
         <Hero />
         <Stats />
+        <Categories />
       </main>
       <Footer />
     </div>
