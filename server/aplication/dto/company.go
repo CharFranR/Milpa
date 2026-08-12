@@ -34,7 +34,6 @@ type RegisterCompanyRequest struct {
 
 type UpdateCompanyRequest struct {
 	Name        *string `json:"name,omitempty"`
-	Category    *string `json:"category,omitempty"`
 	Address     *string `json:"address,omitempty"`
 	Description *string `json:"description,omitempty"`
 	PhoneNumber *string `json:"phone_number,omitempty"`
