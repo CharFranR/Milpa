@@ -3,6 +3,7 @@ import Footer from '../components/layout/Footer'
 import Hero from './landing/Hero'
 import Stats from './landing/Stats'
 import Categories from './landing/Categories'
+import HowItWorks from './landing/HowItWorks'
 
 export default function Landing() {
   return (
@@ -12,6 +13,7 @@ export default function Landing() {
         <Hero />
         <Stats />
         <Categories />
+        <HowItWorks />
       </main>
       <Footer />
     </div>
