@@ -16,7 +16,6 @@ type InquiryDTO struct {
 	Status     domain.InquiryStatus `json:"status"`
 
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type CreateInquiryRequest struct {

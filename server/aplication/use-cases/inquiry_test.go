@@ -75,9 +75,6 @@ func TestInquiryUseCaseCreateInquiry(t *testing.T) {
 			if !got.CreatedAt.Equal(fixedTime) {
 				t.Errorf("created at = %v, want %v", got.CreatedAt, fixedTime)
 			}
-			if !got.UpdatedAt.Equal(got.CreatedAt) {
-				t.Errorf("updated at = %v, want %v", got.UpdatedAt, got.CreatedAt)
-			}
 			if len(inquiryRepo.saved) != 1 {
 				t.Fatalf("saved inquiries = %d, want 1", len(inquiryRepo.saved))
 			}
@@ -152,9 +149,6 @@ func TestInquiryUseCaseGetByID(t *testing.T) {
 			}
 			if !got.CreatedAt.Equal(fixedTime) {
 				t.Errorf("created at = %v, want %v", got.CreatedAt, fixedTime)
-			}
-			if !got.UpdatedAt.Equal(got.CreatedAt) {
-				t.Errorf("updated at = %v, want %v", got.UpdatedAt, got.CreatedAt)
 			}
 		})
 	}
