@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -34,7 +35,10 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 
 	company, err := uc.companyRepo.FindByID(ctx, req.CompanyID)
 	if err != nil {
-		return nil, domain.ErrNotFound
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
 	}
 	if company.Owner.ID != principal.UserID {
 		return nil, domain.ErrForbidden
@@ -108,6 +112,8 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 	if req.ImageURL != nil {
 		offering.UpdateImage(*req.ImageURL, now)
 	}
+
+	offering.Touch(now)
 
 	return uc.offeringRepo.Update(ctx, offering)
 }
