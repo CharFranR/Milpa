@@ -4,6 +4,7 @@ import Hero from './landing/Hero'
 import Stats from './landing/Stats'
 import Categories from './landing/Categories'
 import HowItWorks from './landing/HowItWorks'
+import FeaturedProducts from './landing/FeaturedProducts'
 
 export default function Landing() {
   return (
@@ -14,6 +15,7 @@ export default function Landing() {
         <Stats />
         <Categories />
         <HowItWorks />
+        <FeaturedProducts />
       </main>
       <Footer />
     </div>
