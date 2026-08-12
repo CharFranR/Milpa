@@ -1,6 +1,7 @@
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Hero from './landing/Hero'
+import Stats from './landing/Stats'
 
 export default function Landing() {
   return (
@@ -8,6 +9,7 @@ export default function Landing() {
       <Navbar />
       <main id="inicio" className="flex-1">
         <Hero />
+        <Stats />
       </main>
       <Footer />
     </div>
