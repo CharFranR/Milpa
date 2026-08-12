@@ -74,6 +74,7 @@ func TestUserUseCaseRegister(t *testing.T) {
 				FirstName:       tt.firstName,
 				LastName:        tt.lastName,
 				Role:            tt.role,
+				Address:         "Managua",
 				Password:        tt.password,
 				ConfirmPassword: tt.confirm,
 				PhoneNumber:     "555-1234",
@@ -110,6 +111,9 @@ func TestUserUseCaseRegister(t *testing.T) {
 			if got.PhoneNumber != "555-1234" {
 				t.Errorf("phone number = %q, want %q", got.PhoneNumber, "555-1234")
 			}
+			if got.Address != "Managua, , " {
+				t.Errorf("address = %q, want %q", got.Address, "Managua, , ")
+			}
 			if !got.CreatedAt.Equal(fixedTime) {
 				t.Errorf("created at = %v, want %v", got.CreatedAt, fixedTime)
 			}
@@ -128,6 +132,9 @@ func TestUserUseCaseRegister(t *testing.T) {
 			}
 			if saved.PhoneNumber != "555-1234" {
 				t.Errorf("saved phone number = %q, want %q", saved.PhoneNumber, "555-1234")
+			}
+			if saved.Address.AddressLine != "Managua" {
+				t.Errorf("saved address line = %q, want %q", saved.Address.AddressLine, "Managua")
 			}
 			if saved.Role != tt.role {
 				t.Errorf("saved role = %v, want %v", saved.Role, tt.role)
