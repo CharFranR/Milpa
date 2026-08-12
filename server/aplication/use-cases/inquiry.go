@@ -99,6 +99,5 @@ func inquiryToDTO(inquiry *domain.Inquiry) *dto.InquiryDTO {
 		Message:    inquiry.Message,
 		Status:     inquiry.Status,
 		CreatedAt:  inquiry.CreatedAt,
-		UpdatedAt:  inquiry.CreatedAt,
 	}
 }
