@@ -1,7 +1,12 @@
+import Navbar from '../components/layout/Navbar'
+import Footer from '../components/layout/Footer'
+
 export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col">
-      <main className="flex-1" />
+      <Navbar />
+      <main id="inicio" className="flex-1" />
+      <Footer />
     </div>
   )
 }
