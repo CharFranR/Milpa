@@ -5,6 +5,7 @@ import Stats from './landing/Stats'
 import Categories from './landing/Categories'
 import HowItWorks from './landing/HowItWorks'
 import FeaturedProducts from './landing/FeaturedProducts'
+import FeaturedProducers from './landing/FeaturedProducers'
 
 export default function Landing() {
   return (
@@ -16,6 +17,7 @@ export default function Landing() {
         <Categories />
         <HowItWorks />
         <FeaturedProducts />
+        <FeaturedProducers />
       </main>
       <Footer />
     </div>
