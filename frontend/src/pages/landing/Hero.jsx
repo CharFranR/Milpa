@@ -3,6 +3,7 @@ import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import { trustChips } from '../../mocks/content'
 import { regions } from '../../mocks/catalog'
+import fondoCampo from '../../assets/images/fondo-campo.jpeg'
 
 export default function Hero() {
   const [query, setQuery] = useState('')
@@ -13,18 +14,13 @@ export default function Hero() {
   }
 
   return (
-    <section className="relative isolate overflow-hidden bg-night">
+    <section
+      className="relative isolate overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url(${fondoCampo})` }}
+    >
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-gradient-to-b from-brand-dark/60 to-night"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute -right-32 -top-40 -z-10 h-96 w-96 rounded-full bg-brand/30 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute -bottom-32 -left-24 -z-10 h-80 w-80 rounded-full bg-accent/15 blur-3xl"
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-brand-dark/80 via-night/60 to-night/90"
       />
 
       <div className="mx-auto flex max-w-7xl flex-col items-center px-4 pb-24 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
