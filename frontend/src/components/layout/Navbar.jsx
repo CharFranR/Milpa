@@ -37,7 +37,9 @@ export default function Navbar() {
             <Icon name="eco" size={20} weight={600} />
           </span>
           <span className={cn('text-lg tracking-tight', textColor)}>
-            <span className="font-extrabold text-brand">Eco</span>
+            <span className={cn('font-extrabold', transparent ? 'text-accent' : 'text-brand')}>
+              Eco
+            </span>
             <span className="font-medium">Mercado</span>
           </span>
         </a>

@@ -14,7 +14,7 @@ export default function Landing() {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
-      <main id="inicio" className="flex-1">
+      <main id="inicio" className="scroll-mt-20 flex-1">
         <Hero />
         <Stats />
         <Categories />

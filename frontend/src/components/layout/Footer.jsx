@@ -38,7 +38,7 @@ export default function Footer() {
                 <Icon name="eco" size={20} weight={600} className="text-accent" />
               </span>
               <span className="text-lg tracking-tight">
-                <span className="font-extrabold text-brand">Eco</span>
+                <span className="font-extrabold text-accent">Eco</span>
                 <span className="font-medium">Mercado</span>
               </span>
             </p>
