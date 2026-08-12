@@ -1,16 +1,16 @@
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
+import fondoCampo from '../../assets/images/fondo-campo.jpeg'
 
 export default function CtaBanner() {
   return (
-    <section className="relative isolate overflow-hidden bg-night">
+    <section
+      className="relative isolate overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url(${fondoCampo})` }}
+    >
       <div
         aria-hidden="true"
-        className="absolute -left-24 -top-24 -z-10 h-80 w-80 rounded-full bg-brand/40 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute -bottom-32 -right-16 -z-10 h-96 w-96 rounded-full bg-accent/20 blur-3xl"
+        className="absolute inset-0 -z-10 bg-gradient-to-b from-night/90 via-night/70 to-night/95"
       />
       <div className="mx-auto flex max-w-4xl flex-col items-center px-4 py-20 text-center sm:px-6">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-night">
