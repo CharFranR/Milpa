@@ -1,0 +1,27 @@
+import Navbar from '../components/layout/Navbar'
+import Footer from '../components/layout/Footer'
+import Hero from './landing/Hero'
+import Stats from './landing/Stats'
+import Categories from './landing/Categories'
+import HowItWorks from './landing/HowItWorks'
+import Testimonials from './landing/Testimonials'
+import Faq from './landing/Faq'
+import CtaBanner from './landing/CtaBanner'
+
+export default function Landing() {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <main id="inicio" className="scroll-mt-20 flex-1">
+        <Hero />
+        <Stats />
+        <Categories />
+        <HowItWorks />
+        <Testimonials />
+        <Faq />
+        <CtaBanner />
+      </main>
+      <Footer />
+    </div>
+  )
+}
