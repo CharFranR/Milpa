@@ -61,10 +61,10 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <a href="#">
+          <a href="#/login">
             <Button variant={transparent ? 'white' : 'ghost'}>Ingresar</Button>
           </a>
-          <a href="#">
+          <a href="#/register" className="w-full sm:w-auto">
             <Button variant="accent">Registrarse gratis</Button>
           </a>
         </div>
@@ -97,12 +97,12 @@ export default function Navbar() {
             ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
-            <a href="#" className="w-full">
+            <a href="#/login" className="w-full">
               <Button variant="outline" className="w-full">
                 Ingresar
               </Button>
             </a>
-            <a href="#" className="w-full">
+            <a href="#/register" className="w-full">
               <Button variant="accent" className="w-full">
                 Registrarse gratis
               </Button>
