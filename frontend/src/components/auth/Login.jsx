@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
+import { setSessionRole } from '../../lib/session'
 
 const ROLES = [
   {
@@ -68,7 +69,13 @@ export default function Login() {
     }
     setError('')
     setLoading(true)
-    setTimeout(() => setLoading(false), 1000)
+    setTimeout(() => {
+      setLoading(false)
+      setSessionRole(current.key)
+      if (current.key === 'buyer') {
+        window.location.hash = '#/marketplace'
+      }
+    }, 1000)
   }
 
   return (
