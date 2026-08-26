@@ -24,6 +24,15 @@ export const quickActions = [
 
 export const recommendedProductIds = ['tomates-cherry', 'aguacate-hass', 'fresas-rubra', 'miel-pura']
 
+export const favoriteProductIds = [
+  'tomates-cherry',
+  'aguacate-hass',
+  'fresas-rubra',
+  'miel-pura',
+  'lechuga-butter',
+  'queso-campesino',
+]
+
 export const recentActivity = [
   {
     icon: 'favorite',
