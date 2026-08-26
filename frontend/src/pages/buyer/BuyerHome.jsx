@@ -61,15 +61,16 @@ export default function BuyerHome({ onGoToTab }) {
       <section aria-label="Productos recomendados">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900">Recomendados para ti</h2>
-          <a
-            href="#/marketplace"
-            className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark"
+          <button
+            type="button"
+            onClick={() => onGoToTab('marketplace')}
+            className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Ver todos
             <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
               →
             </span>
-          </a>
+          </button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-4">
           {recommendedProductIds.map((productId) => {

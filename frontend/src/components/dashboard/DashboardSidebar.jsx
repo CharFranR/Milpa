@@ -9,6 +9,7 @@ const TABS = [
   { id: 'favoritos', icon: 'favorite', label: 'Favoritos' },
   { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
   { id: 'perfil', icon: 'person', label: 'Mi perfil' },
+  { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
 ]
 
 function handleLogout() {
@@ -64,14 +65,6 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
 
           <div className="my-4 border-t border-gray-100" />
 
-          <a
-            href="#/marketplace"
-            className="inline-flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <Icon name="storefront" size={19} />
-            Ir al marketplace
-          </a>
-
           <button
             type="button"
             onClick={handleLogout}
@@ -95,18 +88,11 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
               className="px-3 py-2 text-xs"
             />
           ))}
-          <a
-            href="#/marketplace"
-            aria-label="Ir al marketplace"
-            className="ml-auto inline-flex shrink-0 rounded-xl p-2 text-gray-600 transition-colors hover:bg-brand-soft hover:text-brand"
-          >
-            <Icon name="storefront" size={20} />
-          </a>
           <button
             type="button"
             onClick={handleLogout}
             aria-label="Cerrar sesión"
-            className="inline-flex shrink-0 rounded-xl p-2 text-red-600 transition-colors hover:bg-red-50"
+            className="ml-auto inline-flex shrink-0 rounded-xl p-2 text-red-600 transition-colors hover:bg-red-50"
           >
             <Icon name="logout" size={20} />
           </button>

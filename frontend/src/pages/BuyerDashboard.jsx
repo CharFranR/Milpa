@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Navbar from '../components/layout/Navbar'
 import DashboardSidebar from '../components/dashboard/DashboardSidebar'
+import MarketplaceCatalog from '../components/marketplace/MarketplaceCatalog'
 import BuyerHome from './buyer/BuyerHome'
 import BuyerFavorites from './buyer/BuyerFavorites'
 import BuyerMessages from './buyer/BuyerMessages'
@@ -21,6 +22,7 @@ export default function BuyerDashboard() {
           {tab === 'favoritos' && <BuyerFavorites />}
           {tab === 'mensajes' && <BuyerMessages />}
           {tab === 'perfil' && <BuyerProfile />}
+          {tab === 'marketplace' && <MarketplaceCatalog />}
         </main>
       </div>
     </div>

@@ -17,8 +17,8 @@ export const homeStats = [
 ]
 
 export const quickActions = [
-  { icon: 'search', label: 'Buscar productos', href: '#/marketplace' },
-  { icon: 'location_on', label: 'Productores cercanos', href: '#/marketplace' },
+  { icon: 'search', label: 'Buscar productos', tab: 'marketplace' },
+  { icon: 'location_on', label: 'Productores cercanos', tab: 'marketplace' },
   { icon: 'favorite', label: 'Mis favoritos', tab: 'favoritos' },
   { icon: 'chat_bubble', label: 'Mis mensajes', tab: 'mensajes' },
 ]
