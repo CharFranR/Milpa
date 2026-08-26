@@ -31,20 +31,6 @@ const ROLES = [
       { icon: 'storefront', text: 'Perfil público de tu finca' },
     ],
   },
-  {
-    key: 'admin',
-    label: 'Administrador',
-    icon: 'admin_panel_settings',
-    panel: 'bg-night text-white',
-    submit: 'accent',
-    title: 'Panel de control Milpa',
-    desc: 'Administra y modera la plataforma de Milpa.',
-    bullets: [
-      { icon: 'group', text: 'Gestión completa de usuarios' },
-      { icon: 'shield', text: 'Moderación de contenido' },
-      { icon: 'analytics', text: 'Reportes y estadísticas' },
-    ],
-  },
 ]
 
 const GOOGLE_SVG = (
@@ -88,7 +74,7 @@ export default function Login() {
   return (
     <div className="m-0 flex min-h-screen items-center justify-center bg-gray-50 p-4 sm:p-8 md:m-0 md:mt-0 md:min-h-screen md:justify-normal md:items-stretch">
       <aside
-        className={`hidden md:flex md:w-1/2 md:flex-col md:justify-between ${current.panel} relative overflow-hidden`}
+        className={`hidden md:flex md:w-1/2 md:flex-col md:justify-between ${current.panel} relative overflow-hidden md:rounded-3xl`}
       >
         <div className="p-8">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">

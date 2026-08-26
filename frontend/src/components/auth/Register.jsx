@@ -66,7 +66,7 @@ export default function Register() {
 
   return (
     <div className="m-0 flex min-h-screen items-center justify-center bg-gray-50 p-4 sm:p-8 md:m-0 md:min-h-screen md:justify-normal md:items-stretch">
-      <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden">
+      <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden md:rounded-3xl">
         <div className="p-8">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
