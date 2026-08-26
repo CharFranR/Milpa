@@ -3,6 +3,7 @@ import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Icon from '../components/ui/Icon'
 import ProductCardGrid from '../components/product/ProductCardGrid'
+import FiltersSidebar, { PRICE_LIMIT } from '../components/marketplace/FiltersSidebar'
 import { producerById, products } from '../mocks/catalog'
 
 const SORT_OPTIONS = [
@@ -12,11 +13,27 @@ const SORT_OPTIONS = [
   { value: 'priceDesc', label: 'Precio: mayor a menor' },
 ]
 
+const DEFAULT_FILTERS = {
+  category: 'all',
+  maxPrice: PRICE_LIMIT,
+  minRating: 0,
+}
+
 export default function Marketplace() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('relevant')
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [showFilters, setShowFilters] = useState(false)
 
-  const visibleProducts = filterAndSortProducts(query, sort)
+  const visibleProducts = filterAndSortProducts(query, filters, sort)
+
+  function updateFilters(patch) {
+    setFilters((current) => ({ ...current, ...patch }))
+  }
+
+  function clearFilters() {
+    setFilters(DEFAULT_FILTERS)
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -41,7 +58,7 @@ export default function Marketplace() {
           </p>
         </header>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6 flex gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Icon
               name="search"
@@ -71,6 +88,16 @@ export default function Marketplace() {
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            aria-label={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2.5 text-gray-600 transition-colors hover:border-brand/40 hover:text-brand lg:hidden"
+          >
+            <Icon name="tune" size={20} />
+          </button>
+
           <label htmlFor="marketplace-sort" className="sr-only">
             Ordenar por
           </label>
@@ -88,13 +115,23 @@ export default function Marketplace() {
           </select>
         </div>
 
-        <section aria-label="Resultados" className="mt-6 pb-4">
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleProducts.map((product) => (
-              <ProductCardGrid key={product.id} productId={product.id} />
-            ))}
-          </div>
-        </section>
+        <div className="mt-6 flex flex-col gap-6 pb-4 lg:flex-row">
+          <aside className="shrink-0 lg:w-60">
+            <div className="lg:sticky lg:top-20">
+              <div className={showFilters ? '' : 'hidden lg:block'}>
+                <FiltersSidebar filters={filters} onChange={updateFilters} onClear={clearFilters} />
+              </div>
+            </div>
+          </aside>
+
+          <section aria-label="Resultados" className="min-w-0 flex-1">
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleProducts.map((product) => (
+                <ProductCardGrid key={product.id} productId={product.id} />
+              ))}
+            </div>
+          </section>
+        </div>
       </main>
 
       <Footer />
@@ -102,17 +139,29 @@ export default function Marketplace() {
   )
 }
 
-function filterAndSortProducts(query, sort) {
+function filterAndSortProducts(query, filters, sort) {
   const normalizedQuery = query.trim().toLowerCase()
 
   const matching = products.filter((product) => {
-    if (!normalizedQuery) return true
-    const producerName = producerById(product.producerId)?.name ?? ''
-    const searchableText = `${product.name} ${producerName}`.toLowerCase()
-    return searchableText.includes(normalizedQuery)
+    if (!matchesQuery(product, normalizedQuery)) return false
+    if (!matchesCategory(product, filters.category)) return false
+    if (product.price > filters.maxPrice) return false
+    if (product.rating < filters.minRating) return false
+    return true
   })
 
   return sortProducts(matching, sort)
+}
+
+function matchesQuery(product, normalizedQuery) {
+  if (!normalizedQuery) return true
+  const producerName = producerById(product.producerId)?.name ?? ''
+  const searchableText = `${product.name} ${producerName}`.toLowerCase()
+  return searchableText.includes(normalizedQuery)
+}
+
+function matchesCategory(product, category) {
+  return category === 'all' || product.categoryId === category
 }
 
 function sortProducts(items, sort) {

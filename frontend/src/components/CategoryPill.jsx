@@ -1,10 +1,11 @@
 import { cn } from '../lib/cn'
 import Icon from './ui/Icon'
 
-export default function CategoryPill({ icon, name, count, active, className }) {
+export default function CategoryPill({ icon, name, count, active, className, onClick }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       aria-pressed={active}
       className={cn(
         'flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
