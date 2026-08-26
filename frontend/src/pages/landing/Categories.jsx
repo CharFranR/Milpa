@@ -10,7 +10,7 @@ export default function Categories() {
           eyebrow="Explora"
           title="Categorías principales"
           action={
-            <a href="#" className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark">
+            <a href="#/marketplace" className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark">
               Ver todas
               <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
             </a>

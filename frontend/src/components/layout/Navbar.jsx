@@ -5,6 +5,7 @@ import Button from '../ui/Button'
 
 const NAV_LINKS = [
   { label: 'Inicio', href: '#inicio' },
+  { label: 'Marketplace', href: '#/marketplace' },
   { label: 'Cómo funciona', href: '#como-funciona' },
 ]
 

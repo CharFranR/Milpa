@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Icon from '../ui/Icon'
 
 const PLATFORM_LINKS = [
-  { label: 'Marketplace', href: '#' },
+  { label: 'Marketplace', href: '#/marketplace' },
   { label: 'Para compradores', href: '#' },
   { label: 'Para productores', href: '#' },
   { label: 'Registrarse', href: '#' },

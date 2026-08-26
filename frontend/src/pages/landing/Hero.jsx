@@ -11,6 +11,7 @@ export default function Hero() {
 
   function handleSearch(e) {
     e.preventDefault()
+    window.location.hash = '#/marketplace'
   }
 
   return (
