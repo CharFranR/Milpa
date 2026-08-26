@@ -4,6 +4,7 @@ export const buyerProfile = {
   initials: 'SC',
   role: 'Comprador',
   city: 'Medellín',
+  region: 'Antioquia',
   email: 'sandra@correo.com',
   phone: '+57 310 555 0199',
 }
