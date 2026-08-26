@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 import { regions } from '../../mocks/catalog'
+import { setSessionRole } from '../../lib/session'
 
 const USER_TYPES = [
   {
@@ -61,7 +62,13 @@ export default function Register() {
     }
     setError('')
     setLoading(true)
-    setTimeout(() => setLoading(false), 1200)
+    setTimeout(() => {
+      setLoading(false)
+      if (userType === 'buyer') {
+        setSessionRole(userType)
+        window.location.hash = '#/dashboard'
+      }
+    }, 1200)
   }
 
   return (
