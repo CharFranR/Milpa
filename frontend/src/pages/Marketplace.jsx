@@ -3,8 +3,12 @@ import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Icon from '../components/ui/Icon'
 import ProductCardGrid from '../components/product/ProductCardGrid'
+import ProductCardList from '../components/product/ProductCardList'
 import FiltersSidebar, { PRICE_LIMIT } from '../components/marketplace/FiltersSidebar'
+import Pagination from '../components/marketplace/Pagination'
+import EmptyResults from '../components/marketplace/EmptyResults'
 import { producerById, products } from '../mocks/catalog'
+import { cn } from '../lib/cn'
 
 const SORT_OPTIONS = [
   { value: 'relevant', label: 'Más relevantes' },
@@ -19,20 +23,29 @@ const DEFAULT_FILTERS = {
   minRating: 0,
 }
 
+const PAGE_SIZE = 6
+
 export default function Marketplace() {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('relevant')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  const [view, setView] = useState('grid')
+  const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
 
   const visibleProducts = filterAndSortProducts(query, filters, sort)
+  const totalPages = Math.ceil(visibleProducts.length / PAGE_SIZE)
+  const paginatedProducts = paginateProducts(visibleProducts, page)
 
   function updateFilters(patch) {
     setFilters((current) => ({ ...current, ...patch }))
+    setPage(1)
   }
 
-  function clearFilters() {
+  function clearAll() {
+    setQuery('')
     setFilters(DEFAULT_FILTERS)
+    setPage(1)
   }
 
   return (
@@ -72,14 +85,20 @@ export default function Marketplace() {
               id="marketplace-search"
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setPage(1)
+              }}
               placeholder="Buscar productos o productores..."
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('')
+                  setPage(1)
+                }}
                 aria-label="Limpiar búsqueda"
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
               >
@@ -87,6 +106,8 @@ export default function Marketplace() {
               </button>
             )}
           </div>
+
+          <ViewToggle view={view} onChange={setView} />
 
           <button
             type="button"
@@ -104,7 +125,10 @@ export default function Marketplace() {
           <select
             id="marketplace-sort"
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
+            onChange={(e) => {
+              setSort(e.target.value)
+              setPage(1)
+            }}
             className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           >
             {SORT_OPTIONS.map((option) => (
@@ -119,22 +143,71 @@ export default function Marketplace() {
           <aside className="shrink-0 lg:w-60">
             <div className="lg:sticky lg:top-20">
               <div className={showFilters ? '' : 'hidden lg:block'}>
-                <FiltersSidebar filters={filters} onChange={updateFilters} onClear={clearFilters} />
+                <FiltersSidebar filters={filters} onChange={updateFilters} onClear={clearAll} />
               </div>
             </div>
           </aside>
 
           <section aria-label="Resultados" className="min-w-0 flex-1">
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {visibleProducts.map((product) => (
-                <ProductCardGrid key={product.id} productId={product.id} />
-              ))}
-            </div>
+            {visibleProducts.length === 0 ? (
+              <EmptyResults onClear={clearAll} />
+            ) : view === 'grid' ? (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {paginatedProducts.map((product) => (
+                  <ProductCardGrid key={product.id} productId={product.id} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedProducts.map((product) => (
+                  <ProductCardList key={product.id} productId={product.id} />
+                ))}
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+            )}
           </section>
         </div>
       </main>
 
       <Footer />
+    </div>
+  )
+}
+
+function ViewToggle({ view, onChange }) {
+  return (
+    <div
+      role="group"
+      aria-label="Modo de vista"
+      className="hidden items-center rounded-xl border border-gray-200 bg-white p-1 sm:flex"
+    >
+      <button
+        type="button"
+        onClick={() => onChange('grid')}
+        aria-pressed={view === 'grid'}
+        aria-label="Vista de cuadrícula"
+        className={cn(
+          'rounded-lg p-1.5 transition-colors',
+          view === 'grid' ? 'bg-brand-soft text-brand' : 'text-gray-400 hover:text-gray-600',
+        )}
+      >
+        <Icon name="grid_view" size={20} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('list')}
+        aria-pressed={view === 'list'}
+        aria-label="Vista de lista"
+        className={cn(
+          'rounded-lg p-1.5 transition-colors',
+          view === 'list' ? 'bg-brand-soft text-brand' : 'text-gray-400 hover:text-gray-600',
+        )}
+      >
+        <Icon name="view_list" size={20} />
+      </button>
     </div>
   )
 }
@@ -162,6 +235,11 @@ function matchesQuery(product, normalizedQuery) {
 
 function matchesCategory(product, category) {
   return category === 'all' || product.categoryId === category
+}
+
+function paginateProducts(items, page) {
+  const start = (page - 1) * PAGE_SIZE
+  return items.slice(start, start + PAGE_SIZE)
 }
 
 function sortProducts(items, sort) {

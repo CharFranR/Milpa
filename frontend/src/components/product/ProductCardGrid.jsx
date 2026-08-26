@@ -18,7 +18,7 @@ export default function ProductCardGrid({ productId }) {
         <ProductImage
           productId={product.id}
           name={product.name}
-          imgClassName="transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:!scale-100"
+          imgClassName="transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100!"
         />
         <span className="absolute left-3 top-3">
           <Badge tone="brand">{category.name}</Badge>
