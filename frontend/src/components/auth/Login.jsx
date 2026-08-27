@@ -74,6 +74,8 @@ export default function Login() {
       setSessionRole(current.key)
       if (current.key === 'buyer') {
         window.location.hash = '#/dashboard'
+      } else if (current.key === 'producer') {
+        window.location.hash = '#/producer'
       }
     }, 1000)
   }

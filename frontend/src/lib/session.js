@@ -15,3 +15,11 @@ export function clearSessionRole() {
 export function hasBuyerSession() {
   return getSessionRole() === 'buyer'
 }
+
+export function hasProducerSession() {
+  return getSessionRole() === 'producer'
+}
+
+export function hasAdminSession() {
+  return getSessionRole() === 'admin'
+}
