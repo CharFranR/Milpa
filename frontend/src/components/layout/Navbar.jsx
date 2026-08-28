@@ -1,21 +1,16 @@
 import { useEffect, useState } from 'react'
 import { cn } from '../../lib/cn'
-import { hasBuyerSession } from '../../lib/session'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 
-function buildNavLinks() {
-  return [
-    { label: 'Inicio', href: '#inicio' },
-    ...(hasBuyerSession() ? [{ label: 'Marketplace', href: '#/marketplace' }] : []),
-    { label: 'Cómo funciona', href: '#como-funciona' },
-  ]
-}
+const NAV_LINKS = [
+  { label: 'Inicio', href: '#inicio' },
+  { label: 'Cómo funciona', href: '#como-funciona' },
+]
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
-  const navLinks = buildNavLinks()
 
   const transparent = !scrolled && !open
 
@@ -49,7 +44,7 @@ export default function Navbar() {
         </a>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
-          {navLinks.map((link) => (
+          {NAV_LINKS.map((link) => (
             <a
               key={link.label}
               href={link.href}
@@ -91,7 +86,7 @@ export default function Navbar() {
       {open && (
         <div className="border-t border-gray-100 bg-white px-4 pb-6 pt-3 md:hidden">
           <nav className="flex flex-col" aria-label="Menú móvil">
-            {navLinks.map((link) => (
+            {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
                 href={link.href}

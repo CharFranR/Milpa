@@ -73,7 +73,7 @@ export default function Login() {
       setLoading(false)
       setSessionRole(current.key)
       if (current.key === 'buyer') {
-        window.location.hash = '#/marketplace'
+        window.location.hash = '#/dashboard'
       }
     }, 1000)
   }

@@ -1,25 +1,18 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
-import { hasBuyerSession } from '../../lib/session'
 
 const PLATFORM_LINKS = [
-  { label: 'Marketplace', href: '#/marketplace', buyerOnly: true },
   { label: 'Para compradores', href: '#' },
   { label: 'Para productores', href: '#' },
   { label: 'Registrarse', href: '#' },
   { label: 'Iniciar sesión', href: '#' },
 ]
 
-function visiblePlatformLinks() {
-  return PLATFORM_LINKS.filter((link) => !link.buyerOnly || hasBuyerSession())
-}
-
 const COMPANY_LINKS = ['Sobre nosotros', 'Blog', 'Prensa', 'Empleos', 'Contacto']
 
 export default function Footer() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
-  const platformLinks = visiblePlatformLinks()
 
   function handleSubscribe(e) {
     e.preventDefault()
@@ -51,7 +44,7 @@ export default function Footer() {
           <nav aria-label="Plataforma">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-white">Plataforma</h3>
             <ul className="mt-4 space-y-2.5">
-              {platformLinks.map((link) => (
+              {PLATFORM_LINKS.map((link) => (
                 <li key={link.label}>
                   <a href={link.href} className="text-sm text-gray-400 transition-colors hover:text-white">
                     {link.label}
