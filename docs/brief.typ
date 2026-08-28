@@ -4,7 +4,7 @@
 )
 
 #let proyecto = "Milpa"
-#let version = "2.0"
+#let version = "2.1"
 
 = Milpa: Eco-Mercado Digital
 Especificación de Requisitos de Software
@@ -22,6 +22,7 @@ Fecha: Julio 2026
   table.header("Fecha", "Revisión", "Autor", "Descripción"),
   [5/Jul/26], [1.0], [Oscar Reyes], [Propuesta inicial (reto incorrecto)],
   [26/Jul/26], [2.0], [Oscar Reyes], ["Reescritura completa para reto Eco-Mercado Digital"],
+  [15/Ago/26], [2.1], [Oscar Reyes], ["Adición del rol Auditor y del modelo RBAC de 3 roles (entregable Seguridad y Buenas Prácticas)"],
 )
 
 #pagebreak()
@@ -101,6 +102,8 @@ _Milpa_ es una plataforma digital cuyo propósito es funcionar como un mercado d
   ["Match"], ["Vínculo formal entre un comprador mayorista y un agricultor cuando el comprador acepta una oferta de abastecimiento."],
   ["API"], ["Application Programming Interface — interfaz de programación de aplicaciones."],
   ["JWT"], ["JSON Web Token — estándar para autenticación basada en tokens."],
+  ["RBAC"], ["Role-Based Access Control — control de acceso basado en roles."],
+  ["Auditor"], ["Rol de sistema con acceso de solo lectura a la información y a los registros de auditoría. No realiza operaciones de negocio ni de moderación."],
   ["ERS"], ["Especificación de Requisitos del Sistema."],
   ["MVP"], ["Producto Mínimo Viable."],
   ["RUC"], ["Registro Único de Contribuyente ( Nicaragua)."],
@@ -258,6 +261,13 @@ El agricultor con excedente de cosecha puede publicar una oferta de liquidación
 - Suspende usuarios que incumplen las normas.
 - Gestiona el catálogo de categorías y unidades de medida permitidas.
 
+=== Auditor
+
+- Rol de sistema asignado por el administrador, no seleccionable en el registro.
+- Acceso de solo lectura a la información de la plataforma y a los registros de auditoría.
+- No puede crear, editar, moderar ni eliminar contenido.
+- Consulta el historial de operaciones para fines de verificación y cumplimiento.
+
 == 2.4 Restricciones
 
 - Desarrollo en periodo limitado de Hackathon (aproximadamente 3 meses).
@@ -348,6 +358,7 @@ El sistema deberá permitir el registro de usuarios mediante correo electrónico
 - El usuario debe aceptar los términos y condiciones antes de completar el registro.
 - El usuario seleccionará su tipo de cuenta al registrarse: *Agricultor*, *Comprador Minorista*, *Comprador Mayorista Detallista*, *Comprador Mayorista Corporativo*.
 - Los tipos de cuenta no son intercambiables (un agricultor no puede actuar como comprador en la misma cuenta, y viceversa).
+- El rol *Auditor* no es un tipo de cuenta de registro: es asignado por el administrador a un usuario existente y confiere únicamente acceso de solo lectura.
 
 === RF-02: Autenticación y sesión
 
@@ -673,10 +684,11 @@ El sistema deberá permitir que los usuarios reporten publicaciones (productos, 
 El sistema deberá proporcionar un panel de administración para gestionar usuarios, tipos de producto, unidades de medida, reportes y moderación de contenido.
 
 *Funcionalidades del panel:*
-- Gestión de usuarios (ver, suspender, activar).
+- Gestión de usuarios (ver, suspender, activar, asignar rol Auditor).
 - Gestión del catálogo de tipos de producto y unidades de medida.
 - Gestión de reportes (bandeja de reportes con acciones de moderación).
 - Visualización básica de actividad de la plataforma.
+- Acceso a los registros de auditoría del sistema.
 
 #pagebreak()
 
@@ -809,6 +821,7 @@ La API deberá ser consumible desde aplicaciones web (React) y móviles (Flutter
 - Los agricultores deberán completar su perfil con nombre, ubicación y datos de contacto antes de publicar productos.
 - Los usuarios podrán ser suspendidos por incumplir las normas de la plataforma.
 - Los correos electrónicos y números de teléfono deben ser únicos.
+- El rol Auditor es un rol de solo lectura asignado por el administrador; no puede crear, editar ni moderar contenido.
 
 === B.2 Agricultores (individuales y empresas)
 
@@ -908,7 +921,7 @@ El modelo de dominio refleja las entidades principales del sistema Milpa. Las en
 #table(
   columns: (25%, 50%, 25%),
   table.header("Entidad", "Descripción", "Ajuste para Milpa"),
-  ["User (\*)"], ["Usuario del sistema con rol."], ["Los roles cambian de MIPYME/Provider a Agricultor/CompradorMinorista/CompradorMayoristaDetallista/CompradorMayoristaCorporativo/Admin."],
+  ["User (\*)"], ["Usuario del sistema con rol."], ["Los roles cambian de MIPYME/Provider a Agricultor/CompradorMinorista/CompradorMayoristaDetallista/CompradorMayoristaCorporativo/Admin/Auditor."],
   ["Company (\*)"], ["Empresa registrada con información fiscal."], ["Mapea a empresa agrícola. Se añade soporte para agricultores individuales sin empresa."],
   ["Address (\*)"], ["Dirección con coordenadas geográficas."], ["Se mantiene. Se añade relación directa con agricultor (no solo con empresa)."],
   ["Offering (\*)"], ["Producto o servicio publicado."], ["Pasa a ser exclusivamente producto agrícola. Se añade variedad, unidad de medida, cantidad disponible."],
@@ -939,4 +952,5 @@ El modelo de dominio refleja las entidades principales del sistema Milpa. Las en
   table.header("Fecha", "Versión", "Autor", "Cambios"),
   [5/Jul/26], [1.0], [Oscar Reyes], ["Documento inicial (basado en reto Plataforma de Proveedores)."],
   [26/Jul/26], [2.0], [Oscar Reyes], ["Reescritura completa: nuevo reto Eco-Mercado Digital, nombre Milpa, tres flujos comerciales, nuevo modelo de usuarios, reglas de negocio actualizadas."],
+  [15/Ago/26], [2.1], [Oscar Reyes], ["Adición del rol Auditor y del modelo RBAC de 3 roles (entregable Seguridad y Buenas Prácticas)."],
 )
