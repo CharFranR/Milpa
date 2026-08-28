@@ -4,6 +4,7 @@ import { productById, producerById, categoryById } from '../../mocks/catalog'
 import { formatPrice } from '../../lib/format'
 import Icon from '../ui/Icon'
 import Badge from '../ui/Badge'
+import ProductImage from './ProductImage'
 import StarRating from '../StarRating'
 
 export default function ProductCard({
@@ -33,9 +34,10 @@ export default function ProductCard({
         aria-hidden="true"
         tabIndex={-1}
       >
-        <div
-          className="h-full w-full transition-transform duration-300 group-hover:scale-105"
-          aria-hidden="true"
+        <ProductImage
+          productId={product.id}
+          name={product.name}
+          imgClassName="transition-transform duration-300 group-hover:scale-105"
         />
         <span className="absolute left-3 top-3">
           <Badge tone="brand">{category.name}</Badge>
