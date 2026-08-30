@@ -7,17 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
 type OfferingRepositoryImpl struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
-func NewOfferingRepository(pool *pgxpool.Pool) *OfferingRepositoryImpl {
+func NewOfferingRepository(pool DB) *OfferingRepositoryImpl {
 	return &OfferingRepositoryImpl{pool: pool}
 }
 

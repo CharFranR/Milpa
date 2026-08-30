@@ -5,17 +5,16 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
 type ReviewRepositoryImpl struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
-func NewReviewRepository(pool *pgxpool.Pool) *ReviewRepositoryImpl {
+func NewReviewRepository(pool DB) *ReviewRepositoryImpl {
 	return &ReviewRepositoryImpl{pool: pool}
 }
 

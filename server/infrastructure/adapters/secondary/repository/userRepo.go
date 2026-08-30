@@ -12,16 +12,11 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-type Pool interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-}
-
 type UserRepositoryImpl struct {
-	pool Pool
+	pool DB
 }
 
-func NewUserRepository(pool Pool) *UserRepositoryImpl {
+func NewUserRepository(pool DB) *UserRepositoryImpl {
 	return &UserRepositoryImpl{pool: pool}
 }
 

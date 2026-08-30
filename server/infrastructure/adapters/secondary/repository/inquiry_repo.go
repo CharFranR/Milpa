@@ -7,17 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
 type InquiryRepositoryImpl struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
-func NewInquiryRepository(pool *pgxpool.Pool) *InquiryRepositoryImpl {
+func NewInquiryRepository(pool DB) *InquiryRepositoryImpl {
 	return &InquiryRepositoryImpl{pool: pool}
 }
 

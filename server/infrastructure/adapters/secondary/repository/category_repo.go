@@ -7,17 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
 type CategoryRepositoryImpl struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
-func NewCategoryRepository(pool *pgxpool.Pool) *CategoryRepositoryImpl {
+func NewCategoryRepository(pool DB) *CategoryRepositoryImpl {
 	return &CategoryRepositoryImpl{pool: pool}
 }
 

@@ -7,17 +7,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
 type CompanyRepositoryImpl struct {
-	pool *pgxpool.Pool
+	pool DB
 }
 
-func NewCompanyRepository(pool *pgxpool.Pool) *CompanyRepositoryImpl {
+func NewCompanyRepository(pool DB) *CompanyRepositoryImpl {
 	return &CompanyRepositoryImpl{pool: pool}
 }
 
