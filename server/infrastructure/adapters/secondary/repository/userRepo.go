@@ -7,17 +7,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
 
-type UserRepositoryImpl struct {
-	pool *pgxpool.Pool
+type Pool interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewUserRepository(pool *pgxpool.Pool) *UserRepositoryImpl {
+type UserRepositoryImpl struct {
+	pool Pool
+}
+
+func NewUserRepository(pool Pool) *UserRepositoryImpl {
 	return &UserRepositoryImpl{pool: pool}
 }
 
@@ -127,7 +131,7 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 		user.PasswordHash)
 
 	if err != nil {
-		return fmt.Errorf("user.Save: insert user: %w", err)
+		return fmt.Errorf("user.Save: insert user: %v", err)
 	}
 
 	return tx.Commit(ctx)
