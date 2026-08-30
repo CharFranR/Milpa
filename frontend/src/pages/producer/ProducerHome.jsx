@@ -35,8 +35,8 @@ export default function ProducerHome() {
           <h2 className="text-lg font-semibold text-gray-900">Solicitudes recientes</h2>
           <Badge tone="red">5 nuevas</Badge>
         </div>
-        <div className="mt-3 rounded-xl border border-gray-100 bg-white overflow-hidden">
-          <table className="w-full text-sm" role="table">
+        <div className="mt-3 rounded-xl border border-gray-100 bg-white overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]" role="table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Comprador</th>
@@ -84,8 +84,8 @@ export default function ProducerHome() {
 
       <section aria-label="Mis productos">
         <h2 className="text-lg font-semibold text-gray-900">Mis productos</h2>
-        <div className="mt-3 rounded-xl border border-gray-100 bg-white overflow-hidden">
-          <table className="w-full text-sm" role="table">
+        <div className="mt-3 rounded-xl border border-gray-100 bg-white overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]" role="table">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Producto</th>
