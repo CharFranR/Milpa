@@ -92,6 +92,31 @@ func nullUUID(id uuid.UUID) *uuid.UUID {
 
 func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User) error {
 
+	if user.FirstName == "" {
+		return fmt.Errorf("user.Save: %w", domain.ErrFirstNameRequired)
+	}
+	if user.LastName == "" {
+		return fmt.Errorf("user.Save: %w", domain.ErrLastNameRequired)
+	}
+	if user.Email == "" {
+		return fmt.Errorf("user.Save: %w", domain.ErrEmailRequired)
+	}
+	if user.Role == 0 {
+		return fmt.Errorf("user.Save: %w", domain.ErrInvalidInput)
+	}
+
+	if !domain.ValidRole(user.Role) {
+		return fmt.Errorf("user.Save: %w", domain.ErrValidRoleRequired)
+	}
+
+	if user.PasswordHash == "" {
+		return fmt.Errorf("user.save: %w", domain.ErrPasswordRequired)
+	}
+
+	if user.PhoneNumber == "" {
+		return fmt.Errorf("user.Save: %w", domain.ErrPhoneNumberRequited)
+	}
+
 	tx, err := userRepo.pool.Begin(ctx)
 
 	if err != nil {

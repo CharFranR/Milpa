@@ -16,13 +16,13 @@ const (
 )
 
 type User struct {
-	ID           uuid.UUID
-	FirstName    string
-	LastName     string
-	Role         RoleOptions
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Address      Address
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+	Role      RoleOptions
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Address   Address
 
 	Email        string
 	PhoneNumber  string
@@ -79,6 +79,15 @@ func (r RoleOptions) String() string {
 		return "admin"
 	default:
 		return "unknown"
+	}
+}
+
+func ValidRole(r RoleOptions) bool {
+	switch r {
+	case RolePending, RoleMIPYME, RoleProvider, RoleAdmin:
+		return true
+	default:
+		return false
 	}
 }
 
