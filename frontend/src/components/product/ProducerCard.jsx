@@ -1,39 +1,73 @@
+import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import StarRating from '../StarRating'
+import Button from '../ui/Button'
+import { producerById } from '../../mocks/catalog'
 
-export default function ProducerCard({ producer }) {
+export default function ProducerCard({
+  producerId,
+  showActions = true,
+  className,
+}) {
+  const producer = producerById(producerId)
+
+  if (!producer) return null
+
+  const initials = producer.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+
   return (
-    <article className="flex flex-col rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gray-200">
-        <div className="h-full w-full" aria-hidden="true" />
+    <article className={cn('rounded-2xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow', className)}>
+      <div className="flex items-center gap-4">
+        <span
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand text-xl font-bold"
+          role="img"
+          aria-label={producer.name}
+        >
+          {initials}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900 truncate">{producer.name}</h3>
+            <span className="inline-flex h-2 w-2 rounded-full bg-green-500" aria-label="Activo" />
+          </div>
+          <p className="mt-0.5 text-sm text-gray-500 truncate">{producer.farm}</p>
+          <p className="text-sm text-gray-500">
+            <Icon name="location_on" size={14} className="inline-block mr-1" />
+            {producer.city}, {producer.region}
+          </p>
+        </div>
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-gray-900">{producer.name}</h3>
-      <p className="text-sm text-gray-500">{producer.farm}</p>
-      <p className="mt-1 inline-flex items-center justify-center gap-1 text-sm text-gray-500">
-        <Icon name="location_on" size={15} className="text-brand" />
-        {producer.city}, {producer.region}
-      </p>
-      <div className="mt-3 flex items-center justify-center gap-1">
-        <StarRating rating={producer.rating} reviews={producer.reviews} size={14} />
-      </div>
-      <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-        {producer.specialties.slice(0, 3).map((s) => (
-          <span
-            key={s}
-            className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand"
-          >
-            {s}
+
+      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+        <div className="flex items-center gap-3 text-sm text-gray-500">
+          <span className="flex items-center gap-1">
+            <Icon name="inventory_2" size={14} />
+            {producer.productsCount} productos
           </span>
-        ))}
+          <span className="flex items-center gap-1">
+            <StarRating rating={producer.rating} size={12} showValue />
+          </span>
+          <span className="flex items-center gap-1">
+            <Icon name="calendar_today" size={14} />
+            Desde {producer.since}
+          </span>
+        </div>
+
+        {showActions && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              Ver perfil
+            </Button>
+            <Button variant="primary" size="sm">
+              Gestionar
+            </Button>
+          </div>
+        )}
       </div>
-      <p className="mt-4 text-xs text-gray-400">{producer.productsCount} productos activos</p>
-      <a
-        href="#"
-        className="mt-4 inline-flex items-center justify-center gap-1 rounded-full text-sm font-semibold text-brand transition-colors hover:text-brand-dark"
-      >
-        Ver perfil
-        <Icon name="arrow_forward" size={16} />
-      </a>
     </article>
   )
 }

@@ -67,6 +67,9 @@ export default function Register() {
       if (userType === 'buyer') {
         setSessionRole(userType)
         window.location.hash = '#/dashboard'
+      } else if (userType === 'producer') {
+        setSessionRole(userType)
+        window.location.hash = '#/producer'
       }
     }, 1200)
   }
