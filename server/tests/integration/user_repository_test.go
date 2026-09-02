@@ -16,6 +16,7 @@ import (
 
 var fixedTime time.Time = time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC)
 var testUserID uuid.UUID = uuid.MustParse("11111111-1111-1111-1111-111111111111")
+var testUserID2 uuid.UUID = uuid.MustParse("11111111-1111-1111-1111-111111111112")
 
 func TestSave(t *testing.T) {
 
@@ -164,7 +165,7 @@ func TestSave(t *testing.T) {
 		},
 		{
 			Name:        "No phone number",
-			ExpectedErr: domain.ErrPhoneNumberRequited,
+			ExpectedErr: domain.ErrPhoneNumberRequired,
 			User: &domain.User{
 				ID:           testUserID,
 				FirstName:    "John",
@@ -233,8 +234,8 @@ func TestUpdate(t *testing.T) {
 
 	tests := []struct {
 		Name          string
-		update_params func(user_ID uuid.UUID) *domain.User
 		ExpectedErr   error
+		update_params func(user_ID uuid.UUID) *domain.User
 	}{
 		{
 			Name: "Happy path",
@@ -250,10 +251,11 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 		{
-			Name: "same params",
+			Name:        "not a valid ID",
+			ExpectedErr: domain.ErrUserNotFound,
 			update_params: func(user_ID uuid.UUID) *domain.User {
 				return &domain.User{
-					ID:          user_ID,
+					ID:          testUserID2,
 					FirstName:   BasicUser.FirstName,
 					LastName:    BasicUser.LastName,
 					Email:       BasicUser.Email,
@@ -288,7 +290,7 @@ func TestUpdate(t *testing.T) {
 
 		t.Run(tt.Name, func(t *testing.T) {
 
-			db.Update(context.Background(), tt.update_params(parsedID))
+			err := db.Update(context.Background(), tt.update_params(parsedID))
 
 			if tt.ExpectedErr != nil {
 				if err == nil {

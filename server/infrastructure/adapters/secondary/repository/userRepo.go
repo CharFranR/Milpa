@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -87,7 +88,7 @@ func (userRepo *UserRepositoryImpl) ExistsByID(ctx context.Context, id string) (
 	var exists bool
 
 	query := `
-		SELECT EXISTS(SELECT 1 FROM user WHERE email = $1::text)
+		SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)
 	`
 	err := userRepo.pool.QueryRow(ctx, query, id).Scan(&exists)
 
@@ -129,7 +130,7 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 	}
 
 	if user.PhoneNumber == "" {
-		return "", fmt.Errorf("user.Save: %w", domain.ErrPhoneNumberRequited)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrPhoneNumberRequired)
 	}
 
 	tx, err := userRepo.pool.Begin(ctx)
@@ -181,10 +182,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 
 func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.User) error {
 
-	exists_id, _ := userRepo.ExistsByID(context.Background(), user.ID.String())
+	exists_id, err := userRepo.ExistsByID(context.Background(), user.ID.String())
+
+	log.Printf("el resultado es: %v, %v", exists_id, err)
 
 	if !exists_id {
-		return fmt.Errorf("no user found with the id")
+		return fmt.Errorf("user.update: %w", domain.ErrUserNotFound)
 	}
 
 	tx, err := userRepo.pool.Begin(ctx)

@@ -23,5 +23,6 @@ var (
 	ErrAddressLineRequired  = errors.New("address line is required")
 	ErrOwnerRequired        = errors.New("company must have an owner")
 	ErrValidRoleRequired    = errors.New("valid user role is required ")
-	ErrPhoneNumberRequited  = errors.New("A phone number is required")
+	ErrPhoneNumberRequired  = errors.New("A phone number is required")
+	ErrUserNotFound         = errors.New("user not found")
 )
