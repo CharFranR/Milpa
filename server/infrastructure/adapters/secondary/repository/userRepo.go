@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -182,12 +181,36 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 
 func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.User) error {
 
-	exists_id, err := userRepo.ExistsByID(context.Background(), user.ID.String())
+	if user.FirstName == "" {
+		return fmt.Errorf("user.Update: %w", domain.ErrFirstNameRequired)
+	}
+	if user.LastName == "" {
+		return fmt.Errorf("user.Update: %w", domain.ErrLastNameRequired)
+	}
+	if user.Email == "" {
+		return fmt.Errorf("user.Update: %w", domain.ErrEmailRequired)
+	}
+	if user.Role == 0 {
+		return fmt.Errorf("user.Update: %w", domain.ErrInvalidInput)
+	}
+	if !domain.ValidRole(user.Role) {
+		return fmt.Errorf("user.Update: %w", domain.ErrValidRoleRequired)
+	}
+	if user.PasswordHash == "" {
+		return fmt.Errorf("user.Update: %w", domain.ErrPasswordRequired)
+	}
+	if user.PhoneNumber == "" {
+		return fmt.Errorf("user.Update: %w", domain.ErrPhoneNumberRequired)
+	}
 
-	log.Printf("el resultado es: %v, %v", exists_id, err)
+	exists_id, err := userRepo.ExistsByID(ctx, user.ID.String())
+
+	if err != nil {
+		return fmt.Errorf("user.Update: %w", err)
+	}
 
 	if !exists_id {
-		return fmt.Errorf("user.update: %w", domain.ErrUserNotFound)
+		return fmt.Errorf("user.Update: %w", domain.ErrUserNotFound)
 	}
 
 	tx, err := userRepo.pool.Begin(ctx)
