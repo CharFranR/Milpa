@@ -197,7 +197,7 @@ func TestSave(t *testing.T) {
 
 		t.Run(tt.Name, func(t *testing.T) {
 
-			err = db.Save(context.Background(), tt.User)
+			_, err = db.Save(context.Background(), tt.User)
 
 			if tt.ExpectedErr != nil {
 				if err == nil {
@@ -214,5 +214,84 @@ func TestSave(t *testing.T) {
 
 		})
 	}
+}
 
+func TestUpdate(t *testing.T) {
+
+	BasicUser := domain.User{
+		ID:           testUserID,
+		FirstName:    "John",
+		LastName:     "Doe",
+		Role:         domain.RoleOptions(1),
+		Address:      domain.Address{},
+		Email:        "john@example.com",
+		PhoneNumber:  "1234-5678",
+		PasswordHash: "lamejorcontrasenia1233",
+		CreatedAt:    fixedTime,
+		UpdatedAt:    fixedTime,
+	}
+
+	tests := []struct {
+		Name          string
+		init_user     *domain.User
+		update_params func(user_ID uuid.UUID) *domain.User
+		ExpectedErr   error
+	}{
+		{
+			Name:      "Happy path",
+			init_user: &BasicUser,
+			update_params: func(user_ID uuid.UUID) *domain.User {
+				return &domain.User{
+					ID:          user_ID,
+					FirstName:   "Jane",
+					LastName:    "Doe",
+					Email:       "jane@milpa.com",
+					PhoneNumber: "8765-4321",
+				}
+
+			},
+		},
+	}
+
+	PoolConnection, container, err := InitTestDB()
+
+	if err != nil {
+		t.Fatalf("fail to init db test connection: %v", err)
+	}
+
+	db := repository.NewUserRepository(PoolConnection)
+
+	defer func() {
+		if err := testcontainers.TerminateContainer(*container); err != nil {
+			log.Printf("failed to terminate container: %s", err)
+		}
+	}()
+
+	id, _ := db.Save(context.Background(), &BasicUser)
+
+	parsedID, _ := uuid.Parse(id)
+
+	db.Save(context.Background(), &BasicUser)
+
+	for _, tt := range tests {
+
+		t.Run(tt.Name, func(t *testing.T) {
+
+			db.Update(context.Background(), tt.update_params(parsedID))
+
+			if tt.ExpectedErr != nil {
+				if err == nil {
+					t.Errorf("Save() error = nil, wantErr %v", tt.ExpectedErr)
+				} else if !errors.Is(err, tt.ExpectedErr) {
+					t.Errorf("Save() error = %v, wantErr %v", err, tt.ExpectedErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Save() unexpected error: %v", err)
+			}
+
+		})
+	}
 }

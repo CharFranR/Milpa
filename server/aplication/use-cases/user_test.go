@@ -57,8 +57,8 @@ func TestUserUseCaseRegister(t *testing.T) {
 				}
 			}
 			if tt.saveErr != nil {
-				userRepo.save = func(ctx context.Context, user *domain.User) error {
-					return tt.saveErr
+				userRepo.save = func(ctx context.Context, user *domain.User) (string, error) {
+					return "", tt.saveErr
 				}
 			}
 			hasher := newFakeHasher()

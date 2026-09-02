@@ -65,11 +65,15 @@ func TestUserSave(t *testing.T) {
 			wantErr: false,
 			user:    u,
 			expect: func(m pgxmock.PgxPoolIface) {
+
 				m.ExpectBegin()
-				m.ExpectExec(`INSERT INTO users`).
+
+				rows := pgxmock.NewRows([]string{"id"}).AddRow(testAddressID.String())
+
+				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
-						u.Email, u.PhoneNumber, u.PasswordHash).
-					WillReturnResult(pgxmock.NewResult("INSERT", 1))
+						u.Email, u.PhoneNumber, u.PasswordHash).WillReturnRows(rows)
+
 				m.ExpectCommit()
 			},
 		},
@@ -80,15 +84,16 @@ func TestUserSave(t *testing.T) {
 			expect: func(m pgxmock.PgxPoolIface) {
 
 				rows := pgxmock.NewRows([]string{"id"}).AddRow(testAddressID.String())
+				rows2 := pgxmock.NewRows([]string{"id"}).AddRow(u_with_address.ID.String())
 
 				m.ExpectBegin()
 				m.ExpectQuery("INSERT INTO addresses").
 					WithArgs(pgxmock.AnyArg(), u_with_address.Address.Department, u_with_address.Address.Municipality, u_with_address.Address.AddressLine, u_with_address.Address.Latitude, u_with_address.Address.Longitude).
 					WillReturnRows(rows)
 
-				m.ExpectExec(`INSERT INTO users`).
+				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u_with_address.ID, u_with_address.FirstName, u_with_address.LastName, u_with_address.Role, u_with_address.CreatedAt, u_with_address.UpdatedAt, &testAddressID, u_with_address.Email, u_with_address.PhoneNumber, u_with_address.PasswordHash).
-					WillReturnResult(pgxmock.NewResult("INSERT", 1))
+					WillReturnRows(rows2)
 
 				m.ExpectCommit()
 
@@ -111,10 +116,12 @@ func TestUserSave(t *testing.T) {
 			user:    u,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectBegin()
-				m.ExpectExec(`INSERT INTO users`).
+
+				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
 						u.Email, u.PhoneNumber, u.PasswordHash).
 					WillReturnError(errors.New("db write failed"))
+
 				m.ExpectRollback()
 			},
 		},
@@ -131,11 +138,15 @@ func TestUserSave(t *testing.T) {
 			wantErr: true,
 			user:    u,
 			expect: func(m pgxmock.PgxPoolIface) {
+				rows := pgxmock.NewRows([]string{"id"}).AddRow(testAddressID.String())
+
 				m.ExpectBegin()
-				m.ExpectExec("INSERT INTO user").WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID, u.Email, u.PhoneNumber, u.PasswordHash).WillReturnResult(pgxmock.NewResult("INSERT", 1))
+
+				m.ExpectQuery(`INSERT INTO users`).
+					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
+						u.Email, u.PhoneNumber, u.PasswordHash).WillReturnRows(rows)
 
 				m.ExpectCommit().WillReturnError(errors.New("db commit failed"))
-				m.ExpectRollback()
 
 			},
 		},
@@ -156,7 +167,7 @@ func TestUserSave(t *testing.T) {
 
 			tt.expect(mockPool)
 
-			err = repo.Save(
+			_, err = repo.Save(
 				context.Background(),
 				tt.user,
 			)

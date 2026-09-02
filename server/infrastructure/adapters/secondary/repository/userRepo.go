@@ -90,37 +90,37 @@ func nullUUID(id uuid.UUID) *uuid.UUID {
 	return &id
 }
 
-func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User) error {
+func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User) (string, error) {
 
 	if user.FirstName == "" {
-		return fmt.Errorf("user.Save: %w", domain.ErrFirstNameRequired)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrFirstNameRequired)
 	}
 	if user.LastName == "" {
-		return fmt.Errorf("user.Save: %w", domain.ErrLastNameRequired)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrLastNameRequired)
 	}
 	if user.Email == "" {
-		return fmt.Errorf("user.Save: %w", domain.ErrEmailRequired)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrEmailRequired)
 	}
 	if user.Role == 0 {
-		return fmt.Errorf("user.Save: %w", domain.ErrInvalidInput)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrInvalidInput)
 	}
 
 	if !domain.ValidRole(user.Role) {
-		return fmt.Errorf("user.Save: %w", domain.ErrValidRoleRequired)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrValidRoleRequired)
 	}
 
 	if user.PasswordHash == "" {
-		return fmt.Errorf("user.save: %w", domain.ErrPasswordRequired)
+		return "", fmt.Errorf("user.save: %w", domain.ErrPasswordRequired)
 	}
 
 	if user.PhoneNumber == "" {
-		return fmt.Errorf("user.Save: %w", domain.ErrPhoneNumberRequited)
+		return "", fmt.Errorf("user.Save: %w", domain.ErrPhoneNumberRequited)
 	}
 
 	tx, err := userRepo.pool.Begin(ctx)
 
 	if err != nil {
-		return fmt.Errorf("user.Save: %w", err)
+		return "", fmt.Errorf("user.Save: %w", err)
 	}
 
 	defer tx.Rollback(ctx)
@@ -138,23 +138,30 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 			user.Address.AddressLine, user.Address.Latitude, user.Address.Longitude).Scan(&AddressID)
 
 		if err != nil {
-			return fmt.Errorf("user.Save: %w", err)
+			return "", fmt.Errorf("user.Save: %w", err)
 		}
 
 	}
 
+	var id string
+
 	query := `
 		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash)
 		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		returning id
 	`
-	_, err = tx.Exec(ctx, query, user.ID, user.FirstName, user.LastName, user.Role, user.CreatedAt, user.UpdatedAt, nullUUID(AddressID), user.Email, user.PhoneNumber,
-		user.PasswordHash)
+	err = tx.QueryRow(ctx, query, user.ID, user.FirstName, user.LastName, user.Role, user.CreatedAt, user.UpdatedAt, nullUUID(AddressID), user.Email, user.PhoneNumber,
+		user.PasswordHash).Scan(&id)
 
 	if err != nil {
-		return fmt.Errorf("user.Save: insert user: %v", err)
+		return "", fmt.Errorf("user.Save: insert user: %v", err)
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("user.Save commit: %w", err)
+	}
+
+	return id, nil
 }
 
 func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.User) error {

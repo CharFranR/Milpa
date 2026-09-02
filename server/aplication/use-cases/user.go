@@ -67,7 +67,7 @@ func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserReq
 	user.PhoneNumber = req.PhoneNumber
 	user.Address = domain.Address{AddressLine: req.Address}
 
-	if err := uc.userRepo.Save(ctx, user); err != nil {
+	if _, err := uc.userRepo.Save(ctx, user); err != nil {
 		return nil, err
 	}
 
