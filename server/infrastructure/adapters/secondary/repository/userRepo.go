@@ -83,6 +83,21 @@ func (userRepo *UserRepositoryImpl) ExistsByEmail(ctx context.Context, email str
 
 }
 
+func (userRepo *UserRepositoryImpl) ExistsByID(ctx context.Context, id string) (bool, error) {
+	var exists bool
+
+	query := `
+		SELECT EXISTS(SELECT 1 FROM user WHERE email = $1::text)
+	`
+	err := userRepo.pool.QueryRow(ctx, query, id).Scan(&exists)
+
+	if err != nil {
+		return false, fmt.Errorf("user.ExistsById: %w", err)
+	}
+
+	return exists, nil
+}
+
 func nullUUID(id uuid.UUID) *uuid.UUID {
 	if id == uuid.Nil {
 		return nil
@@ -165,6 +180,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 }
 
 func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.User) error {
+
+	exists_id, _ := userRepo.ExistsByID(context.Background(), user.ID.String())
+
+	if !exists_id {
+		return fmt.Errorf("no user found with the id")
+	}
 
 	tx, err := userRepo.pool.Begin(ctx)
 

@@ -100,11 +100,13 @@ type fakeUserRepo struct {
 	findByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	findByEmail   func(ctx context.Context, email string) (*domain.User, error)
 	existsByEmail func(ctx context.Context, email string) (bool, error)
+	existsByID    func(ctx context.Context, id string) (bool, error)
 	save          func(ctx context.Context, user *domain.User) (string, error)
 	update        func(ctx context.Context, user *domain.User) error
 	saved         []*domain.User
 	updated       []*domain.User
 	existedEmails []string
+	existedID     []string
 }
 
 func newFakeUserRepo() *fakeUserRepo {
@@ -123,6 +125,12 @@ func newFakeUserRepo() *fakeUserRepo {
 		f.existedEmails = append(f.existedEmails, email)
 		return false, nil
 	}
+
+	f.existsByID = func(ctx context.Context, id string) (bool, error) {
+		f.existedID = append(f.existedID, id)
+		return false, nil
+	}
+
 	f.save = func(ctx context.Context, user *domain.User) (string, error) {
 		f.saved = append(f.saved, user)
 		return "", nil
@@ -144,6 +152,10 @@ func (f *fakeUserRepo) FindByEmail(ctx context.Context, email string) (*domain.U
 
 func (f *fakeUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return f.existsByEmail(ctx, email)
+}
+
+func (f *fakeUserRepo) ExistsByID(ctx context.Context, id string) (bool, error) {
+	return f.existsByEmail(ctx, id)
 }
 
 func (f *fakeUserRepo) Save(ctx context.Context, user *domain.User) (string, error) {

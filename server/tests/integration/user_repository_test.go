@@ -233,13 +233,11 @@ func TestUpdate(t *testing.T) {
 
 	tests := []struct {
 		Name          string
-		init_user     *domain.User
 		update_params func(user_ID uuid.UUID) *domain.User
 		ExpectedErr   error
 	}{
 		{
-			Name:      "Happy path",
-			init_user: &BasicUser,
+			Name: "Happy path",
 			update_params: func(user_ID uuid.UUID) *domain.User {
 				return &domain.User{
 					ID:          user_ID,
@@ -247,6 +245,19 @@ func TestUpdate(t *testing.T) {
 					LastName:    "Doe",
 					Email:       "jane@milpa.com",
 					PhoneNumber: "8765-4321",
+				}
+
+			},
+		},
+		{
+			Name: "same params",
+			update_params: func(user_ID uuid.UUID) *domain.User {
+				return &domain.User{
+					ID:          user_ID,
+					FirstName:   BasicUser.FirstName,
+					LastName:    BasicUser.LastName,
+					Email:       BasicUser.Email,
+					PhoneNumber: BasicUser.PhoneNumber,
 				}
 
 			},
