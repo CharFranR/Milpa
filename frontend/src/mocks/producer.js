@@ -96,7 +96,7 @@ export const producerConversations = [
 ]
 
 export const producerBusiness = {
-  farmPhoto: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=64&h=64&fit=crop',
+  farmPhoto: '',
   farmName: 'Finca La Esperanza',
   location: 'Choachí, Cundinamarca',
   since: 2004,

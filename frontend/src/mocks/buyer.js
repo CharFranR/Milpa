@@ -3,7 +3,7 @@ export const buyerProfile = {
   fullName: 'Sandra Campos Ruiz',
   initials: 'SC',
   role: 'Comprador',
-  city: 'Medellín',
+  city: 'Nicaragua',
   region: 'Antioquia',
   email: 'sandra@correo.com',
   phone: '+57 310 555 0199',

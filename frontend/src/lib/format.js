@@ -1,6 +1,6 @@
-const priceFormatter = new Intl.NumberFormat('es-CO', {
+const priceFormatter = new Intl.NumberFormat('es-NI', {
   style: 'currency',
-  currency: 'COP',
+  currency: 'NIO',
   maximumFractionDigits: 0,
 })
 
@@ -9,5 +9,5 @@ export function formatPrice(value) {
 }
 
 export function money(value) {
-  return String(value).toLocaleString('es-CO')
+  return String(value).toLocaleString('es-NI')
 }
