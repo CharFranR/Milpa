@@ -3,7 +3,9 @@ package integration
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
+	"testing"
 
 	"milpa/infrastructure/database"
 
@@ -11,9 +13,15 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func CreateTestContainer() (*postgres.PostgresContainer, error) {
+var (
+	TestPool     *pgxpool.Pool
+	TestContainer *postgres.PostgresContainer
+)
 
-	db_credentials := struct {
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	dbCredentials := struct {
 		dbName         string
 		dbUser         string
 		dbPassword     string
@@ -25,45 +33,46 @@ func CreateTestContainer() (*postgres.PostgresContainer, error) {
 		migrationsPath: "../../infrastructure/adapters/secondary/repository/migrations",
 	}
 
-	postgresContainer, err := postgres.Run(context.Background(),
+	postgresContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine",
 		postgres.WithOrderedInitScripts(
-			// Deuda tecnica, hardcode
-			filepath.Join(db_credentials.migrationsPath, "000001_create_addresses.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000002_create_categories.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000003_create_users.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000004_create_companies.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000005_create_company_categories.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000006_create_offerings.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000007_create_inquiries.up.sql"),
-			filepath.Join(db_credentials.migrationsPath, "000008_create_reviews.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000001_create_addresses.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000002_create_categories.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000003_create_users.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000004_create_companies.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000005_create_company_categories.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000006_create_offerings.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000007_create_inquiries.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000008_create_reviews.up.sql"),
 		),
-		postgres.WithDatabase(db_credentials.dbName),
-		postgres.WithUsername(db_credentials.dbUser),
-		postgres.WithPassword(db_credentials.dbPassword),
+		postgres.WithDatabase(dbCredentials.dbName),
+		postgres.WithUsername(dbCredentials.dbUser),
+		postgres.WithPassword(dbCredentials.dbPassword),
 		postgres.BasicWaitStrategies(),
 	)
-
 	if err != nil {
-
-		log.Printf("failed to start container: %s", err)
-		return nil, err
+		log.Fatalf("failed to start container: %s", err)
 	}
 
-	return postgresContainer, err
-}
-
-func InitTestDB() (*pgxpool.Pool, *postgres.PostgresContainer, error) {
-	db, err := CreateTestContainer()
-
+	connStr, err := postgresContainer.ConnectionString(ctx)
 	if err != nil {
-		log.Printf("failed no init test DB: %v", err)
-
+		log.Fatalf("failed to get connection string: %v", err)
 	}
 
-	DatabaseURL, err := db.ConnectionString(context.Background())
+	pool, err := database.CreatePool(ctx, connStr)
+	if err != nil {
+		log.Fatalf("failed to create pool: %v", err)
+	}
 
-	PoolConnection, err := database.CreatePool(context.Background(), DatabaseURL)
+	TestPool = pool
+	TestContainer = postgresContainer
 
-	return PoolConnection, db, err
+	code := m.Run()
+
+	pool.Close()
+	if err := postgresContainer.Terminate(ctx); err != nil {
+		log.Printf("failed to terminate container: %s", err)
+	}
+
+	os.Exit(code)
 }

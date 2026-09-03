@@ -3,14 +3,12 @@ package integration
 import (
 	"context"
 	"errors"
-	"log"
 	domain "milpa/domain/entities"
 	"milpa/infrastructure/adapters/secondary/repository"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/testcontainers/testcontainers-go"
 )
 
 var fixedTime time.Time = time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC)
@@ -33,17 +31,7 @@ func basicUser(id uuid.UUID) *domain.User {
 }
 
 func TestSave(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	tests := []struct {
 		Name        string
@@ -176,7 +164,7 @@ func TestSave(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			_, err = db.Save(context.Background(), tt.User)
+			_, err := db.Save(context.Background(), tt.User)
 
 			if tt.ExpectedErr != nil {
 				if err == nil {
@@ -195,24 +183,13 @@ func TestSave(t *testing.T) {
 }
 
 func TestFindByID(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
-	id, err := db.Save(context.Background(), savedUser)
+	_, err := db.Save(context.Background(), savedUser)
 	if err != nil {
 		t.Fatalf("Save() error: %v", err)
 	}
-	_ = id
 
 	tests := []struct {
 		Name        string
@@ -275,20 +252,10 @@ func TestFindByID(t *testing.T) {
 }
 
 func TestFindByEmail(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
-	_, err = db.Save(context.Background(), savedUser)
+	_, err := db.Save(context.Background(), savedUser)
 	if err != nil {
 		t.Fatalf("Save() error: %v", err)
 	}
@@ -345,20 +312,10 @@ func TestFindByEmail(t *testing.T) {
 }
 
 func TestExistsByEmail(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
-	_, err = db.Save(context.Background(), savedUser)
+	_, err := db.Save(context.Background(), savedUser)
 	if err != nil {
 		t.Fatalf("Save() error: %v", err)
 	}
@@ -395,20 +352,10 @@ func TestExistsByEmail(t *testing.T) {
 }
 
 func TestExistsByID(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
-	_, err = db.Save(context.Background(), savedUser)
+	_, err := db.Save(context.Background(), savedUser)
 	if err != nil {
 		t.Fatalf("Save() error: %v", err)
 	}
@@ -445,17 +392,7 @@ func TestExistsByID(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	PoolConnection, container, err := InitTestDB()
-	if err != nil {
-		t.Fatalf("fail to init db test connection: %v", err)
-	}
-	db := repository.NewUserRepository(PoolConnection)
-
-	defer func() {
-		if err := testcontainers.TerminateContainer(*container); err != nil {
-			log.Printf("failed to terminate container: %s", err)
-		}
-	}()
+	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
 	id, err := db.Save(context.Background(), savedUser)

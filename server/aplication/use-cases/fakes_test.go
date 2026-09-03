@@ -305,6 +305,8 @@ func (f *fakeReviewRepo) Save(ctx context.Context, review *domain.Review) error 
 type fakeCategoryRepo struct {
 	findAll  func(ctx context.Context) ([]domain.Category, error)
 	findByID func(ctx context.Context, id uuid.UUID) (*domain.Category, error)
+	save     func(ctx context.Context, category *domain.Category) error
+	saved    []*domain.Category
 }
 
 func newFakeCategoryRepo() *fakeCategoryRepo {
@@ -317,6 +319,10 @@ func newFakeCategoryRepo() *fakeCategoryRepo {
 		category.ID = id
 		return category, nil
 	}
+	f.save = func(ctx context.Context, category *domain.Category) error {
+		f.saved = append(f.saved, category)
+		return nil
+	}
 	return f
 }
 
@@ -326,6 +332,10 @@ func (f *fakeCategoryRepo) FindAll(ctx context.Context) ([]domain.Category, erro
 
 func (f *fakeCategoryRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
 	return f.findByID(ctx, id)
+}
+
+func (f *fakeCategoryRepo) Save(ctx context.Context, category *domain.Category) error {
+	return f.save(ctx, category)
 }
 
 type fakeInquiryRepo struct {
