@@ -1,12 +1,12 @@
 export const buyerProfile = {
-  name: 'Sandra Campos',
-  fullName: 'Sandra Campos Ruiz',
-  initials: 'SC',
+  name: 'Sandra Martínez',
+  fullName: 'Sandra Martínez López',
+  initials: 'SM',
   role: 'Comprador',
-  city: 'Nicaragua',
-  region: 'Antioquia',
-  email: 'sandra@correo.com',
-  phone: '+57 310 555 0199',
+  city: 'Managua',
+  region: 'Managua',
+  email: 'sandra.martinez@correo.ni',
+  phone: '+505 8888 4444',
 }
 
 export const homeStats = [
@@ -23,79 +23,79 @@ export const quickActions = [
   { icon: 'chat_bubble', label: 'Mis mensajes', tab: 'mensajes' },
 ]
 
-export const recommendedProductIds = ['tomates-cherry', 'aguacate-hass', 'fresas-rubra', 'miel-pura']
+export const recommendedProductIds = ['cafe-altura-shg', 'frijol-rojo-seda', 'queso-seco-artesanal', 'miel-cafe']
 
 export const favoriteProductIds = [
-  'tomates-cherry',
-  'aguacate-hass',
-  'fresas-rubra',
+  'cafe-altura-shg',
+  'frijol-rojo-seda',
+  'platano-burro',
   'miel-pura',
-  'lechuga-butter',
-  'queso-campesino',
+  'lechuga-fresca',
+  'queso-seco-artesanal',
 ]
 
 export const recentActivity = [
   {
     icon: 'favorite',
     tone: 'red',
-    text: 'Guardaste "Tomates Cherry Orgánicos" en favoritos',
+    text: 'Guardaste "Café de Altura SHG" en favoritos',
     time: 'Hace 2 horas',
   },
   {
     icon: 'chat_bubble',
     tone: 'blue',
-    text: 'Contactaste a María González de Finca La Esperanza',
+    text: 'Contactaste a Juan Ramón Martínez de Cooperativa Café del Norte',
     time: 'Ayer',
   },
   {
     icon: 'search',
     tone: 'brand',
-    text: 'Buscaste "aguacate hass boyacá"',
+    text: 'Buscaste "frijol rojo seda Matagalpa"',
     time: 'Hace 2 días',
   },
 ]
 
 export const conversations = [
   {
-    id: 'maria-gonzalez',
-    name: 'María González',
-    farm: 'Finca La Esperanza',
-    initials: 'MG',
-    lastMessage: 'Perfecto, nos vemos el martes en la plaza',
+    id: 'cooperativa-cafe-norte',
+    name: 'Juan Ramón Martínez',
+    farm: 'Cooperativa Café del Norte',
+    initials: 'JR',
+    lastMessage: 'Tenemos café de la nueva cosecha, ¿te interesa?',
     time: '10:23',
     unread: 2,
   },
   {
-    id: 'carlos-rios',
-    name: 'Carlos Ríos',
-    farm: 'Finca El Roble',
-    initials: 'CR',
-    lastMessage: 'El aguacate ya está en su punto, te lo aparto',
+    id: 'frijoles-sebaco',
+    name: 'Doña María López',
+    farm: 'Finca El Porvenir',
+    initials: 'ML',
+    lastMessage: 'El frijol rojo seda está listo para envío',
     time: 'Ayer',
     unread: 0,
   },
   {
-    id: 'ana-lucia-mora',
-    name: 'Ana Lucía Mora',
-    farm: 'Huerta La Violeta',
-    initials: 'AM',
-    lastMessage: 'Esta semana entra cosecha nueva de fresas',
+    id: 'ganaderia-chontales',
+    name: 'Roberto Sánchez',
+    farm: 'Hacienda San José',
+    initials: 'RS',
+    lastMessage: 'Tenemos queso seco y cuajada fresca esta semana',
     time: 'Lun',
     unread: 0,
   },
   {
-    id: 'jose-ramirez',
-    name: 'José Ramírez',
-    farm: 'Huerto El Progreso',
-    initials: 'JR',
-    lastMessage: 'Gracias por tu compra, ¡buen provecho!',
+    id: 'apiario-segovias',
+    name: 'Carlos Méndez',
+    farm: 'Apiario Las Segovias',
+    initials: 'CM',
+    lastMessage: 'La miel de floración de café ya está lista',
     time: 'Dom',
     unread: 0,
   },
 ]
 
 export const activeChatMessages = [
-  { from: 'them', text: '¡Hola Sandra! Sí, tenemos tomates cherry disponibles esta semana.' },
-  { from: 'me', text: '¡Hola María! Me interesan unos 3 kg para el restaurante.' },
-  { from: 'me', text: '¿Podría ser la entrega el martes en la mañana?' },
+  { from: 'them', text: '¡Hola Sandra! Sí, tenemos café de altura SHG de la nueva cosecha disponible.' },
+  { from: 'me', text: '¡Hola Juan! Me interesan unos 5 kg para mi cafetería. ¿Cuál es el precio actual?' },
+  { from: 'me', text: '¿Podrían hacer el envío a Managua esta semana?' },
 ]

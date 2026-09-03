@@ -72,7 +72,7 @@ export default function Hero() {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tomates, aguacate, fresas..."
+                placeholder="Café, frijol rojo, quesillo..."
                 className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
               />
             </div>

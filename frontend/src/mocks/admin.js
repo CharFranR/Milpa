@@ -1,29 +1,36 @@
 export const adminUsers = [
-  { id: 'u1', name: 'Sandra Campos', email: 'sandra@correo.com', type: 'Comprador', region: 'Antioquia', since: 'Ene 2024', status: 'Activo', actions: ['Ver', 'Bloquear'] },
-  { id: 'u2', name: 'María González', email: 'finca@laesperanza.co', type: 'Productor', region: 'Cundinamarca', since: 'Mar 2023', status: 'Activo', actions: ['Ver', 'Bloquear'] },
-  { id: 'u3', name: 'Carlos Ríos', email: 'carlos@elroble.co', type: 'Productor', region: 'Cundinamarca', since: 'Ago 2022', status: 'Activo', actions: ['Ver', 'Bloquear'] },
-  { id: 'u4', name: 'Juliana Morales', email: 'juliana@correo.com', type: 'Comprador', region: 'Valle del Cauca', since: 'Jun 2024', status: 'Pendiente', actions: ['Ver', 'Aprobar', 'Bloquear'] },
-  { id: 'u5', name: 'Coop Agro Boyacá', email: 'contacto@agroboyaca.co', type: 'Productor', region: 'Boyacá', since: 'Jul 2024', status: 'Pendiente', actions: ['Ver', 'Aprobar', 'Bloquear'] },
+  { id: 'u1', name: 'Sandra Martínez', email: 'sandra.martinez@correo.ni', type: 'Comprador', region: 'Managua', since: 'Ene 2024', status: 'Activo', actions: ['Ver', 'Bloquear'] },
+  { id: 'u2', name: 'Juan Ramón Martínez', email: 'cooperativa.cafenorte@correo.ni', type: 'Productor', region: 'Madriz', since: 'Mar 2023', status: 'Activo', actions: ['Ver', 'Bloquear'] },
+  { id: 'u3', name: 'Doña María López', email: 'finca.elporvenir@correo.ni', type: 'Productor', region: 'Matagalpa', since: 'Ago 2022', status: 'Activo', actions: ['Ver', 'Bloquear'] },
+  { id: 'u4', name: 'Roberto Sánchez', email: 'hacienda.sanjose@correo.ni', type: 'Productor', region: 'Chontales', since: 'Jun 2024', status: 'Pendiente', actions: ['Ver', 'Aprobar', 'Bloquear'] },
+  { id: 'u5', name: 'Carlos Méndez', email: 'apiario.lassegovias@correo.ni', type: 'Productor', region: 'Nueva Segovia', since: 'Jul 2024', status: 'Pendiente', actions: ['Ver', 'Aprobar', 'Bloquear'] },
 ]
 
 export const adminProducers = [
-  { id: 'maria-gonzalez', name: 'María González', farm: 'Finca La Esperanza', location: 'Choachí, Cundinamarca', active: true, productsCount: 12, rating: 4.9, since: 2004 },
-  { id: 'carlos-rios', name: 'Carlos Ríos', farm: 'Finca El Roble', location: 'Tenjo, Cundinamarca', active: true, productsCount: 9, rating: 4.8, since: 2011 },
-  { id: 'ana-lucia-mora', name: 'Ana Lucía Mora', farm: 'Huerta La Violeta', location: 'Paipa, Boyacá', active: true, productsCount: 6, rating: 4.7, since: 2018 },
-  { id: 'rosa-camargo', name: 'Rosa Camargo', farm: 'Apiario Doña Rosa', location: 'San Pedro, Nariño', active: true, productsCount: 5, rating: 5.0, since: 2010 },
-  { id: 'coop-boyaca', name: 'Cooperativa Agro Boyacá', farm: 'Cooperativa Agro Boyacá', location: 'Tunja, Boyacá', active: false, productsCount: 8, rating: 4.5, since: 2023 },
-  { id: 'finca-robles', name: 'Finca Los Robles', farm: 'Finca Los Robles', location: 'Manizales, Caldas', active: false, productsCount: 4, rating: 4.2, since: 2022 },
+  { id: 'cooperativa-cafe-norte', name: 'Juan Ramón Martínez', farm: 'Cooperativa Café del Norte', location: 'San Juan de Río Coco, Madriz', active: true, productsCount: 15, rating: 4.9, since: 1998 },
+  { id: 'frijoles-sebaco', name: 'Doña María López', farm: 'Finca El Porvenir', location: 'Sébaco, Matagalpa', active: true, productsCount: 8, rating: 4.8, since: 2005 },
+  { id: 'ganaderia-chontales', name: 'Roberto Sánchez', farm: 'Hacienda San José', location: 'Juigalpa, Chontales', active: true, productsCount: 12, rating: 4.7, since: 1992 },
+  { id: 'apiario-segovias', name: 'Carlos Méndez', farm: 'Apiario Las Segovias', location: 'Ocotal, Nueva Segovia', active: true, productsCount: 6, rating: 5.0, since: 2010 },
+  { id: 'cacao-matiguas', name: 'Ana Isabel Rocha', farm: 'Finca La Esperanza', location: 'Matiguás, Matagalpa', active: true, productsCount: 7, rating: 4.9, since: 2015 },
+  { id: 'plantaciones-rivas', name: 'Luis Alberto Torres', farm: 'Plantaciones del Sur', location: 'Rivas, Rivas', active: true, productsCount: 10, rating: 4.6, since: 2008 },
 ]
 
 export const adminProducts = [
-  { id: 'tomates-cherry', name: 'Tomates Cherry Orgánicos', producer: 'María González', category: 'Verduras', price: 12000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'aguacate-hass', name: 'Aguacate Hass', producer: 'Carlos Ríos', category: 'Frutas', price: 9000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'fresas-rubra', name: 'Fresas Rojas', producer: 'Ana Lucía Mora', category: 'Frutas', price: 15000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'miel-pura', name: 'Miel Pura de Abeja', producer: 'Rosa Camargo', category: 'Miel', price: 28000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'lechuga-butter', name: 'Lechuga Butter Hidropónica', producer: 'María González', category: 'Verduras', price: 3500, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'queso-campesino', name: 'Queso Campesino Artesanal', producer: 'María González', category: 'Lácteos', price: 16000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
-  { id: 'zanahorias-baby', name: 'Zanahorias Baby Orgánicas', producer: 'María González', category: 'Verduras', price: 8500, status: 'Agotado', actions: ['Ver', 'Eliminar'] },
-  { id: 'cilantro-fresco', name: 'Cilantro Fresco', producer: 'María González', category: 'Hierbas', price: 2000, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'cafe-altura-shg', name: 'Café de Altura SHG', producer: 'Juan Ramón Martínez', category: 'Café', price: 180, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'cafe-organico-jinotega', name: 'Café Orgánico Jinotega', producer: 'Pedro Antonio López', category: 'Café', price: 220, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'frijol-rojo-seda', name: 'Frijol Rojo Seda', producer: 'Doña María López', category: 'Granos Básicos', price: 75, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'frijol-negro', name: 'Frijol Negro', producer: 'Doña María López', category: 'Granos Básicos', price: 70, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'platano-burro', name: 'Plátano Burro', producer: 'Luis Alberto Torres', category: 'Plátanos y Cocos', price: 12, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'queso-seco-artesanal', name: 'Queso Seco Artesanal', producer: 'Roberto Sánchez', category: 'Lácteos y Quesos', price: 180, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'cuajada-fresca', name: 'Cuajada Fresca', producer: 'Roberto Sánchez', category: 'Lácteos y Quesos', price: 85, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'quesillo', name: 'Quesillo', producer: 'Familia Herrera', category: 'Lácteos y Quesos', price: 45, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'carne-res-pastoreo', name: 'Carne de Res (Ganado de Pastoreo)', producer: 'Roberto Sánchez', category: 'Carnes y Ganadería', price: 280, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'miel-cafe', name: 'Miel de Floración de Café', producer: 'Carlos Méndez', category: 'Miel y Apicultura', price: 160, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'cacao-fino-aroma', name: 'Cacao Fino de Aroma', producer: 'Ana Isabel Rocha', category: 'Cacao y Chocolate', price: 280, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'chocolate-70', name: 'Chocolate 70% Cacao', producer: 'Ana Isabel Rocha', category: 'Cacao y Chocolate', price: 120, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'platano-burro', name: 'Plátano Burro', producer: 'Luis Alberto Torres', category: 'Plátanos y Cocos', price: 12, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'queso-seco-artesanal', name: 'Queso Seco Artesanal', producer: 'Roberto Sánchez', category: 'Lácteos y Quesos', price: 180, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
+  { id: 'crema-leche', name: 'Crema de Leche', producer: 'Familia Herrera', category: 'Lácteos y Quesos', price: 60, status: 'Disponible', actions: ['Ver', 'Eliminar'] },
 ]
 
 export const adminModerationReports = [
@@ -32,7 +39,7 @@ export const adminModerationReports = [
     title: 'Miel adulterada — Apiario Falso',
     severity: 'Alta',
     type: 'Producto',
-    reportedBy: 'Sandra Campos',
+    reportedBy: 'Sandra Martínez',
     time: 'Hace 2 h',
     detail: 'El producto anunciado como "Miel Pura de Abeja" contiene jarabe de maíz según análisis independiente.',
     status: 'pending',
@@ -44,7 +51,7 @@ export const adminModerationReports = [
     type: 'Productor',
     reportedBy: 'Carlos Ríos',
     time: 'Hace 5 h',
-    detail: 'El teléfono y correo de la finca "Huerta La Violeta" no responden. Posible abandono de la cuenta.',
+    detail: 'El teléfono y correo de la finca "Finca El Porvenir" no responden. Posible abandono de la cuenta.',
     status: 'pending',
   },
   {
@@ -54,7 +61,7 @@ export const adminModerationReports = [
     type: 'Producto',
     reportedBy: 'Sistema',
     time: 'Hace 1 día',
-    detail: 'El producto "Maíz Amarillo Tradicional" no ha actualizado su precio en 62 días.',
+    detail: 'El producto "Maíz Blanco" no ha actualizado su precio en 62 días.',
     status: 'resolved',
   },
 ]
@@ -67,7 +74,7 @@ export const adminStats = {
     { icon: 'flag', value: '2', label: 'Reportes pendientes', sub: '↓ 3 resueltos hoy', tone: 'red' },
   ],
   secondary: [
-    { icon: 'map', value: '340', label: 'Municipios activos', tone: 'brand' },
+    { icon: 'map', value: '153', label: 'Municipios activos', tone: 'brand' },
     { icon: 'chat_bubble', value: '12,480', label: 'Mensajes enviados', tone: 'blue' },
     { icon: 'person_add', value: '47', label: 'Nuevos hoy', tone: 'amber' },
     { icon: 'star', value: '4.9 ★', label: 'Valoración media', tone: 'red' },
@@ -75,10 +82,10 @@ export const adminStats = {
 }
 
 export const recentRegistrations = [
-  { name: 'Cooperativa Agro Boyacá', type: 'Productor', location: 'Tunja', status: 'Pendiente', time: 'Hace 1 h' },
-  { name: 'Carlos Mendoza', type: 'Comprador', location: 'Bogotá', status: 'Activo', time: 'Hace 3 h' },
-  { name: 'Finca Los Robles', type: 'Productor', location: 'Manizales', status: 'Pendiente', time: 'Hace 6 h' },
-  { name: 'Laura Estrada', type: 'Comprador', location: 'Medellín', status: 'Activo', time: 'Hace 8 h' },
+  { name: 'Cooperativa Café El Paraíso', type: 'Productor', location: 'Jinotega', status: 'Pendiente', time: 'Hace 1 h' },
+  { name: 'Carlos Mendoza', type: 'Comprador', location: 'Managua', status: 'Activo', time: 'Hace 3 h' },
+  { name: 'Finca Los Robles', type: 'Productor', location: 'Matagalpa', status: 'Pendiente', time: 'Hace 6 h' },
+  { name: 'Laura Estrada', type: 'Comprador', location: 'León', status: 'Activo', time: 'Hace 8 h' },
 ]
 
 export const pendingReports = [
@@ -94,20 +101,22 @@ export const growthStats = [
 ]
 
 export const regionRanking = [
-  { region: 'Cundinamarca', count: 420 },
-  { region: 'Boyacá', count: 310 },
-  { region: 'Valle del Cauca', count: 280 },
-  { region: 'Antioquia', count: 250 },
-  { region: 'Nariño', count: 190 },
+  { region: 'Matagalpa', count: 420 },
+  { region: 'Jinotega', count: 310 },
+  { region: 'Nueva Segovia', count: 280 },
+  { region: 'Chontales', count: 250 },
+  { region: 'Madriz', count: 190 },
 ]
 
 export const categoryStats = [
-  { category: 'Verduras', count: 520, percent: 28 },
-  { category: 'Frutas', count: 340, percent: 18 },
-  { category: 'Lácteos', count: 210, percent: 11 },
-  { category: 'Granos', count: 180, percent: 10 },
-  { category: 'Hierbas', count: 140, percent: 8 },
-  { category: 'Carnes', count: 95, percent: 5 },
-  { category: 'Miel', count: 72, percent: 4 },
-  { category: 'Flores', count: 58, percent: 3 },
+  { category: 'Granos Básicos', count: 680, percent: 28 },
+  { category: 'Café', count: 420, percent: 18 },
+  { category: 'Frutas Tropicales', count: 380, percent: 15 },
+  { category: 'Lácteos y Quesos', count: 210, percent: 9 },
+  { category: 'Hortalizas', count: 180, percent: 7 },
+  { category: 'Carnes y Ganadería', count: 150, percent: 6 },
+  { category: 'Plátanos y Cocos', count: 120, percent: 5 },
+  { category: 'Miel y Apicultura', count: 95, percent: 4 },
+  { category: 'Cacao y Chocolate', count: 85, percent: 4 },
+  { category: 'Procesados Artesanales', count: 75, percent: 3 },
 ]
