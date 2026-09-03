@@ -61,4 +61,13 @@ func (r *CategoryRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*d
 	return &cat, nil
 }
 
+func (r *CategoryRepositoryImpl) Save(ctx context.Context, category *domain.Category) error {
+	query := `INSERT INTO categories (id, name, description) VALUES ($1, $2, $3)`
+	_, err := r.pool.Exec(ctx, query, category.ID, category.Name, category.Description)
+	if err != nil {
+		return fmt.Errorf("category.Save: %w", err)
+	}
+	return nil
+}
+
 var _ port.CategoryRepository = (*CategoryRepositoryImpl)(nil)

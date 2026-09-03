@@ -41,6 +41,7 @@ type ReviewRepository interface {
 type CategoryRepository interface {
 	FindAll(ctx context.Context) ([]domain.Category, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Category, error)
+	Save(ctx context.Context, category *domain.Category) error
 }
 
 type InquiryRepository interface {
