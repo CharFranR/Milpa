@@ -14,16 +14,17 @@ export default function Hero() {
   }
 
   return (
-    <section
-      className="relative isolate overflow-hidden bg-cover bg-center"
-      style={{ backgroundImage: `url(${fondoCampo})` }}
-    >
+    <section className="relative isolate min-h-screen overflow-hidden">
+      <div
+        className="absolute inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: `url(${fondoCampo})` }}
+      />
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 bg-gradient-to-b from-brand-dark/80 via-night/60 to-night/90"
       />
 
-      <div className="mx-auto flex max-w-7xl flex-col items-center px-4 pb-24 pt-20 text-center sm:px-6 sm:pt-28 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col items-center px-4 pt-16 pb-24 text-center sm:px-6 sm:pt-20 lg:px-8">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-accent">
           <Icon name="eco" size={15} />
           Comercio agropecuario directo
@@ -58,11 +59,11 @@ export default function Hero() {
 
         <form
           onSubmit={handleSearch}
-          className="mt-10 w-full max-w-3xl rounded-full bg-white p-2 shadow-xl shadow-black/20"
+          className="mt-8 w-full max-w-3xl rounded-2xl sm:rounded-full bg-white p-4 sm:p-2 shadow-xl shadow-black/20"
         >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
-              <Icon name="search" size={20} className="shrink-0 text-gray-400" />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2 px-3 sm:px-4">
+              <Icon name="search" size={18} className="shrink-0 text-gray-400" />
               <label htmlFor="hero-search" className="sr-only">
                 Buscar productos
               </label>
@@ -71,13 +72,11 @@ export default function Hero() {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tomates, aguacate, fresas..."
-                className="w-full bg-transparent py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                placeholder="Café, frijol rojo, quesillo..."
+                className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
               />
             </div>
-            <span className="hidden h-8 w-px bg-gray-200 sm:block" aria-hidden="true" />
-            <div className="flex items-center gap-2 border-t border-gray-100 px-3 sm:border-t-0">
-              <Icon name="location_on" size={18} className="shrink-0 text-gray-400" />
+            <div className="w-full sm:w-auto">
               <label htmlFor="hero-region" className="sr-only">
                 Región
               </label>
@@ -85,7 +84,7 @@ export default function Hero() {
                 id="hero-region"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full bg-transparent py-2 text-sm text-gray-700 focus:outline-none"
+                className="w-full h-10 bg-transparent px-3 py-0 text-sm text-gray-700 focus:outline-none"
               >
                 <option value="todas">Todas las regiones</option>
                 {regions.slice(0, 6).map((r) => (
@@ -95,7 +94,7 @@ export default function Hero() {
                 ))}
               </select>
             </div>
-            <Button type="submit" size="lg" className="shrink-0 self-stretch sm:self-auto">
+            <Button type="submit" size="md" className="w-full sm:w-auto h-12 sm:h-10">
               Buscar
             </Button>
           </div>

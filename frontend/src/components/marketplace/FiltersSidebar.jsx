@@ -5,7 +5,7 @@ import { formatPrice } from '../../lib/format'
 import { categories } from '../../mocks/catalog'
 import { cn } from '../../lib/cn'
 
-export const PRICE_LIMIT = 50000
+export const PRICE_LIMIT = 5000
 
 const MIN_RATING_OPTIONS = [
   { value: 0, label: 'Todas' },

@@ -29,7 +29,7 @@ export default function ProductCard({
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       <a
-        href="#"
+        href={`#/product/${product.id}`}
         className="relative block aspect-[4/3] overflow-hidden bg-gray-200"
         aria-hidden="true"
         tabIndex={-1}
@@ -58,7 +58,7 @@ export default function ProductCard({
       </button>
 
       <div className="flex flex-1 flex-col p-4">
-        <a href="#" className="text-base font-semibold text-gray-900 hover:text-brand">
+        <a href={`#/product/${product.id}`} className="text-base font-semibold text-gray-900 hover:text-brand">
           {product.name}
         </a>
         <p className="mt-0.5 text-sm text-gray-500">
@@ -74,7 +74,7 @@ export default function ProductCard({
           </p>
           {showArrow ? (
             <a
-              href="#"
+              href={`#/product/${product.id}`}
               aria-label={`Ver detalle de ${product.name}`}
               className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand transition-colors hover:bg-brand hover:text-white"
             >
@@ -82,7 +82,7 @@ export default function ProductCard({
             </a>
           ) : (
             <a
-              href="#"
+              href={`#/product/${product.id}`}
               className="rounded-full px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand-soft"
             >
               Ver detalle

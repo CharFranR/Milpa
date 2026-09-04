@@ -8,11 +8,18 @@ const NAV_LINKS = [
   { label: 'Cómo funciona', href: '#como-funciona' },
 ]
 
+function isLandingPage() {
+  if (typeof window === 'undefined') return false
+  const hash = window.location.hash
+  return hash === '' || hash === '#/' || hash === '#inicio' || hash === '#como-funciona'
+}
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
 
-  const transparent = !scrolled && !open
+  const isLanding = isLandingPage()
+  const transparent = isLanding && !scrolled && !open
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -21,13 +28,14 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const textColor = transparent ? 'text-white' : 'text-gray-900'
+  const textColor = transparent ? 'text-gray-900' : 'text-gray-900'
 
   return (
     <header
       className={cn(
         'sticky top-0 z-40 transition-colors duration-300',
-        transparent ? 'bg-transparent' : 'border-b border-gray-100 bg-white/95 backdrop-blur',
+        transparent? ' from-black/20 to-transparent'
+          : 'border-b border-gray-100 bg-white/95 backdrop-blur',
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -36,7 +44,7 @@ export default function Navbar() {
             <Icon name="eco" size={20} weight={600} />
           </span>
           <span className={cn('text-lg tracking-tight', textColor)}>
-            <span className={cn('font-extrabold', transparent ? 'text-accent' : 'text-brand')}>
+            <span className={cn('font-extrabold', transparent ? 'text-brand' : 'text-brand')}>
               Mil
             </span>
             <span className="font-medium">pa</span>
@@ -51,7 +59,7 @@ export default function Navbar() {
               className={cn(
                 'rounded-full px-4 py-2 text-sm font-medium transition-colors',
                 transparent
-                  ? 'text-white/80 hover:bg-white/10 hover:text-white'
+                  ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
                   : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
               )}
             >
@@ -62,7 +70,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           <a href="#/login">
-            <Button variant={transparent ? 'white' : 'ghost'}>Ingresar</Button>
+            <Button variant={transparent ? 'ghost' : 'ghost'}>Ingresar</Button>
           </a>
           <a href="#/register" className="w-full sm:w-auto">
             <Button variant="accent">Registrarse gratis</Button>
@@ -73,7 +81,7 @@ export default function Navbar() {
           type="button"
           className={cn(
             'inline-flex items-center justify-center rounded-xl p-2 md:hidden',
-            transparent ? 'text-white' : 'text-gray-700',
+            transparent ? 'text-gray-900' : 'text-gray-700',
           )}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}

@@ -9,7 +9,7 @@ export default function ProducerHome() {
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-bold text-gray-900">Resumen del negocio</h1>
-        <p className="mt-1 text-gray-500">Finca La Esperanza · Choachí, Cundinamarca</p>
+        <p className="mt-1 text-gray-500">Cooperativa Café del Norte · San Juan de Río Coco, Madriz</p>
       </header>
 
       <section aria-label="Estadísticas principales" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">

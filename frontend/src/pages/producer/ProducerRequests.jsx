@@ -28,7 +28,10 @@ export default function ProducerRequests() {
                 />
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-900 truncate">{req.buyer.name}</p>
-                  <p className="text-sm text-gray-500">{req.product} · {req.qty}</p>
+                  <a href={`#/product/${req.productId}`} className="text-sm font-medium text-brand hover:underline truncate block">
+                    {req.product}
+                  </a>
+                  <p className="text-sm text-gray-500">{req.qty}</p>
                 </div>
               </div>
 
@@ -47,7 +50,7 @@ export default function ProducerRequests() {
 
             {req.status === 'pending' && (
               <div className="mt-4 flex items-center justify-end gap-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => window.location.hash = `#/product/${req.productId}`}>
                   Ver producto
                 </Button>
                 <Button variant="primary" size="sm">
