@@ -39,7 +39,7 @@ export default function ProductCardList({ productId }) {
           {formatPrice(product.price)}
           <span className="ml-1 text-sm font-medium text-gray-400">/ {product.unit}</span>
         </p>
-        <a href="#" aria-label={`Ver detalle de ${product.name}`}>
+        <a href={`#/product/${product.id}`} aria-label={`Ver detalle de ${product.name}`}>
           <Button variant="primary" size="sm">
             Ver detalle
           </Button>

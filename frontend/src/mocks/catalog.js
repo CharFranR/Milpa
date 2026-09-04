@@ -22,6 +22,7 @@ export const producers = [
     rating: 4.9,
     reviews: 312,
     productsCount: 15,
+    phone: '+505 8777 3333',
     specialties: ['Café de altura SHG', 'Café orgánico', 'Variedades Caturra y Catuai', 'Proceso lavado y honey'],
   },
   {
@@ -34,6 +35,7 @@ export const producers = [
     rating: 4.8,
     reviews: 245,
     productsCount: 8,
+    phone: '+505 8888 1122',
     specialties: ['Frijol rojo seda', 'Frijol negro', 'Maíz blanco', 'Semillas certificadas'],
   },
   {
@@ -46,6 +48,7 @@ export const producers = [
     rating: 4.7,
     reviews: 189,
     productsCount: 12,
+    phone: '+505 8777 4455',
     specialties: ['Ganado cebú', 'Carne de res', 'Queso seco', 'Cuajada fresca'],
   },
   {
@@ -58,6 +61,7 @@ export const producers = [
     rating: 5.0,
     reviews: 156,
     productsCount: 6,
+    phone: '+505 8888 6677',
     specialties: ['Miel de floración de café', 'Miel multifloral', 'Polen', 'Propóleo'],
   },
   {
@@ -70,6 +74,7 @@ export const producers = [
     rating: 4.9,
     reviews: 98,
     productsCount: 7,
+    phone: '+505 8777 8899',
     specialties: ['Cacao fino de aroma', 'Chocolate 70%', 'Nibs de cacao', 'Manteca de cacao'],
   },
   {
@@ -82,6 +87,7 @@ export const producers = [
     rating: 4.6,
     reviews: 134,
     productsCount: 10,
+    phone: '+505 8888 2233',
     specialties: ['Plátano burro', 'Plátano manzano', 'Coco seco', 'Coco tierno'],
   },
   {
@@ -94,6 +100,7 @@ export const producers = [
     rating: 4.8,
     reviews: 267,
     productsCount: 9,
+    phone: '+505 8777 9900',
     specialties: ['Quesillo', 'Cuajada', 'Queso seco', 'Crema de leche'],
   },
   {
@@ -106,6 +113,7 @@ export const producers = [
     rating: 4.7,
     reviews: 203,
     productsCount: 11,
+    phone: '+505 8777 1122',
     specialties: ['Café SHB', 'Café orgánico', 'Café de sombra', 'Variedad Maragogipe'],
   },
 ]

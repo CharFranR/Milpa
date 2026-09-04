@@ -4,11 +4,11 @@ import Icon from '../ui/Icon'
 const PLATFORM_LINKS = [
   { label: 'Para compradores', href: '#' },
   { label: 'Para productores', href: '#' },
-  { label: 'Registrarse', href: '#' },
-  { label: 'Iniciar sesión', href: '#' },
+  { label: 'Registrarse', href: '#/register' },
+  { label: 'Iniciar sesión', href: '#/login' },
 ]
 
-const COMPANY_LINKS = ['Sobre nosotros', 'Blog', 'Prensa', 'Empleos', 'Contacto']
+const COMPANY_LINKS = ['Sobre nosotros', 'Contacto']
 
 export default function Footer() {
   const [email, setEmail] = useState('')

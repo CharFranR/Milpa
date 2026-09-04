@@ -61,7 +61,7 @@ export const conversations = [
     name: 'Juan Ramón Martínez',
     farm: 'Cooperativa Café del Norte',
     initials: 'JR',
-    lastMessage: 'Tenemos café de la nueva cosecha, ¿te interesa?',
+    lastMessage: '¡Hola Sandra! Sí, tenemos café de altura SHG de la nueva cosecha disponible.',
     time: '10:23',
     unread: 2,
   },
@@ -95,7 +95,8 @@ export const conversations = [
 ]
 
 export const activeChatMessages = [
-  { from: 'them', text: '¡Hola Sandra! Sí, tenemos café de altura SHG de la nueva cosecha disponible.' },
-  { from: 'me', text: '¡Hola Juan! Me interesan unos 5 kg para mi cafetería. ¿Cuál es el precio actual?' },
-  { from: 'me', text: '¿Podrían hacer el envío a Managua esta semana?' },
+  { from: 'me', text: '¡Hola Juan! Me interesa el Café de Altura SHG para mi cafetería. ¿Tienen disponibilidad de 5 kg para esta semana?' },
+  { from: 'them', text: '¡Hola Sandra! Sí, tenemos café de altura SHG de la nueva cosecha disponible. Son C$180/kg. ¿Cuántos kilos necesitas?' },
+  { from: 'me', text: '¡Perfecto! Me interesan unos 5 kg para mi cafetería. ¿Podrían hacer el envío a Managua esta semana?' },
+  { from: 'them', text: '¡Claro que sí! Lo preparamos y se lo enviamos el martes. Quedamos en contacto para coordinar la entrega.' },
 ]

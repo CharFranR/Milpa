@@ -5,6 +5,7 @@ import Marketplace from './pages/Marketplace'
 import BuyerDashboard from './pages/BuyerDashboard'
 import ProducerDashboard from './pages/ProducerDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import ProductDetail from './pages/ProductDetail'
 import { hasBuyerSession, hasProducerSession, hasAdminSession } from './lib/session'
 
 export default function App() {
@@ -18,7 +19,7 @@ export default function App() {
 
   useEffect(() => {
     const hash = window.location.hash
-    if (route === 'auth' && (hash === '#/marketplace' || hash === '#/dashboard' || hash === '#/producer' || hash === '#/admin')) {
+    if (route === 'auth' && (hash === '#/marketplace' || hash === '#/dashboard' || hash === '#/producer' || hash === '#/admin' || hash.startsWith('#/product/'))) {
       window.location.hash = '#/login'
     }
   }, [route])
@@ -28,6 +29,7 @@ export default function App() {
   if (route === 'dashboard') return <BuyerDashboard />
   if (route === 'producer') return <ProducerDashboard />
   if (route === 'admin') return <AdminDashboard />
+  if (route === 'product') return <ProductDetail />
   return <Landing />
 }
 
@@ -39,11 +41,14 @@ function resolveRoute(hash) {
   if (hash === '#/dashboard') {
     return hasBuyerSession() ? 'dashboard' : 'auth'
   }
+  if (hash.startsWith('#/product/')) {
+    return hasBuyerSession() ? 'product' : 'auth'
+  }
   if (hash === '#/producer') {
     return hasProducerSession() ? 'producer' : 'auth'
   }
   if (hash === '#/admin') {
-    return hasAdminSession() ? 'admin' : 'auth'
+    return 'admin'  // Acceso directo sin sesión
   }
   return 'landing'
 }

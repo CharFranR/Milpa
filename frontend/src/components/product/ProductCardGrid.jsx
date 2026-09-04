@@ -38,7 +38,7 @@ export default function ProductCardGrid({ productId }) {
             <span className="ml-1 text-sm font-medium text-gray-400">/ {product.unit}</span>
           </p>
           <a
-            href="#"
+            href={`#/product/${product.id}`}
             aria-label={`Ver detalle de ${product.name}`}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-brand transition-colors hover:bg-brand hover:text-white"
           >
