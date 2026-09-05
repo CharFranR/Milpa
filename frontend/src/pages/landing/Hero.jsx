@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
+import Logo from '../../components/Logo'
 import { trustChips } from '../../mocks/content'
 import { regions } from '../../mocks/catalog'
 import fondoCampo from '../../assets/images/fondo-campo.jpeg'
@@ -26,7 +27,7 @@ export default function Hero() {
 
       <div className="mx-auto flex max-w-7xl flex-col items-center px-4 pt-16 pb-24 text-center sm:px-6 sm:pt-20 lg:px-8">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-semibold text-accent">
-          <Icon name="eco" size={15} />
+          <Logo variant="icon" className="h-5 w-5" />
           Comercio agropecuario directo
         </span>
 

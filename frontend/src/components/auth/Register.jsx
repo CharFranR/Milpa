@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
+import Logo from '../../components/Logo'
 import { regions } from '../../mocks/catalog'
 import { setSessionRole } from '../../lib/session'
 
@@ -79,12 +80,7 @@ export default function Register() {
       <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden md:rounded-3xl">
         <div className="p-8">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-              <Icon name="eco" size={20} weight={600} className="text-accent" />
-            </span>
-            <span className="text-lg font-medium">
-              Mil<span className="font-extrabold">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
         </div>
 
@@ -120,12 +116,7 @@ export default function Register() {
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-              <Icon name="eco" size={20} weight={600} className="text-white" />
-            </span>
-            <span className="text-lg font-medium text-gray-900">
-              Mil<span className="font-extrabold text-brand">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
           <p className="text-sm text-gray-500">
             ¿Ya tienes cuenta?{' '}

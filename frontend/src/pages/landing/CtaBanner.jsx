@@ -1,5 +1,5 @@
-import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
+import Logo from '../../components/Logo'
 import fondoCampo from '../../assets/images/fondo-campo.jpeg'
 
 export default function CtaBanner() {
@@ -14,7 +14,7 @@ export default function CtaBanner() {
       />
       <div className="mx-auto flex max-w-4xl flex-col items-center px-4 py-20 text-center sm:px-6">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-night">
-          <Icon name="eco" size={15} />
+          <Logo variant="icon" className="h-5 w-5" />
           Empieza hoy — es gratis
         </span>
         <h2 className="mt-5 text-3xl font-bold tracking-tight text-white sm:text-4xl">

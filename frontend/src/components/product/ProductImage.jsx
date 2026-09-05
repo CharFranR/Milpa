@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Icon from '../ui/Icon'
+import Logo from '../Logo'
 import { productImageUrl } from '../../mocks/catalog'
 import { cn } from '../../lib/cn'
 
@@ -26,7 +26,7 @@ export default function ProductImage({ productId, name, className, imgClassName 
           aria-hidden="true"
           className="flex h-full w-full items-center justify-center text-brand/30"
         >
-          <Icon name="eco" size={48} />
+          <Logo variant="icon" className="w-12 h-12" />
         </span>
       )}
     </div>
