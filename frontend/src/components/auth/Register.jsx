@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
+import Logo from '../../components/Logo'
 import { regions } from '../../mocks/catalog'
-import { setSessionRole } from '../../lib/session'
+import { auth } from '../../services/api'
 
 const USER_TYPES = [
   {
@@ -18,6 +19,13 @@ const USER_TYPES = [
     desc: 'Quiero publicar mis productos y venderlos sin intermediarios.',
   },
 ]
+
+function normalizePhone(raw) {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('505') && digits.length >= 11) return `+${digits}`
+  if (digits.length === 8) return `+505${digits}`
+  return `+505${digits}`
+}
 
 export default function Register() {
   const [step, setStep] = useState(1)
@@ -52,26 +60,47 @@ export default function Register() {
       setError('Por favor completa todos los campos.')
       return
     }
-    if (isProducer && (!form.farm.trim() || !form.region)) {
-      setError('Por favor completa los datos de tu finca.')
-      return
-    }
     if (!legal) {
       setError('Debes aceptar los Términos de uso y la Política de privacidad.')
       return
     }
     setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      if (userType === 'buyer') {
-        setSessionRole(userType)
-        window.location.hash = '#/dashboard'
-      } else if (userType === 'producer') {
-        setSessionRole(userType)
-        window.location.hash = '#/producer'
-      }
-    }, 1200)
+
+    const parts = form.name.trim().split(/\s+/)
+    const firstName = parts[0] || ''
+    const lastName = parts.slice(1).join(' ') || ''
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email: form.email.trim(),
+      role: userType === 'buyer' ? 1 : 2,
+      password: form.password,
+      confirm_password: form.password,
+    }
+
+    const phone = normalizePhone(form.phone)
+    if (phone) payload.phone_number = phone
+    if (form.region?.trim()) payload.address = form.region.trim()
+
+    auth.register(payload)
+      .then(() => {
+        alert('Cuenta creada correctamente. Ahora inicia sesión.')
+        window.location.hash = '#/login'
+      })
+      .catch((err) => {
+        if (err.status === 409) {
+          setError('El correo ya está registrado. Intenta con otro.')
+        } else if (err.status === 400) {
+          setError(err.message || 'Datos inválidos. Verifica el formulario.')
+        } else {
+          setError(err.message || 'No se pudo crear la cuenta.')
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   return (
@@ -79,12 +108,7 @@ export default function Register() {
       <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden md:rounded-3xl">
         <div className="p-8">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-              <Icon name="eco" size={20} weight={600} className="text-accent" />
-            </span>
-            <span className="text-lg font-medium">
-              Mil<span className="font-extrabold">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
         </div>
 
@@ -120,12 +144,7 @@ export default function Register() {
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-              <Icon name="eco" size={20} weight={600} className="text-white" />
-            </span>
-            <span className="text-lg font-medium text-gray-900">
-              Mil<span className="font-extrabold text-brand">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
           <p className="text-sm text-gray-500">
             ¿Ya tienes cuenta?{' '}
@@ -135,7 +154,6 @@ export default function Register() {
           </p>
         </header>
 
-        {/* Indicador de pasos */}
         <ol className="flex items-center gap-3">
           {[1, 2].map((n) => (
             <li key={n} className="flex flex-1 items-center gap-3">
@@ -260,7 +278,7 @@ export default function Register() {
                 required
                 value={form.phone}
                 onChange={(e) => setField('phone', e.target.value)}
-                placeholder="+504 0000-0000"
+                placeholder="8888-1234"
                 className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
@@ -338,7 +356,7 @@ export default function Register() {
             </label>
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</p>
             )}
 
             <div className="flex gap-3 pt-1">

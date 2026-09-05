@@ -23,7 +23,7 @@ func NewCompanyRepository(pool DB) *CompanyRepositoryImpl {
 func (r *CompanyRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.Company, error) {
 	query := `
 		SELECT c.id, c.name, c.owner_id, c.description, c.phone_number, c.email, c.website, c.verified, c.created_at, c.updated_at,
-		       a.id, a.department, a.municipality, a.address_line, a.latitude, a.longitude
+		       COALESCE(a.id, '00000000-0000-0000-0000-000000000000'), COALESCE(a.department, ''), COALESCE(a.municipality, ''), COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
 		FROM companies c
 		LEFT JOIN addresses a ON c.address_id = a.id
 		WHERE c.id = $1
@@ -60,7 +60,7 @@ func (r *CompanyRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*do
 func (r *CompanyRepositoryImpl) FindByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
 	query := `
 		SELECT c.id, c.name, c.owner_id, c.description, c.phone_number, c.email, c.website, c.verified, c.created_at, c.updated_at,
-		       a.id, a.department, a.municipality, a.address_line, a.latitude, a.longitude
+		       COALESCE(a.id, '00000000-0000-0000-0000-000000000000'), COALESCE(a.department, ''), COALESCE(a.municipality, ''), COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
 		FROM companies c
 		LEFT JOIN addresses a ON c.address_id = a.id
 		WHERE c.owner_id = $1

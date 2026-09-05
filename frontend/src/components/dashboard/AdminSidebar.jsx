@@ -1,7 +1,7 @@
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSessionRole } from '../../lib/session'
+import { clearSession } from '../../lib/session'
 
 const GESTION_TABS = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', badge: null },
@@ -19,7 +19,7 @@ const SISTEMA_TABS = [
 const ALL_TABS = [...GESTION_TABS, ...SISTEMA_TABS]
 
 function handleLogout() {
-  clearSessionRole()
+  clearSession()
   window.location.hash = '#/'
 }
 

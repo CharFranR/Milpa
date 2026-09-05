@@ -1,5 +1,5 @@
 import { cn } from '../lib/cn'
-import Icon from './ui/Icon'
+import Logo from './Logo'
 
 export default function SectionHeading({ eyebrow, title, action, centered = false, onDark = false }) {
   return (
@@ -10,7 +10,7 @@ export default function SectionHeading({ eyebrow, title, action, centered = fals
           onDark ? 'bg-white/10 text-accent' : 'bg-brand-soft text-brand',
         )}
       >
-        <Icon name="eco" size={14} />
+        <Logo variant="icon" className="h-4 w-4" />
         {eyebrow}
       </span>
       <div className={cn('mt-3 flex flex-wrap items-end gap-4', centered && 'justify-center')}>

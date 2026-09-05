@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
+import Logo from '../../components/Logo'
 
 const PLATFORM_LINKS = [
   { label: 'Para compradores', href: '#' },
@@ -27,13 +28,7 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="flex items-center gap-2 text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-                <Icon name="eco" size={20} weight={600} className="text-accent" />
-              </span>
-              <span className="text-lg tracking-tight">
-                <span className="font-extrabold text-accent">Mil</span>
-                <span className="font-medium">pa</span>
-              </span>
+              <Logo className="h-9 w-auto" />
             </p>
             <p className="mt-4 max-w-xs text-sm text-gray-400">
               Conectando el campo con la ciudad. Productos frescos, directamente del productor a tu
@@ -107,7 +102,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
-          <p className="text-sm text-gray-500">© 2025 Milpa. Todos los derechos reservados.</p>
+          <p className="text-sm text-gray-500">© 2026 Milpa. Todos los derechos reservados.</p>
           <ul className="flex gap-5">
             {['Privacidad', 'Términos', 'Cookies'].map((label) => (
               <li key={label}>

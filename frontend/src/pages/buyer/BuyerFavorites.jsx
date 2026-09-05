@@ -1,7 +1,12 @@
 import ProductCard from '../../components/product/ProductCard'
-import { buyerProfile, favoriteProductIds } from '../../mocks/buyer'
+import { getUser } from '../../lib/session'
+import { getDisplayName } from '../../lib/user'
+import { favoriteProductIds } from '../../mocks/buyer'
 
 export default function BuyerFavorites() {
+  const user = getUser()
+  const displayName = getDisplayName(user)
+
   return (
     <div className="space-y-6">
       <header>
@@ -9,7 +14,7 @@ export default function BuyerFavorites() {
           Mis favoritos
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Hola {buyerProfile.name}, tienes {favoriteProductIds.length} productos guardados.
+          Hola {displayName}, tienes {favoriteProductIds.length} productos guardados.
         </p>
       </header>
 

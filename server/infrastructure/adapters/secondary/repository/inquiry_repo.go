@@ -22,14 +22,15 @@ func NewInquiryRepository(pool DB) *InquiryRepositoryImpl {
 
 func (r *InquiryRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error) {
 	query := `
-		SELECT id, user_id, offering_id, message, status, created_at
-		FROM inquiries
-		WHERE id = $1
+		SELECT i.id, i.user_id, i.offering_id, COALESCE(o.name, ''), i.message, i.status, i.created_at
+		FROM inquiries i
+		LEFT JOIN offerings o ON i.offering_id = o.id
+		WHERE i.id = $1
 	`
 
 	var inquiry domain.Inquiry
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&inquiry.ID, &inquiry.UserID, &inquiry.OfferingID, &inquiry.Message, &inquiry.Status, &inquiry.CreatedAt,
+		&inquiry.ID, &inquiry.UserID, &inquiry.OfferingID, &inquiry.OfferingName, &inquiry.Message, &inquiry.Status, &inquiry.CreatedAt,
 	)
 
 	if err != nil {
@@ -44,9 +45,11 @@ func (r *InquiryRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*do
 
 func (r *InquiryRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error) {
 	query := `
-		SELECT id, user_id, offering_id, message, status, created_at
-		FROM inquiries
-		WHERE user_id = $1
+		SELECT i.id, i.user_id, i.offering_id, COALESCE(o.name, ''), i.message, i.status, i.created_at
+		FROM inquiries i
+		LEFT JOIN offerings o ON i.offering_id = o.id
+		WHERE i.user_id = $1
+		ORDER BY i.created_at DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -59,7 +62,7 @@ func (r *InquiryRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID
 	for rows.Next() {
 		var inquiry domain.Inquiry
 		if err := rows.Scan(
-			&inquiry.ID, &inquiry.UserID, &inquiry.OfferingID, &inquiry.Message, &inquiry.Status, &inquiry.CreatedAt,
+			&inquiry.ID, &inquiry.UserID, &inquiry.OfferingID, &inquiry.OfferingName, &inquiry.Message, &inquiry.Status, &inquiry.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("inquiry.FindByUser: %w", err)
 		}
@@ -68,6 +71,39 @@ func (r *InquiryRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("inquiry.FindByUser: %w", err)
+	}
+
+	return inquiries, nil
+}
+
+func (r *InquiryRepositoryImpl) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error) {
+	query := `
+		SELECT i.id, i.user_id, i.offering_id, COALESCE(o.name, ''), i.message, i.status, i.created_at
+		FROM inquiries i
+		JOIN offerings o ON i.offering_id = o.id
+		WHERE o.company_id = $1
+		ORDER BY i.created_at DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("inquiry.FindByCompany: %w", err)
+	}
+	defer rows.Close()
+
+	var inquiries []domain.Inquiry
+	for rows.Next() {
+		var inquiry domain.Inquiry
+		if err := rows.Scan(
+			&inquiry.ID, &inquiry.UserID, &inquiry.OfferingID, &inquiry.OfferingName, &inquiry.Message, &inquiry.Status, &inquiry.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("inquiry.FindByCompany: %w", err)
+		}
+		inquiries = append(inquiries, inquiry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("inquiry.FindByCompany: %w", err)
 	}
 
 	return inquiries, nil

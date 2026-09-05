@@ -78,6 +78,28 @@ func (uc *CachedInquiryUseCase) GetByUser(ctx context.Context, userID uuid.UUID)
 	return inquiries, err
 }
 
+func (uc *CachedInquiryUseCase) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.InquiryDTO, error) {
+	var inquiries []*dto.InquiryDTO
+
+	_, err := uc.cache.Remember(
+		ctx,
+		"inquiries:bycompany:"+companyID.String(),
+		5*time.Minute,
+		&inquiries,
+		func() error {
+			result, err := uc.next.GetByCompany(ctx, companyID)
+			if err != nil {
+				return err
+			}
+
+			inquiries = result
+			return nil
+		},
+	)
+
+	return inquiries, err
+}
+
 func (uc *CachedInquiryUseCase) UpdateInquiry(ctx context.Context, id uuid.UUID, req dto.UpdateInquiryRequest) error {
 	err := uc.next.UpdateInquiry(ctx, id, req)
 	if err != nil {
