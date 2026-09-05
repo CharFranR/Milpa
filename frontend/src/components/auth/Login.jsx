@@ -5,6 +5,8 @@ import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
 import { setToken, setUser } from '../../lib/session'
 
+const ROLE_MAP = { 0: 'pending', 1: 'buyer', 2: 'producer', 3: 'admin' }
+
 const ROLES = [
   {
     key: 'buyer',
@@ -75,6 +77,7 @@ export default function Login() {
     auth.login(email, password)
       .then((data) => {
         setToken(data.access_token)
+        data.user.role = ROLE_MAP[data.user.role] || 'buyer'
         setUser(data.user)
         if (data.user.role === 'producer') {
           window.location.hash = '#/producer'

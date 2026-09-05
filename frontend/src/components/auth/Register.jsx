@@ -6,6 +6,8 @@ import { regions } from '../../mocks/catalog'
 import { auth } from '../../services/api'
 import { setToken, setUser } from '../../lib/session'
 
+const ROLE_MAP = { 0: 'pending', 1: 'buyer', 2: 'producer', 3: 'admin' }
+
 const USER_TYPES = [
   {
     key: 'buyer',
@@ -88,6 +90,7 @@ export default function Register() {
     auth.register(payload)
       .then((data) => {
         setToken(data.access_token)
+        data.user.role = ROLE_MAP[data.user.role] || 'buyer'
         setUser(data.user)
         if (userType === 'buyer') {
           window.location.hash = '#/dashboard'
