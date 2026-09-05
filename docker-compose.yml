@@ -1,36 +1,39 @@
 services:
+
+  migrate:
+    build: ./server
+    entrypoint: ["./migrate"]
+    env_file: server/.env
+    restart: "no"                      
+    depends_on:
+      db:
+        condition: service_healthy
+
+
   api:
+    env_file: "server/.env"
+    entrypoint: ["./api"]
     build:
       context: ./server
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=hackaton
-      - DB_PASSWORD=hackaton_secret
-      - DB_NAME=hackaton_db
-      - DB_SSLMODE=disable
-      - JWT_SECRET=change-me-in-production
-      - SERVER_PORT=8080
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
   db:
+    env_file: "server/.env"
     image: postgres:16-alpine
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: hackaton
-      POSTGRES_PASSWORD: hackaton_secret
-      POSTGRES_DB: hackaton_db
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hackaton -d hackaton_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -43,6 +46,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    env_file: "server/.env"
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
 volumes:
