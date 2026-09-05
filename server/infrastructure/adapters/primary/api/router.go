@@ -63,6 +63,7 @@ func NewRouter(
 		})
 
 		r.Route("/inquiries", func(r chi.Router) {
+			r.Get("/company/{company_id}", inquiry.GetByCompany)
 			r.Get("/{id}", inquiry.GetByID)
 			r.Get("/", inquiry.GetByUser)
 			r.With(authMW.Authenticate).Post("/", inquiry.Create)

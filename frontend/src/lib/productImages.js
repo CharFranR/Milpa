@@ -1,4 +1,3 @@
-const IMAGE_MARKER = '\n\nImageBase64:'
 const IMAGES_KEY = 'milpa_product_images'
 
 function getImages() {
@@ -11,17 +10,17 @@ function getImages() {
 
 export function embedImageInDescription(description, imageUrl) {
   if (!imageUrl) return description
-  return `${description}${IMAGE_MARKER}${imageUrl}`
+  return `${description}\n\nImageBase64:${imageUrl}`
 }
 
 export function extractImageFromDescription(description) {
   if (!description) return { clean: '', imageUrl: '' }
-  const idx = description.indexOf(IMAGE_MARKER)
+  const marker = 'ImageBase64:'
+  const idx = description.indexOf(marker)
   if (idx === -1) return { clean: description, imageUrl: '' }
-  return {
-    clean: description.slice(0, idx),
-    imageUrl: description.slice(idx + IMAGE_MARKER.length),
-  }
+  const before = description.slice(0, idx).replace(/\s+$/, '')
+  const after = description.slice(idx + marker.length)
+  return { clean: before, imageUrl: after }
 }
 
 export function getProductImage(offeringId) {

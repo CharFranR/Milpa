@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button'
 import Avatar from '../../components/Avatar'
 import Icon from '../../components/ui/Icon'
 import { inquiries } from '../../services/api'
-import { getUser } from '../../lib/session'
+import { getCompanyId } from '../../lib/session'
 
 const STATUS_MAP = {
   pending: { label: 'Pendiente', tone: 'amber' },
@@ -15,7 +15,7 @@ const STATUS_MAP = {
 }
 
 export default function ProducerRequests() {
-  const user = getUser()
+  const companyId = getCompanyId()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -23,9 +23,9 @@ export default function ProducerRequests() {
   function fetchRequests() {
     setLoading(true)
     setError('')
-    inquiries.getByUser(user?.id)
+    inquiries.getByCompany(companyId)
       .then((data) => {
-        setRequests(Array.isArray(data) ? data : data.inquiries || [])
+        setRequests(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
         setError(err.message || 'Error al cargar solicitudes.')
@@ -132,7 +132,7 @@ export default function ProducerRequests() {
                       {req.buyer?.first_name} {req.buyer?.last_name}
                     </p>
                     <a href={`#/product/${req.offering_id}`} className="text-sm font-medium text-brand hover:underline truncate block">
-                      Producto #{req.offering_id}
+                      {req.offering_name || 'Producto'}
                     </a>
                   </div>
                 </div>

@@ -109,6 +109,9 @@ export const inquiries = {
   getByUser: (userId) =>
     request(`/inquiries?user_id=${userId}`),
 
+  getByCompany: (companyId) =>
+    request(`/inquiries/company/${companyId}`),
+
   updateStatus: (id, status) =>
     request(`/inquiries/${id}`, { method: 'PATCH', body: { status } }),
 }
