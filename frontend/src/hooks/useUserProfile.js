@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { users } from '../services/api'
+import { setUser as setSessionUser } from '../lib/session'
 
 export function useUserProfile(userId) {
   const [user, setUser] = useState(null)
@@ -16,7 +17,11 @@ export function useUserProfile(userId) {
 
   function updateUser(data) {
     return users.update(userId, data).then(() => {
-      setUser((prev) => ({ ...prev, ...data }))
+      setUser((prev) => {
+        const updated = { ...prev, ...data }
+        setSessionUser(updated)
+        return updated
+      })
     })
   }
 

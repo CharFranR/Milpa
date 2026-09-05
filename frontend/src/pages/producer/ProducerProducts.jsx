@@ -6,7 +6,7 @@ import { useOfferings } from '../../hooks/useOfferings'
 import { categories } from '../../services/api'
 import { getCompanyId } from '../../lib/session'
 import { formatPrice } from '../../lib/format'
-import { setProductImage, getProductImage } from '../../lib/productImages'
+import { setProductImage, getProductImage, embedImageInDescription, extractImageFromDescription, resolveOfferingImage } from '../../lib/productImages'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
@@ -71,13 +71,13 @@ export default function ProducerProducts() {
   }
 
   function openEdit(offering) {
-    const desc = offering.description || ''
-    const unitMatch = desc.match(/Unit:\s*(\S+)/)
-    const qtyMatch = desc.match(/Qty:\s*(\d+)/)
-    const catMatch = desc.match(/Category:\s*(.+)/)
-    const cleanDesc = desc.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+    const { clean: cleanDesc, imageUrl: descImage } = extractImageFromDescription(offering.description || '')
+    const unitMatch = cleanDesc.match(/Unit:\s*(\S+)/)
+    const qtyMatch = cleanDesc.match(/Qty:\s*(\d+)/)
+    const catMatch = cleanDesc.match(/Category:\s*(.+)/)
+    const descOnly = cleanDesc.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
 
-    const savedImage = offering.image_url || getProductImage(offering.id) || ''
+    const savedImage = descImage || offering.image_url || getProductImage(offering.id) || ''
 
     setForm({
       name: offering.name || '',
@@ -85,7 +85,7 @@ export default function ProducerProducts() {
       unit: unitMatch?.[1] || 'kg',
       quantity: qtyMatch?.[1] || '',
       category: catMatch?.[1] || '',
-      description: cleanDesc,
+      description: descOnly,
       image_url: savedImage,
     })
     setImagePreview(savedImage)
@@ -122,7 +122,8 @@ export default function ProducerProducts() {
     if (form.category) descParts.push(`Category: ${form.category}`)
     if (form.description) descParts.push('')
     if (form.description) descParts.push(form.description)
-    const description = descParts.join('\n')
+    let description = descParts.join('\n')
+    description = embedImageInDescription(description, form.image_url)
 
     const payload = {
       company_id: companyId,
@@ -350,8 +351,8 @@ export default function ProducerProducts() {
               className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-shadow hover:shadow-lg"
             >
               <div className="relative aspect-[4/3] bg-gray-100">
-                {offering.image_url || getProductImage(offering.id) ? (
-                  <img src={offering.image_url || getProductImage(offering.id)} alt={offering.name} className="h-full w-full object-cover" />
+                {resolveOfferingImage(offering) ? (
+                  <img src={resolveOfferingImage(offering)} alt={offering.name} className="h-full w-full object-cover" />
                 ) : (
                   <span className="absolute left-3 top-3 text-4xl">📦</span>
                 )}

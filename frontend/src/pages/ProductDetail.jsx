@@ -10,7 +10,7 @@ import { offerings, companies } from '../services/api'
 import { productById, producerById, categoryById } from '../mocks/catalog'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
-import { getProductImage } from '../lib/productImages'
+import { resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const hash = window.location.hash
@@ -120,7 +120,7 @@ export default function ProductDetail() {
           <section aria-label="Galería de imágenes" className="lg:col-span-2 space-y-4">
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
               <ProductImage
-                image_url={realOffering?.image_url || getProductImage(product.id)}
+                image_url={resolveOfferingImage(realOffering)}
                 name={product.name}
                 className="w-full h-full object-cover"
               />
