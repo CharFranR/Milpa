@@ -76,12 +76,14 @@ export default function Register() {
       first_name: firstName,
       last_name: lastName,
       email: form.email.trim(),
-      phone_number: normalizePhone(form.phone),
       role: userType === 'buyer' ? 'mipyme' : 'provider',
       password: form.password,
       confirm_password: form.password,
-      address: form.region || '',
     }
+
+    const phone = normalizePhone(form.phone)
+    if (phone) payload.phone_number = phone
+    if (form.region?.trim()) payload.address = form.region.trim()
 
     auth.register(payload)
       .then((data) => {
