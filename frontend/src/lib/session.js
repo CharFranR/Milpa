@@ -1,5 +1,6 @@
 const TOKEN_KEY = 'milpa_token'
 const USER_KEY = 'milpa_user'
+const COMPANY_KEY = 'milpa_company_id'
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
@@ -32,6 +33,20 @@ export function clearUser() {
   sessionStorage.removeItem(USER_KEY)
 }
 
+export function getCompanyId() {
+  return localStorage.getItem(COMPANY_KEY) || sessionStorage.getItem(COMPANY_KEY)
+}
+
+export function setCompanyId(id) {
+  localStorage.setItem(COMPANY_KEY, id)
+  sessionStorage.setItem(COMPANY_KEY, id)
+}
+
+export function clearCompanyId() {
+  localStorage.removeItem(COMPANY_KEY)
+  sessionStorage.removeItem(COMPANY_KEY)
+}
+
 export function hasRole(role) {
   const u = getUser()
   return u?.role === role
@@ -44,6 +59,7 @@ export function isAuthenticated() {
 export function clearSession() {
   clearToken()
   clearUser()
+  clearCompanyId()
 }
 
 export function getSessionRole() {

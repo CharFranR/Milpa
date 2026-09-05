@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import Logo from '../Logo'
-import { productImageUrl } from '../../mocks/catalog'
 import { cn } from '../../lib/cn'
 
-export default function ProductImage({ productId, name, className, imgClassName }) {
+export default function ProductImage({ image_url, name, className, imgClassName }) {
   const [hasError, setHasError] = useState(false)
+
+  const src = image_url || ''
 
   return (
     <div
@@ -13,9 +14,9 @@ export default function ProductImage({ productId, name, className, imgClassName 
         className,
       )}
     >
-      {!hasError ? (
+      {src && !hasError ? (
         <img
-          src={productImageUrl(productId)}
+          src={src}
           alt={name}
           loading="lazy"
           onError={() => setHasError(true)}

@@ -86,7 +86,13 @@ export default function Login() {
         }
       })
       .catch((err) => {
-        setError(err.message || 'Credenciales incorrectas.')
+        if (err.status === 401) {
+          setError('Correo o contraseña incorrectos.')
+        } else if (err.status === 404) {
+          setError('Usuario no encontrado.')
+        } else {
+          setError(err.message || 'Error al iniciar sesión.')
+        }
       })
       .finally(() => {
         setLoading(false)

@@ -4,9 +4,6 @@ import Button from '../ui/Button'
 import Logo from '../../components/Logo'
 import { regions } from '../../mocks/catalog'
 import { auth } from '../../services/api'
-import { setToken, setUser } from '../../lib/session'
-
-const ROLE_MAP = { 0: 'pending', 1: 'buyer', 2: 'producer', 3: 'admin' }
 
 const USER_TYPES = [
   {
@@ -88,21 +85,18 @@ export default function Register() {
     if (form.region?.trim()) payload.address = form.region.trim()
 
     auth.register(payload)
-      .then((data) => {
-        setToken(data.access_token)
-        data.user.role = ROLE_MAP[data.user.role] || 'buyer'
-        setUser(data.user)
-        if (userType === 'buyer') {
-          window.location.hash = '#/dashboard'
-        } else {
-          window.location.hash = '#/producer'
-        }
+      .then(() => {
+        alert('Cuenta creada correctamente. Ahora inicia sesión.')
+        window.location.hash = '#/login'
       })
       .catch((err) => {
-        const fieldErrors = err.errors
-          ? Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join('\n')
-          : ''
-        setError(err.message + (fieldErrors ? `\n${fieldErrors}` : 'No se pudo crear la cuenta.'))
+        if (err.status === 409) {
+          setError('El correo ya está registrado. Intenta con otro.')
+        } else if (err.status === 400) {
+          setError(err.message || 'Datos inválidos. Verifica el formulario.')
+        } else {
+          setError(err.message || 'No se pudo crear la cuenta.')
+        }
       })
       .finally(() => {
         setLoading(false)

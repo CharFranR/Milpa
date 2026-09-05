@@ -5,7 +5,7 @@ import ProductCardList from '../../components/product/ProductCardList'
 import FiltersSidebar, { PRICE_LIMIT } from './FiltersSidebar'
 import Pagination from './Pagination'
 import EmptyResults from './EmptyResults'
-import { producerById, products } from '../../mocks/catalog'
+import { useFeaturedOfferings } from '../../hooks/useFeaturedOfferings'
 import { cn } from '../../lib/cn'
 
 const SORT_OPTIONS = [
@@ -24,6 +24,7 @@ const DEFAULT_FILTERS = {
 const PAGE_SIZE = 6
 
 export default function MarketplaceCatalog() {
+  const { offeringsList, loading, error } = useFeaturedOfferings()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('relevant')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
@@ -31,7 +32,7 @@ export default function MarketplaceCatalog() {
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
 
-  const visibleProducts = filterAndSortProducts(query, filters, sort)
+  const visibleProducts = filterAndSortProducts(offeringsList, query, filters, sort)
   const totalPages = Math.ceil(visibleProducts.length / PAGE_SIZE)
   const paginatedProducts = paginateProducts(visibleProducts, page)
 
@@ -44,6 +45,64 @@ export default function MarketplaceCatalog() {
     setQuery('')
     setFilters(DEFAULT_FILTERS)
     setPage(1)
+  }
+
+  if (loading) {
+    return (
+      <>
+        <header className="mt-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Marketplace
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">Cargando productos...</p>
+        </header>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
+              <div className="aspect-[4/3] rounded-xl bg-gray-200" />
+              <div className="h-4 w-3/4 rounded bg-gray-200" />
+              <div className="h-3 w-1/2 rounded bg-gray-200" />
+              <div className="h-5 w-1/3 rounded bg-gray-200" />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
+  if (error) {
+    return (
+      <>
+        <header className="mt-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Marketplace
+          </h1>
+        </header>
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <Icon name="error" size={40} className="mx-auto text-red-400" />
+          <p className="mt-3 text-sm text-red-700">{error}</p>
+        </div>
+      </>
+    )
+  }
+
+  if (offeringsList.length === 0) {
+    return (
+      <>
+        <header className="mt-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Marketplace
+          </h1>
+        </header>
+        <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
+          <Icon name="storefront" size={48} className="mx-auto text-gray-300" />
+          <h2 className="mt-4 text-lg font-semibold text-gray-900">No hay productos disponibles</h2>
+          <p className="mt-2 max-w-sm mx-auto text-sm text-gray-500">
+            Sé el primero en publicar productos en el Marketplace.
+          </p>
+        </div>
+      </>
+    )
   }
 
   return (
@@ -66,7 +125,7 @@ export default function MarketplaceCatalog() {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
           />
           <label htmlFor="marketplace-search" className="sr-only">
-            Buscar productos o productores
+            Buscar productos
           </label>
           <input
             id="marketplace-search"
@@ -76,7 +135,7 @@ export default function MarketplaceCatalog() {
               setQuery(e.target.value)
               setPage(1)
             }}
-            placeholder="Buscar productos o productores..."
+            placeholder="Buscar productos..."
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           />
           {query && (
@@ -140,14 +199,14 @@ export default function MarketplaceCatalog() {
             <EmptyResults onClear={clearAll} />
           ) : view === 'grid' ? (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {paginatedProducts.map((product) => (
-                <ProductCardGrid key={product.id} productId={product.id} />
+              {paginatedProducts.map((offering) => (
+                <ProductCardGrid key={offering.id} offering={offering} />
               ))}
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedProducts.map((product) => (
-                <ProductCardList key={product.id} productId={product.id} />
+              {paginatedProducts.map((offering) => (
+                <ProductCardList key={offering.id} offering={offering} />
               ))}
             </div>
           )}
@@ -196,14 +255,12 @@ function ViewToggle({ view, onChange }) {
   )
 }
 
-function filterAndSortProducts(query, filters, sort) {
+function filterAndSortProducts(allProducts, query, filters, sort) {
   const normalizedQuery = query.trim().toLowerCase()
 
-  const matching = products.filter((product) => {
+  const matching = allProducts.filter((product) => {
     if (!matchesQuery(product, normalizedQuery)) return false
-    if (!matchesCategory(product, filters.category)) return false
     if (product.price > filters.maxPrice) return false
-    if (product.rating < filters.minRating) return false
     return true
   })
 
@@ -212,13 +269,8 @@ function filterAndSortProducts(query, filters, sort) {
 
 function matchesQuery(product, normalizedQuery) {
   if (!normalizedQuery) return true
-  const producerName = producerById(product.producerId)?.name ?? ''
-  const searchableText = `${product.name} ${producerName}`.toLowerCase()
+  const searchableText = `${product.name || ''}`.toLowerCase()
   return searchableText.includes(normalizedQuery)
-}
-
-function matchesCategory(product, category) {
-  return category === 'all' || product.categoryId === category
 }
 
 function paginateProducts(items, page) {
@@ -229,7 +281,7 @@ function paginateProducts(items, page) {
 function sortProducts(items, sort) {
   switch (sort) {
     case 'rating':
-      return [...items].sort((a, b) => b.rating - a.rating)
+      return [...items].sort((a, b) => (b.rating || 0) - (a.rating || 0))
     case 'priceAsc':
       return [...items].sort((a, b) => a.price - b.price)
     case 'priceDesc':

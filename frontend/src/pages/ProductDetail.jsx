@@ -4,36 +4,81 @@ import Footer from '../components/layout/Footer'
 import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
-import StarRating from '../components/StarRating'
 import ProductImage from '../components/product/ProductImage'
 import ProductDetailModal from '../components/product/ProductDetailModal'
-import { productById, producerById, categoryById, productsByCategory } from '../mocks/catalog'
+import { offerings, companies } from '../services/api'
+import { productById, producerById, categoryById } from '../mocks/catalog'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
 
 export default function ProductDetail() {
   const hash = window.location.hash
   const productId = hash.replace('#/product/', '')
-  const product = productById(productId)
-  const producer = product ? producerById(product.producerId) : null
-  const category = product ? categoryById(product.categoryId) : null
-
+  const [realOffering, setRealOffering] = useState(null)
+  const [realCompany, setRealCompany] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [relatedProducts, setRelatedProducts] = useState([])
 
   useEffect(() => {
-    if (product) {
-      const related = productsByCategory(product.categoryId)
-        .filter((p) => p.id !== product.id)
-        .slice(0, 3)
-      setRelatedProducts(related)
-    }
-  }, [product])
+    if (!productId) return
+    setLoading(true)
 
-function handleSendMessage(message) {
-  console.log('Mensaje enviado:', message)
-  setIsModalOpen(false)
-}
+    offerings.getById(productId)
+      .then((data) => {
+        setRealOffering(data)
+        if (data.company_id) {
+          return companies.getById(data.company_id).catch(() => null)
+        }
+        return null
+      })
+      .then((companyData) => {
+        if (companyData) setRealCompany(companyData)
+      })
+      .catch(() => {
+        setRealOffering(null)
+      })
+      .finally(() => setLoading(false))
+  }, [productId])
+
+  const product = realOffering || productById(productId)
+  const producer = realCompany
+    ? {
+        name: realCompany.name,
+        city: realCompany.address || 'Nicaragua',
+        region: realCompany.address || '',
+        phone: realCompany.phone_number || '',
+        farm: realCompany.description || '',
+        since: '2025',
+      }
+    : product ? producerById(product.producerId) : null
+  const category = product ? (categoryById(product.categoryId) || { name: product.type === 1 ? 'Servicio' : 'Producto' }) : null
+
+  const description = product?.description || ''
+  const unitMatch = description.match(/Unit:\s*(\S+)/)
+  const unit = unitMatch?.[1] || 'un'
+  const qtyMatch = description.match(/Qty:\s*(\d+)/)
+  const quantity = qtyMatch?.[1] || null
+  const cleanDescription = description.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+
+  function handleSendMessage(message) {
+    console.log('Mensaje enviado:', message)
+    setIsModalOpen(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <Navbar />
+        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+          <div className="text-center">
+            <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
+            <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   if (!product || !producer || !category) {
     return (
@@ -54,8 +99,8 @@ function handleSendMessage(message) {
     )
   }
 
-  const availabilityText = product.available ? 'Disponible ahora' : 'Temporalmente agotado'
-  const availabilityColor = product.available ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+  const availabilityText = realOffering ? 'Disponible ahora' : 'Disponible ahora'
+  const availabilityColor = 'bg-green-100 text-green-700'
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -74,29 +119,10 @@ function handleSendMessage(message) {
           <section aria-label="Galería de imágenes" className="lg:col-span-2 space-y-4">
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
               <ProductImage
-                productId={product.id}
+                image_url={realOffering?.image_url}
                 name={product.name}
                 className="w-full h-full object-cover"
               />
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {Array.from({ length: 4 }, (_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={cn(
-                    'flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-colors',
-                    i === 0 ? 'border-brand' : 'border-transparent hover:border-brand/40',
-                  )}
-                  aria-label={`Miniatura ${i + 1}`}
-                >
-                  <ProductImage
-                    productId={product.id}
-                    name={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
             </div>
           </section>
 
@@ -114,36 +140,30 @@ function handleSendMessage(message) {
 
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{product.name}</h1>
 
-            <div className="flex items-center gap-2">
-              <StarRating rating={product.rating} reviews={product.reviews} size={16} showValue />
-            </div>
-
             <div className="text-3xl font-bold text-brand">
               {formatPrice(product.price)}
-              <span className="text-base font-medium text-gray-400"> / {product.unit}</span>
+              <span className="text-base font-medium text-gray-400"> / {unit}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium', availabilityColor)}>
-                <Icon name={product.available ? 'check_circle' : 'schedule'} size={12} />
+                <Icon name="check_circle" size={12} />
                 {availabilityText}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                <Icon name="location_on" size={12} />
-                {producer.region}
-              </span>
+              {producer.region && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                  <Icon name="location_on" size={12} />
+                  {producer.region}
+                </span>
+              )}
             </div>
 
             <div className="border-t border-gray-100 pt-6 space-y-2">
-              <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
-              {product.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {product.tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
+              {cleanDescription && (
+                <p className="text-sm text-gray-600 leading-relaxed">{cleanDescription}</p>
+              )}
+              {quantity && (
+                <p className="text-sm text-gray-500">Cantidad disponible: {quantity}</p>
               )}
             </div>
 
@@ -159,20 +179,22 @@ function handleSendMessage(message) {
                 Contactar productor
               </Button>
 
-              <Button
-                type="button"
-                variant="whatsapp"
-                size="lg"
-                className="w-full"
-                icon={<Icon name="phone_iphone" size={20} />}
-                onClick={() => {
-                  const text = encodeURIComponent(`Hola ${producer.name}, me interesa comprar ${product.name}...`)
-                  const phone = producer.phone.replace(/\D/g, '')
-                  window.open(`https://wa.me/505${phone}?text=${text}`, '_blank')
-                }}
-              >
-                Contactar por WhatsApp
-              </Button>
+              {producer.phone && (
+                <Button
+                  type="button"
+                  variant="whatsapp"
+                  size="lg"
+                  className="w-full"
+                  icon={<Icon name="phone_iphone" size={20} />}
+                  onClick={() => {
+                    const text = encodeURIComponent(`Hola ${producer.name}, me interesa comprar ${product.name}...`)
+                    const phone = producer.phone.replace(/\D/g, '')
+                    window.open(`https://wa.me/505${phone}?text=${text}`, '_blank')
+                  }}
+                >
+                  Contactar por WhatsApp
+                </Button>
+              )}
             </div>
 
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
@@ -182,67 +204,18 @@ function handleSendMessage(message) {
                 </span>
                 <div>
                   <p className="font-semibold text-gray-900">{producer.name}</p>
-                  <p className="text-sm text-gray-500">{producer.farm}</p>
+                  {producer.farm && (
+                    <p className="text-sm text-gray-500">{producer.farm}</p>
+                  )}
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Icon name="location_on" size={12} />
-                    {producer.city}, {producer.region} · Miembro desde {producer.since}
+                    {producer.city} · Miembro desde {producer.since}
                   </p>
                 </div>
               </div>
-              <a href="#/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark">
-                Ver perfil <Icon name="arrow_forward" size={14} />
-              </a>
             </div>
           </section>
         </div>
-
-        {relatedProducts.length > 0 && (
-          <section aria-label="Productos relacionados" className="mt-12">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Productos relacionados</h2>
-            <div className="grid gap-5 sm:grid-cols-3">
-              {relatedProducts.map((related) => {
-                const relatedProducer = producerById(related.producerId)
-                const relatedCategory = categoryById(related.categoryId)
-                return (
-                  <article
-                    key={related.id}
-                    className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                  >
-                    <a
-                      href={`#/product/${related.id}`}
-                      className="relative block aspect-[4/3] overflow-hidden bg-gray-100"
-                      aria-label={`Ver ${related.name}`}
-                    >
-                      <ProductImage
-                        productId={related.id}
-                        name={related.name}
-                        className="transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <span className="absolute left-3 top-3">
-                        <Badge tone="brand">{relatedCategory?.name}</Badge>
-                      </span>
-                    </a>
-                    <div className="p-4">
-                      <a href={`#/product/${related.id}`} className="font-semibold text-gray-900 hover:text-brand line-clamp-1">
-                        {related.name}
-                      </a>
-                      <p className="mt-0.5 text-sm text-gray-500 truncate">
-                        {relatedProducer?.name} · {relatedProducer?.city}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <p className="text-lg font-bold text-brand">
-                          {formatPrice(related.price)}
-                          <span className="ml-1 text-sm font-medium text-gray-400">/ {related.unit}</span>
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
       </main>
 
       <Footer />
