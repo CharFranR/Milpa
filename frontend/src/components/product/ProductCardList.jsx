@@ -2,6 +2,7 @@ import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import ProductImage from './ProductImage'
 import { formatPrice } from '../../lib/format'
+import { getProductImage } from '../../lib/productImages'
 
 export default function ProductCardList({ offering }) {
   if (!offering) return null
@@ -9,11 +10,12 @@ export default function ProductCardList({ offering }) {
   const description = offering.description || ''
   const unitMatch = description.match(/Unit:\s*(\S+)/)
   const unit = unitMatch?.[1] || 'un'
+  const imageUrl = offering.image_url || getProductImage(offering.id)
 
   return (
     <article className="group flex items-center gap-4 rounded-2xl border border-gray-100 bg-white p-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <ProductImage
-        image_url={offering.image_url}
+        image_url={imageUrl}
         name={offering.name}
         className="h-24 w-24 shrink-0 rounded-xl"
         imgClassName="transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100!"

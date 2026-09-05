@@ -2,6 +2,7 @@ import Badge from '../ui/Badge'
 import Icon from '../ui/Icon'
 import ProductImage from './ProductImage'
 import { formatPrice } from '../../lib/format'
+import { getProductImage } from '../../lib/productImages'
 
 export default function ProductCardGrid({ offering }) {
   if (!offering) return null
@@ -9,12 +10,13 @@ export default function ProductCardGrid({ offering }) {
   const description = offering.description || ''
   const unitMatch = description.match(/Unit:\s*(\S+)/)
   const unit = unitMatch?.[1] || 'un'
+  const imageUrl = offering.image_url || getProductImage(offering.id)
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <div className="relative aspect-[4/3]">
         <ProductImage
-          image_url={offering.image_url}
+          image_url={imageUrl}
           name={offering.name}
           imgClassName="transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100!"
         />
