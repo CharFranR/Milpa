@@ -2,7 +2,8 @@ import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
-import { setSessionRole } from '../../lib/session'
+import { auth } from '../../services/api'
+import { setToken, setUser } from '../../lib/session'
 
 const ROLES = [
   {
@@ -70,15 +71,23 @@ export default function Login() {
     }
     setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSessionRole(current.key)
-      if (current.key === 'buyer') {
-        window.location.hash = '#/dashboard'
-      } else if (current.key === 'producer') {
-        window.location.hash = '#/producer'
-      }
-    }, 1000)
+
+    auth.login(email, password)
+      .then((data) => {
+        setToken(data.access_token)
+        setUser(data.user)
+        if (data.user.role === 'producer') {
+          window.location.hash = '#/producer'
+        } else {
+          window.location.hash = '#/dashboard'
+        }
+      })
+      .catch((err) => {
+        setError(err.message || 'Credenciales incorrectas.')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   return (

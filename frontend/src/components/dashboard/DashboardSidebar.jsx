@@ -1,7 +1,7 @@
 import Icon from '../ui/Icon'
 import Avatar from '../Avatar'
 import { buyerProfile } from '../../mocks/buyer'
-import { clearSessionRole } from '../../lib/session'
+import { clearSession } from '../../lib/session'
 import { cn } from '../../lib/cn'
 
 const TABS = [
@@ -13,8 +13,8 @@ const TABS = [
 ]
 
 function handleLogout() {
-  clearSessionRole()
-  window.location.hash = '#inicio'
+  clearSession()
+  window.location.hash = '#/'
 }
 
 function TabButton({ tab, active, onSelect, className }) {

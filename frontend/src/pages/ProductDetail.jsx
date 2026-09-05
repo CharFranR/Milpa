@@ -30,11 +30,10 @@ export default function ProductDetail() {
     }
   }, [product])
 
-  function handleSendMessage(message) {
-    console.log('Enviar mensaje:', message)
-    alert(`Mensaje enviado a ${producer?.name}: "${message}"`)
-    setIsModalOpen(false)
-  }
+function handleSendMessage(message) {
+  console.log('Mensaje enviado:', message)
+  setIsModalOpen(false)
+}
 
   if (!product || !producer || !category) {
     return (

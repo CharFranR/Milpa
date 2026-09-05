@@ -1,7 +1,7 @@
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSessionRole } from '../../lib/session'
+import { clearSession } from '../../lib/session'
 import { producerProfile } from '../../mocks/producer'
 
 const TABS = [
@@ -13,7 +13,7 @@ const TABS = [
 ]
 
 function handleLogout() {
-  clearSessionRole()
+  clearSession()
   window.location.hash = '#/'
 }
 
