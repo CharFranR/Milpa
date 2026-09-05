@@ -77,7 +77,7 @@ export default function Register() {
       last_name: lastName,
       email: form.email.trim(),
       phone_number: normalizePhone(form.phone),
-      role: userType,
+      role: userType === 'buyer' ? 'mipyme' : 'provider',
       password: form.password,
       confirm_password: form.password,
       address: form.region || '',
