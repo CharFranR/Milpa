@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button'
 import Avatar from '../../components/Avatar'
 import Icon from '../../components/ui/Icon'
 import { inquiries } from '../../services/api'
+import { getUser } from '../../lib/session'
 
 const STATUS_MAP = {
   pending: { label: 'Pendiente', tone: 'amber' },
@@ -14,6 +15,7 @@ const STATUS_MAP = {
 }
 
 export default function ProducerRequests() {
+  const user = getUser()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -21,7 +23,7 @@ export default function ProducerRequests() {
   function fetchRequests() {
     setLoading(true)
     setError('')
-    inquiries.getByProducer()
+    inquiries.getByUser(user?.id)
       .then((data) => {
         setRequests(Array.isArray(data) ? data : data.inquiries || [])
       })

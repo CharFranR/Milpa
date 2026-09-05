@@ -74,6 +74,7 @@ export default function ProducerBusiness() {
     if (!payload.category_id) {
       delete payload.category_id
     }
+    delete payload.address
 
     const action = company
       ? updateCompany(company.id, payload)

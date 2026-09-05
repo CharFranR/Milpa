@@ -106,8 +106,8 @@ export const inquiries = {
   create: (data) =>
     request('/inquiries', { method: 'POST', body: data }),
 
-  getByProducer: () =>
-    request('/inquiries'),
+  getByUser: (userId) =>
+    request(`/inquiries?user_id=${userId}`),
 
   updateStatus: (id, status) =>
     request(`/inquiries/${id}`, { method: 'PATCH', body: { status } }),

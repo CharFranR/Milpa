@@ -1,7 +1,7 @@
 import Icon from '../ui/Icon'
 import Avatar from '../Avatar'
-import { buyerProfile } from '../../mocks/buyer'
-import { clearSession } from '../../lib/session'
+import { getUser, clearSession } from '../../lib/session'
+import { getInitials, getDisplayName } from '../../lib/user'
 import { cn } from '../../lib/cn'
 
 const TABS = [
@@ -37,16 +37,20 @@ function TabButton({ tab, active, onSelect, className }) {
 }
 
 export default function DashboardSidebar({ activeTab, onTabChange }) {
+  const user = getUser()
+  const displayName = getDisplayName(user)
+  const displayRole = user?.role === 'buyer' ? 'Comprador' : user?.role || 'Comprador'
+
   return (
     <>
       <aside className="hidden w-64 shrink-0 lg:block">
         <div className="sticky top-20 rounded-2xl border border-gray-100 bg-white p-4">
           <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar initials={buyerProfile.initials} name={buyerProfile.name} size="md" />
+            <Avatar initials={getInitials(user)} name={displayName} size="md" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">{buyerProfile.name}</p>
+              <p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
               <p className="truncate text-xs text-gray-500">
-                {buyerProfile.role} · {buyerProfile.city}
+                {displayRole}
               </p>
             </div>
           </div>
@@ -78,7 +82,7 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
 
       <div className="sticky top-16 z-30 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
-          <Avatar initials={buyerProfile.initials} name={buyerProfile.name} size="sm" />
+          <Avatar initials={getInitials(user)} name={displayName} size="sm" />
           {TABS.map((tab) => (
             <TabButton
               key={tab.id}
