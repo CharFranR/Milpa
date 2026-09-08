@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "@fontsource-variable/outfit";
+@import "material-symbols/rounded.css";
+
+@theme {
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand: #075809;
+  --color-brand-dark: #05460a;
+  --color-brand-soft: #e9f2e7;
+  --color-accent: #d2e749;
+  --color-accent-soft: #f2f7d8;
+  --color-night: #1d1d1b;
+  --color-night-soft: #2a2a28;
+  --color-whatsapp: #25d366;
+}
+
+.material-symbols-rounded {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

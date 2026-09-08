@@ -1,0 +1,315 @@
+@startuml
+!pragma use crow's foot notation
+hide circle
+skinparam linetype ortho
+skinparam node {
+  BackgroundColor #FDFDFD
+  BorderColor #2E6E4E
+}
+skinparam entity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+}
+
+title Milpa - Eco-Mercado Digital\nModelo ER basico (BD Relacional) - 2FN\nBasado en el Brief v2.0
+
+' =====================================================================
+' CATALOGOS ADMINISTRABLES
+' =====================================================================
+
+entity "units_of_measure" as um {
+  * id : uuid <<PK>>
+  --
+  * name : varchar <<UQ>>
+  * abbreviation : varchar <<UQ>>
+}
+
+entity "product_types" as pt {
+  * id : uuid <<PK>>
+  --
+  * name : varchar <<UQ>>
+  * description : text
+  * main_category : enum  "frutales | citricos | otros"
+  * default_unit_id : uuid <<FK>>
+  * is_active : boolean
+}
+
+' =====================================================================
+' USUARIOS Y DIRECCIONES
+' =====================================================================
+
+entity "users" as us {
+  * id : uuid <<PK>>
+  --
+  * email : varchar <<UQ>>
+  * phone_number : varchar <<UQ>>
+  * password_hash : varchar
+  * first_name : varchar
+  * last_name : varchar
+  * role : enum  "farmer | retail_buyer | wholesale_detallista | wholesale_corporativo | admin | auditor"
+  * status : enum  "active | suspended"
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity "addresses" as ad {
+  * id : uuid <<PK>>
+  --
+  * department : varchar
+  * municipality : varchar
+  * address_line : varchar
+  * latitude : double
+  * longitude : double
+}
+
+entity "companies" as co {
+  * id : uuid <<PK>>
+  --
+  * owner_user_id : uuid <<FK>>
+  * address_id : uuid <<FK>>
+  * name : varchar <<UQ>>
+  * legal_representative : varchar
+  * tax_id : varchar <<UQ>>  "RUC / NIT"
+  * email : varchar <<UQ>>
+  * phone_number : varchar
+  * verified : boolean
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity "company_documents" as cd {
+  * id : uuid <<PK>>
+  --
+  * company_id : uuid <<FK>>
+  * doc_type : enum  "license | ruc | id_card"
+  * file_url : varchar
+  * uploaded_at : timestamptz
+}
+
+' =====================================================================
+' CATALOGO DEL AGRICULTOR (Flujo 1)
+' =====================================================================
+
+entity "products" as pr {
+  * id : uuid <<PK>>
+  --
+  * seller_user_id : uuid <<FK>>
+  * company_id : uuid <<FK>>  "null = agricultor individual"
+  * product_type_id : uuid <<FK>>
+  * unit_id : uuid <<FK>>
+  * location_id : uuid <<FK>>  "puede diferir del agricultor"
+  * name : varchar
+  * variety : varchar
+  * description : text
+  * price : numeric
+  * quantity_available : numeric
+  * delivery_available : boolean
+  * expires_at : timestamptz
+  * status : enum  "active | inactive"
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity "product_images" as pi {
+  * id : uuid <<PK>>
+  --
+  * product_id : uuid <<FK>>
+  * image_url : varchar
+  * position : integer
+}
+
+' =====================================================================
+' FLUJO 2: SOLICITUDES DE ABASTECIMIENTO Y MATCH
+' =====================================================================
+
+entity "supply_requests" as sr {
+  * id : uuid <<PK>>
+  --
+  * buyer_user_id : uuid <<FK>>
+  * product_type_id : uuid <<FK>>
+  * unit_id : uuid <<FK>>
+  * location_id : uuid <<FK>>
+  * quantity : numeric
+  * deadline : timestamptz
+  * status : enum  "open | closed | cancelled | matched"
+  * created_at : timestamptz
+}
+
+entity "supply_offers" as so {
+  * id : uuid <<PK>>
+  --
+  * supply_request_id : uuid <<FK>>
+  * seller_user_id : uuid <<FK>>
+  * product_id : uuid <<FK>>
+  * unit_id : uuid <<FK>>
+  * quantity : numeric
+  * price : numeric
+  * delivery_time : varchar
+  * comments : text
+  * status : enum  "pending | accepted | rejected | withdrawn"
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+entity "matches" as ma {
+  * id : uuid <<PK>>
+  --
+  * supply_request_id : uuid <<FK>> <<UQ>>
+  * supply_offer_id : uuid <<FK>> <<UQ>>
+  * status : enum  "matched | in_progress | completed | cancelled"
+  * cancel_reason : text
+  * created_at : timestamptz
+  * updated_at : timestamptz
+}
+
+' =====================================================================
+' FLUJO 3: OFERTAS DE LIQUIDACION
+' =====================================================================
+
+entity "liquidation_offers" as lo {
+  * id : uuid <<PK>>
+  --
+  * seller_user_id : uuid <<FK>>
+  * company_id : uuid <<FK>>  "null = agricultor individual"
+  * product_type_id : uuid <<FK>>
+  * unit_id : uuid <<FK>>
+  * location_id : uuid <<FK>>
+  * quantity : numeric
+  * total_price : numeric
+  * delivery_time : varchar
+  * visibility : enum  "all | detallista | corporativo | wholesale"
+  * assignment_method : enum  "fcfs | manual"
+  * assigned_to_user_id : uuid <<FK>>  "null = sin asignar"
+  * status : enum  "open | assigned | closed"
+  * created_at : timestamptz
+}
+
+entity "liquidation_interests" as li {
+  * id : uuid <<PK>>
+  --
+  * liquidation_offer_id : uuid <<FK>>
+  * buyer_user_id : uuid <<FK>>
+  * interested_at : timestamptz
+}
+
+' =====================================================================
+' CHAT (WebSocket)
+' =====================================================================
+
+entity "conversations" as cv {
+  * id : uuid <<PK>>
+  --
+  * match_id : uuid <<FK>>  "null = chat directo minorista-agricultor"
+  * buyer_user_id : uuid <<FK>>
+  * seller_user_id : uuid <<FK>>
+  * created_at : timestamptz
+}
+
+entity "chat_messages" as cm {
+  * id : uuid <<PK>>
+  --
+  * conversation_id : uuid <<FK>>
+  * sender_user_id : uuid <<FK>>
+  * body : text
+  * created_at : timestamptz
+}
+
+' =====================================================================
+' CALIFICACIONES, REPORTES Y AUDITORIA
+' =====================================================================
+
+entity "reviews" as rv {
+  * id : uuid <<PK>>
+  --
+  * author_user_id : uuid <<FK>>
+  * target_user_id : uuid <<FK>>
+  * match_id : uuid <<FK>>  "null = transaccion acordada en flujo minorista"
+  * rating : smallint  "1..5"
+  * comment : text
+  * created_at : timestamptz
+}
+
+entity "reports" as rp {
+  * id : uuid <<PK>>
+  --
+  * reporter_user_id : uuid <<FK>>
+  * target_user_id : uuid <<FK>>
+  * target_type : enum  "product | supply_request | liquidation_offer | user"
+  * target_id : uuid
+  * reason : text
+  * status : enum  "pending | approved | rejected"
+  * resolved_by_admin : uuid <<FK>>
+  * created_at : timestamptz
+  * resolved_at : timestamptz
+}
+
+' =====================================================================
+' RELACIONES
+' =====================================================================
+
+us ||--o| ad : "tiene (address_id)"
+co ||--o| ad : "tiene (address_id)"
+co }o--|| us : "es propiedad de (owner_user_id)"
+cd }o--|| co : "pertenece a (company_id)"
+
+pt }o--|| um : "unidad por defecto (default_unit_id)"
+
+pr }o--|| us : "publicado por (seller_user_id)"
+pr }o--o| co : "empresa opcional (company_id)"
+pr }o--|| pt : "tipo de producto (product_type_id)"
+pr }o--|| um : "unidad de medida (unit_id)"
+pr }o--o| ad : "ubicacion del producto (location_id)"
+pi }o--|| pr : "imagenes de (product_id)"
+
+sr }o--|| us : "publicada por (buyer_user_id)"
+sr }o--|| pt : "solicita (product_type_id)"
+sr }o--|| um : "unidad (unit_id)"
+sr }o--|| ad : "ubicacion (location_id)"
+
+so }o--|| sr : "responde a (supply_request_id)"
+so }o--|| us : "ofertada por (seller_user_id)"
+so }o--|| pr : "basada en catalogo (product_id)"
+so }o--|| um : "unidad (unit_id)"
+
+ma ||--|| sr : "cierra (supply_request_id)"
+ma ||--|| so : "acepta (supply_offer_id)"
+
+lo }o--|| us : "publicada por (seller_user_id)"
+lo }o--o| co : "empresa opcional (company_id)"
+lo }o--|| pt : "tipo de producto (product_type_id)"
+lo }o--|| um : "unidad (unit_id)"
+lo }o--|| ad : "ubicacion (location_id)"
+lo }o--o| us : "asignada a (assigned_to_user_id)"
+li }o--|| lo : "interes en (liquidation_offer_id)"
+li }o--|| us : "interesado (buyer_user_id)"
+
+cv }o--o| ma : "chat post-match (match_id)"
+cv }o--|| us : "comprador (buyer_user_id)"
+cv }o--|| us : "agricultor (seller_user_id)"
+cm }o--|| cv : "mensajes de (conversation_id)"
+cm }o--|| us : "enviado por (sender_user_id)"
+
+rv }o--|| us : "califica (author_user_id)"
+rv }o--|| us : "recibe (target_user_id)"
+rv }o--o| ma : "transaccion (match_id)"
+
+rp }o--|| us : "reporta (reporter_user_id)"
+rp }o--|| us : "objetivo (target_user_id)"
+rp }o--o| us : "resuelto por (resolved_by_admin)"
+
+note bottom of us
+  **2FN**: todas las tablas usan clave primaria
+  simple (UUID). Las tablas asociativas no tienen
+  atributos no clave dependientes parcialmente,
+  por lo que el modelo cumple 2FN (y 3FN).
+end note
+
+legend right
+  <<PK>>  Clave primaria
+  <<FK>>  Clave foranea
+  <<UQ>>  Unico
+  Futuro (fuera del MVP): notifications, favorites,
+  company_audit_log, SMS verification badge.
+end legend
+
+@enduml
