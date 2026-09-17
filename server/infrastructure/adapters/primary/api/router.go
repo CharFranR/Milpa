@@ -17,6 +17,7 @@ func NewRouter(
 	category *handler.CategoryHandler,
 	inquiry *handler.InquiryHandler,
 	authMW *middleware.AuthMiddleware,
+	image *handler.ImageHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -69,6 +70,7 @@ func NewRouter(
 			r.With(authMW.Authenticate).Post("/", inquiry.Create)
 			r.With(authMW.Authenticate).Patch("/{id}", inquiry.Update)
 		})
+		r.Get("/images/{filename}", image.Get)
 	})
 
 	return r

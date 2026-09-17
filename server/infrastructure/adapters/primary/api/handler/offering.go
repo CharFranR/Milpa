@@ -8,12 +8,17 @@ import (
 	"github.com/google/uuid"
 
 	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
 	"milpa/internal/validate"
+
+	"strconv"
 )
 
 type OfferingHandler struct {
-	uc primary.OfferingUseCase
+	uc    primary.OfferingUseCase
+	image port.ImageStore
 }
 
 func NewOfferingHandler(uc primary.OfferingUseCase) *OfferingHandler {
@@ -42,6 +47,63 @@ func (h *OfferingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond(w, http.StatusCreated, result)
+}
+
+func (h *OfferingHandler) Create_v2(w http.ResponseWriter, r *http.Request) {
+	const maxUploadSize = 10 << 20
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+	}
+
+	userID, err := uuid.Parse(r.FormValue("user_id"))
+
+	idType, err := strconv.Atoi(r.FormValue("type"))
+
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "user_id not a valid number")
+		return
+	}
+
+	OfferingType := domain.OfferingType(idType)
+
+	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
+
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "ain't a correct price number")
+		return
+	}
+
+	req := dto.CreateOfferingRequest{
+		UserID:      userID,
+		Type:        OfferingType,
+		Name:        r.FormValue("name"),
+		Description: r.FormValue("description"),
+		Price:       price,
+	}
+
+	if file, header, err := r.FormFile("image_url"); err == nil {
+		defer file.Close()
+
+		imagePath, err := h.image.Upload(r.Context(), file, header.Filename)
+
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "na, ur image sucks")
+		}
+
+		req.ImageURL = imagePath
+	}
+
+	result, err := h.uc.CreateOffering(r.Context(), req)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusCreated, result)
+
 }
 
 func (h *OfferingHandler) GetByID(w http.ResponseWriter, r *http.Request) {

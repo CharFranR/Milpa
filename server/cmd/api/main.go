@@ -19,6 +19,7 @@ import (
 	"milpa/infrastructure/adapters/secondary/auth"
 	"milpa/infrastructure/adapters/secondary/cache"
 	repo "milpa/infrastructure/adapters/secondary/repository"
+	"milpa/infrastructure/adapters/secondary/storage"
 	timepkg "milpa/infrastructure/adapters/secondary/time"
 	"milpa/infrastructure/database"
 )
@@ -101,7 +102,10 @@ func main() {
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, authMW)
+	imageStore := storage.NewLocalImageStore("./uploads")
+	imageHandler := handler.NewImageHandler(imageStore)
+
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, authMW, imageHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,

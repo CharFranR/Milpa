@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
 
 	"github.com/google/uuid"
@@ -55,5 +56,6 @@ type InquiryRepository interface {
 
 type ImageStore interface {
 	Upload(ctx context.Context, file io.Reader, filename string) (string, error)
+	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)
 	Delete(ctx context.Context, filename string) error
 }
