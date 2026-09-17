@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"io"
 	"milpa/aplication/dto"
 	port "milpa/domain/port/secondary"
 	"mime"
@@ -19,16 +18,10 @@ func NewLocalImageStore(baseDir string) *LocalImageStoreImpl {
 	return &LocalImageStoreImpl{baseDir: baseDir}
 }
 
-func (LIS *LocalImageStoreImpl) Upload(ctx context.Context, file io.Reader, filename string) (string, error) {
+func (LIS *LocalImageStoreImpl) Upload(ctx context.Context, file []byte, filename string) (string, error) {
 	path := filepath.Join(LIS.baseDir, filename)
 
-	dstFile, err := os.Create(path)
-	if err != nil {
-		return "", err
-	}
-	defer dstFile.Close()
-
-	_, err = io.Copy(dstFile, file)
+	err := os.WriteFile(path, file, 0644)
 	if err != nil {
 		return "", err
 	}

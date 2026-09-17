@@ -55,6 +55,7 @@ func NewRouter(
 			r.Get("/{id}", offering.GetByID)
 			r.Get("/", offering.GetByUserID)
 			r.With(authMW.Authenticate).Post("/", offering.Create)
+			r.With(authMW.Authenticate).Post("/create2/", offering.Create_v2)
 			r.With(authMW.Authenticate).Patch("/{id}", offering.Update)
 		})
 

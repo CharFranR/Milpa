@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -21,8 +22,8 @@ type OfferingHandler struct {
 	image port.ImageStore
 }
 
-func NewOfferingHandler(uc primary.OfferingUseCase) *OfferingHandler {
-	return &OfferingHandler{uc: uc}
+func NewOfferingHandler(uc primary.OfferingUseCase, img port.ImageStore) *OfferingHandler {
+	return &OfferingHandler{uc: uc, image: img}
 }
 
 func (h *OfferingHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -56,9 +57,15 @@ func (h *OfferingHandler) Create_v2(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	userID, err := uuid.Parse(r.FormValue("user_id"))
+
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "user_id not a valid number")
+		return
+	}
 
 	idType, err := strconv.Atoi(r.FormValue("type"))
 
@@ -87,13 +94,21 @@ func (h *OfferingHandler) Create_v2(w http.ResponseWriter, r *http.Request) {
 	if file, header, err := r.FormFile("image_url"); err == nil {
 		defer file.Close()
 
-		imagePath, err := h.image.Upload(r.Context(), file, header.Filename)
+		data, err := io.ReadAll(file)
 
 		if err != nil {
 			respondError(w, http.StatusBadRequest, "na, ur image sucks")
+			return
+		}
+
+		imagePath, err := h.image.Upload(r.Context(), data, header.Filename)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "failed to upload image")
+			return
 		}
 
 		req.ImageURL = imagePath
+
 	}
 
 	result, err := h.uc.CreateOffering(r.Context(), req)

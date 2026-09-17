@@ -93,17 +93,17 @@ func main() {
 	inquiryUC = usecases.NewCachedInquiryUseCase(inquiryUC, cacheClient)
 	userUC = usecases.NewCachedUserUseCase(userUC, cacheClient)
 
+	imageStore := storage.NewLocalImageStore("./uploads")
+
 	userHandler := handler.NewUserHandler(userUC)
 	companyHandler := handler.NewCompanyHandler(companyUC)
-	offeringHandler := handler.NewOfferingHandler(offeringUC)
+	offeringHandler := handler.NewOfferingHandler(offeringUC, imageStore)
 	reviewHandler := handler.NewReviewHandler(reviewUC)
 	categoryHandler := handler.NewCategoryHandler(categoryUC)
 	inquiryHandler := handler.NewInquiryHandler(inquiryUC)
+	imageHandler := handler.NewImageHandler(imageStore)
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
-
-	imageStore := storage.NewLocalImageStore("./uploads")
-	imageHandler := handler.NewImageHandler(imageStore)
 
 	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, authMW, imageHandler)
 
