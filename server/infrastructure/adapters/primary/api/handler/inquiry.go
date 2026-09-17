@@ -76,6 +76,22 @@ func (h *InquiryHandler) GetByUser(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusOK, result)
 }
 
+func (h *InquiryHandler) GetByCompany(w http.ResponseWriter, r *http.Request) {
+	companyID, err := uuid.Parse(chi.URLParam(r, "company_id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid company_id")
+		return
+	}
+
+	result, err := h.uc.GetByCompany(r.Context(), companyID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}
+
 func (h *InquiryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

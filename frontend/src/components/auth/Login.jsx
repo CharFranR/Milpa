@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
-import { setSessionRole } from '../../lib/session'
+import Logo from '../../components/Logo'
+import { auth } from '../../services/api'
+import { setToken, setUser } from '../../lib/session'
+
+const ROLE_MAP = { 0: 'pending', 1: 'buyer', 2: 'producer', 3: 'admin' }
 
 const ROLES = [
   {
@@ -69,15 +73,30 @@ export default function Login() {
     }
     setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setSessionRole(current.key)
-      if (current.key === 'buyer') {
-        window.location.hash = '#/dashboard'
-      } else if (current.key === 'producer') {
-        window.location.hash = '#/producer'
-      }
-    }, 1000)
+
+    auth.login(email, password)
+      .then((data) => {
+        setToken(data.access_token)
+        data.user.role = ROLE_MAP[data.user.role] || 'buyer'
+        setUser(data.user)
+        if (data.user.role === 'producer') {
+          window.location.hash = '#/producer'
+        } else {
+          window.location.hash = '#/dashboard'
+        }
+      })
+      .catch((err) => {
+        if (err.status === 401) {
+          setError('Correo o contraseña incorrectos.')
+        } else if (err.status === 404) {
+          setError('Usuario no encontrado.')
+        } else {
+          setError(err.message || 'Error al iniciar sesión.')
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   return (
@@ -87,12 +106,7 @@ export default function Login() {
       >
         <div className="p-8">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-              <Icon name="eco" size={20} weight={600} className="text-accent" />
-            </span>
-            <span className="text-lg font-medium">
-              Mil<span className="font-extrabold">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
         </div>
 
@@ -120,12 +134,7 @@ export default function Login() {
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
           <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-              <Icon name="eco" size={20} weight={600} className="text-white" />
-            </span>
-            <span className="text-lg font-medium text-gray-900">
-              Mil<span className="font-extrabold text-brand">pa</span>
-            </span>
+            <Logo className="h-9 w-auto" />
           </a>
           <a href="#/register" className="text-sm font-semibold text-brand hover:text-brand-dark">
             Regístrate

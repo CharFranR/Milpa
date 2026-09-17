@@ -67,6 +67,20 @@ func (uc *InquiryUseCaseImpl) GetByUser(ctx context.Context, userID uuid.UUID) (
 	return dtos, nil
 }
 
+func (uc *InquiryUseCaseImpl) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.InquiryDTO, error) {
+	inquiries, err := uc.inquiryRepo.FindByCompany(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*dto.InquiryDTO, len(inquiries))
+	for i := range inquiries {
+		dtos[i] = inquiryToDTO(&inquiries[i])
+	}
+
+	return dtos, nil
+}
+
 func (uc *InquiryUseCaseImpl) UpdateInquiry(ctx context.Context, id uuid.UUID, req dto.UpdateInquiryRequest) error {
 	inquiry, err := uc.inquiryRepo.FindByID(ctx, id)
 	if err != nil {
@@ -93,11 +107,12 @@ var _ primary.InquiryUseCase = (*InquiryUseCaseImpl)(nil)
 
 func inquiryToDTO(inquiry *domain.Inquiry) *dto.InquiryDTO {
 	return &dto.InquiryDTO{
-		ID:         inquiry.ID,
-		UserID:     inquiry.UserID,
-		OfferingID: inquiry.OfferingID,
-		Message:    inquiry.Message,
-		Status:     inquiry.Status,
-		CreatedAt:  inquiry.CreatedAt,
+		ID:           inquiry.ID,
+		UserID:       inquiry.UserID,
+		OfferingID:   inquiry.OfferingID,
+		OfferingName: inquiry.OfferingName,
+		Message:      inquiry.Message,
+		Status:       inquiry.Status,
+		CreatedAt:    inquiry.CreatedAt,
 	}
 }

@@ -47,6 +47,7 @@ type CategoryRepository interface {
 type InquiryRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
+	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
 	Save(ctx context.Context, inquiry *domain.Inquiry) error
 	Update(ctx context.Context, inquiry *domain.Inquiry) error
 }

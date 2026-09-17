@@ -2,8 +2,10 @@ import Icon from '../../components/ui/Icon'
 import StatCard from '../../components/StatCard'
 import ProductImage from '../../components/product/ProductImage'
 import { formatPrice } from '../../lib/format'
+import { getUser } from '../../lib/session'
+import { getDisplayName } from '../../lib/user'
 import { productById, producerById } from '../../mocks/catalog'
-import { buyerProfile, homeStats, quickActions, recentActivity, recommendedProductIds } from '../../mocks/buyer'
+import { homeStats, quickActions, recentActivity, recommendedProductIds } from '../../mocks/buyer'
 
 const ACTIVITY_TONES = {
   red: 'bg-red-100 text-red-600',
@@ -12,11 +14,14 @@ const ACTIVITY_TONES = {
 }
 
 export default function BuyerHome({ onGoToTab }) {
+  const user = getUser()
+  const displayName = getDisplayName(user)
+
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-          Buen día, {buyerProfile.name} 👋
+          Buen día, {displayName} 👋
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           Aquí tienes un resumen de tu actividad reciente.

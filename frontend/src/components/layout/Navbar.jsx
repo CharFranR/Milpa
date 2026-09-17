@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
+import Logo from '../../components/Logo'
 
 const NAV_LINKS = [
   { label: 'Inicio', href: '#inicio' },
@@ -40,15 +41,7 @@ export default function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <a href="#inicio" className="flex items-center gap-2" aria-label="Milpa — inicio">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
-            <Icon name="eco" size={20} weight={600} />
-          </span>
-          <span className={cn('text-lg tracking-tight', textColor)}>
-            <span className={cn('font-extrabold', transparent ? 'text-brand' : 'text-brand')}>
-              Mil
-            </span>
-            <span className="font-medium">pa</span>
-          </span>
+          <Logo className="h-9 w-auto" />
         </a>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
