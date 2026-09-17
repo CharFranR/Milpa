@@ -339,12 +339,13 @@ func (f *fakeCategoryRepo) Save(ctx context.Context, category *domain.Category) 
 }
 
 type fakeInquiryRepo struct {
-	findByID   func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
-	findByUser func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
-	save       func(ctx context.Context, inquiry *domain.Inquiry) error
-	update     func(ctx context.Context, inquiry *domain.Inquiry) error
-	saved      []*domain.Inquiry
-	updated    []*domain.Inquiry
+	findByID    func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
+	findByUser  func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
+	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
+	save        func(ctx context.Context, inquiry *domain.Inquiry) error
+	update      func(ctx context.Context, inquiry *domain.Inquiry) error
+	saved       []*domain.Inquiry
+	updated     []*domain.Inquiry
 }
 
 func newFakeInquiryRepo() *fakeInquiryRepo {
@@ -355,6 +356,9 @@ func newFakeInquiryRepo() *fakeInquiryRepo {
 		return inquiry, nil
 	}
 	f.findByUser = func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error) {
+		return []domain.Inquiry{*mustInquiry()}, nil
+	}
+	f.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error) {
 		return []domain.Inquiry{*mustInquiry()}, nil
 	}
 	f.save = func(ctx context.Context, inquiry *domain.Inquiry) error {
@@ -374,6 +378,10 @@ func (f *fakeInquiryRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.I
 
 func (f *fakeInquiryRepo) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error) {
 	return f.findByUser(ctx, userID)
+}
+
+func (f *fakeInquiryRepo) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error) {
+	return f.findByCompany(ctx, companyID)
 }
 
 func (f *fakeInquiryRepo) Save(ctx context.Context, inquiry *domain.Inquiry) error {
