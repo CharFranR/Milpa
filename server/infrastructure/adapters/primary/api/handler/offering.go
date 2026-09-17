@@ -28,7 +28,7 @@ func (h *OfferingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := validate.Request([]validate.Rule{
-		{Field: "company_id", Value: req.CompanyID},
+		{Field: "user_id", Value: req.UserID},
 		{Field: "name", Value: req.Name},
 	}); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
@@ -60,14 +60,14 @@ func (h *OfferingHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusOK, result)
 }
 
-func (h *OfferingHandler) GetByCompany(w http.ResponseWriter, r *http.Request) {
-	companyID, err := uuid.Parse(r.URL.Query().Get("company_id"))
+func (h *OfferingHandler) GetByUserID(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(r.URL.Query().Get("user_id"))
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid company_id")
+		respondError(w, http.StatusBadRequest, "invalid user_id")
 		return
 	}
 
-	result, err := h.uc.GetByCompany(r.Context(), companyID)
+	result, err := h.uc.GetByUserID(r.Context(), userID)
 	if err != nil {
 		handleError(w, err)
 		return

@@ -63,7 +63,7 @@ func mustCompany() *domain.Company {
 }
 
 func mustOffering() *domain.Offering {
-	offering, err := domain.NewOffering(testCompanyID, "Organic Corn", domain.OfferingProduct, fixedTime)
+	offering, err := domain.NewOffering(testUserID, "Organic Corn", domain.OfferingProduct, fixedTime)
 	if err != nil {
 		panic(err)
 	}
@@ -213,14 +213,14 @@ func (f *fakeCompanyRepo) Update(ctx context.Context, company *domain.Company) e
 }
 
 type fakeOfferingRepo struct {
-	findByID      func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
-	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
-	save          func(ctx context.Context, offering *domain.Offering) error
-	update        func(ctx context.Context, offering *domain.Offering) error
-	delete        func(ctx context.Context, id uuid.UUID) error
-	saved         []*domain.Offering
-	updated       []*domain.Offering
-	deleted       []uuid.UUID
+	findByID     func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
+	findByUserID func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	save         func(ctx context.Context, offering *domain.Offering) error
+	update       func(ctx context.Context, offering *domain.Offering) error
+	delete       func(ctx context.Context, id uuid.UUID) error
+	saved        []*domain.Offering
+	updated      []*domain.Offering
+	deleted      []uuid.UUID
 }
 
 func newFakeOfferingRepo() *fakeOfferingRepo {
@@ -230,7 +230,7 @@ func newFakeOfferingRepo() *fakeOfferingRepo {
 		offering.ID = id
 		return offering, nil
 	}
-	f.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+	f.findByUserID = func(ctx context.Context, UserID uuid.UUID) ([]domain.Offering, error) {
 		return []domain.Offering{*mustOffering()}, nil
 	}
 	f.save = func(ctx context.Context, offering *domain.Offering) error {
@@ -252,8 +252,8 @@ func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 	return f.findByID(ctx, id)
 }
 
-func (f *fakeOfferingRepo) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
-	return f.findByCompany(ctx, companyID)
+func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+	return f.findByUserID(ctx, companyID)
 }
 
 func (f *fakeOfferingRepo) Save(ctx context.Context, offering *domain.Offering) error {
@@ -339,13 +339,13 @@ func (f *fakeCategoryRepo) Save(ctx context.Context, category *domain.Category) 
 }
 
 type fakeInquiryRepo struct {
-	findByID    func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
-	findByUser  func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
+	findByID      func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
+	findByUser    func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
 	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
-	save        func(ctx context.Context, inquiry *domain.Inquiry) error
-	update      func(ctx context.Context, inquiry *domain.Inquiry) error
-	saved       []*domain.Inquiry
-	updated     []*domain.Inquiry
+	save          func(ctx context.Context, inquiry *domain.Inquiry) error
+	update        func(ctx context.Context, inquiry *domain.Inquiry) error
+	saved         []*domain.Inquiry
+	updated       []*domain.Inquiry
 }
 
 func newFakeInquiryRepo() *fakeInquiryRepo {

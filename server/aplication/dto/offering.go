@@ -10,7 +10,7 @@ import (
 
 type OfferingDTO struct {
 	ID          uuid.UUID           `json:"id"`
-	CompanyID   uuid.UUID           `json:"company_id"`
+	UserID      uuid.UUID           `json:"user_id"`
 	Type        domain.OfferingType `json:"type"`
 	Name        string              `json:"name"`
 	Description string              `json:"description"`
@@ -22,7 +22,7 @@ type OfferingDTO struct {
 }
 
 type CreateOfferingRequest struct {
-	CompanyID   uuid.UUID           `json:"company_id"`
+	UserID      uuid.UUID           `json:"user_id"`
 	Type        domain.OfferingType `json:"type"`
 	Name        string              `json:"name"`
 	Description string              `json:"description,omitempty"`

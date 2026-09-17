@@ -12,27 +12,27 @@ func TestNewOffering(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	companyID := uuid.New()
+	userID := uuid.New()
 
 	tests := []struct {
 		name         string
-		companyID    uuid.UUID
+		UserID       uuid.UUID
 		offeringName string
 		offeringType OfferingType
 		now          time.Time
 		wantErr      error
 	}{
-		{name: "happy path product", companyID: companyID, offeringName: "Corn", offeringType: OfferingProduct, now: now},
-		{name: "happy path service", companyID: companyID, offeringName: "Transport", offeringType: OfferingService, now: now},
-		{name: "empty name", companyID: companyID, offeringType: OfferingProduct, now: now, wantErr: ErrNameRequired},
-		{name: "invalid type", companyID: companyID, offeringName: "Corn", offeringType: OfferingType(99), now: now, wantErr: ErrInvalidOfferingType},
+		{name: "happy path product", UserID: userID, offeringName: "Corn", offeringType: OfferingProduct, now: now},
+		{name: "happy path service", UserID: userID, offeringName: "Transport", offeringType: OfferingService, now: now},
+		{name: "empty name", UserID: userID, offeringType: OfferingProduct, now: now, wantErr: ErrNameRequired},
+		{name: "invalid type", UserID: userID, offeringName: "Corn", offeringType: OfferingType(99), now: now, wantErr: ErrInvalidOfferingType},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			offering, err := NewOffering(tt.companyID, tt.offeringName, tt.offeringType, tt.now)
+			offering, err := NewOffering(tt.UserID, tt.offeringName, tt.offeringType, tt.now)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -50,8 +50,8 @@ func TestNewOffering(t *testing.T) {
 			if offering.ID == uuid.Nil {
 				t.Error("expected a generated ID, got nil UUID")
 			}
-			if offering.CompanyID != tt.companyID {
-				t.Errorf("company id = %v, want %v", offering.CompanyID, tt.companyID)
+			if offering.UserID != tt.UserID {
+				t.Errorf("company id = %v, want %v", offering.UserID, tt.UserID)
 			}
 			if offering.Type != tt.offeringType {
 				t.Errorf("type = %v, want %v", offering.Type, tt.offeringType)

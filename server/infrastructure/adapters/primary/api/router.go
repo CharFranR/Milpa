@@ -52,7 +52,7 @@ func NewRouter(
 
 		r.Route("/offerings", func(r chi.Router) {
 			r.Get("/{id}", offering.GetByID)
-			r.Get("/", offering.GetByCompany)
+			r.Get("/", offering.GetByUserID)
 			r.With(authMW.Authenticate).Post("/", offering.Create)
 			r.With(authMW.Authenticate).Patch("/{id}", offering.Update)
 		})

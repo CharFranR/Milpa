@@ -64,7 +64,7 @@ func TestOfferingSave(t *testing.T) {
 			Name: "Happy Path product",
 			Offering: &domain.Offering{
 				ID:          testOfferingID,
-				CompanyID:   testOfferingCompanyID,
+				UserID:      testOfferingCompanyID,
 				Type:        domain.OfferingProduct,
 				Name:        "Laptop",
 				Description: "Gaming laptop",
@@ -78,7 +78,7 @@ func TestOfferingSave(t *testing.T) {
 			Name: "Happy Path service",
 			Offering: &domain.Offering{
 				ID:          testOfferingID2,
-				CompanyID:   testOfferingCompanyID,
+				UserID:      testOfferingCompanyID,
 				Type:        domain.OfferingService,
 				Name:        "Consultoria",
 				Description: "IT consulting",
@@ -115,7 +115,7 @@ func TestOfferingFindByID(t *testing.T) {
 
 	saved := &domain.Offering{
 		ID:          testOfferingID,
-		CompanyID:   testOfferingCompanyID,
+		UserID:      testOfferingCompanyID,
 		Type:        domain.OfferingProduct,
 		Name:        "Laptop",
 		Description: "Gaming laptop",
@@ -184,7 +184,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 
 	offering1 := &domain.Offering{
 		ID:        testOfferingID,
-		CompanyID: testOfferingCompanyID,
+		UserID:    testOfferingCompanyID,
 		Type:      domain.OfferingProduct,
 		Name:      "Laptop",
 		Price:     1200.50,
@@ -193,7 +193,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 	}
 	offering2 := &domain.Offering{
 		ID:        testOfferingID2,
-		CompanyID: testOfferingCompanyID,
+		UserID:    testOfferingCompanyID,
 		Type:      domain.OfferingService,
 		Name:      "Consultoria",
 		Price:     100.00,
@@ -229,7 +229,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			offerings, err := db.FindByCompany(context.Background(), tt.CompanyID)
+			offerings, err := db.FindByUserID(context.Background(), tt.CompanyID)
 
 			if err != nil {
 				t.Errorf("FindByCompany() unexpected error: %v", err)
@@ -261,7 +261,7 @@ func TestOfferingUpdate(t *testing.T) {
 
 	saved := &domain.Offering{
 		ID:          testOfferingID,
-		CompanyID:   testOfferingCompanyID,
+		UserID:      testOfferingCompanyID,
 		Type:        domain.OfferingProduct,
 		Name:        "Laptop",
 		Description: "Original desc",
@@ -283,7 +283,7 @@ func TestOfferingUpdate(t *testing.T) {
 			update_func: func() *domain.Offering {
 				return &domain.Offering{
 					ID:          testOfferingID,
-					CompanyID:   testOfferingCompanyID,
+					UserID:      testOfferingCompanyID,
 					Type:        domain.OfferingProduct,
 					Name:        "Laptop Pro",
 					Description: "Updated desc",
@@ -299,7 +299,7 @@ func TestOfferingUpdate(t *testing.T) {
 			update_func: func() *domain.Offering {
 				return &domain.Offering{
 					ID:          testOfferingID,
-					CompanyID:   testOfferingCompanyID,
+					UserID:      testOfferingCompanyID,
 					Type:        domain.OfferingProduct,
 					Name:        "Laptop Ultra",
 					Description: "Updated desc",
@@ -337,7 +337,7 @@ func TestOfferingDelete(t *testing.T) {
 
 	saved := &domain.Offering{
 		ID:        testOfferingID,
-		CompanyID: testOfferingCompanyID,
+		UserID:    testOfferingCompanyID,
 		Type:      domain.OfferingProduct,
 		Name:      "To Delete",
 		Price:     50.00,

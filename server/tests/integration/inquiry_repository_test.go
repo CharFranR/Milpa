@@ -55,7 +55,7 @@ func setupInquiryTestData(t *testing.T) {
 
 	err = offeringRepo.Save(context.Background(), &domain.Offering{
 		ID:        testInquiryOfferingID,
-		CompanyID: inquiryCompanyID,
+		UserID:    inquiryCompanyID,
 		Type:      domain.OfferingProduct,
 		Name:      "Test Offering",
 		Price:     100.00,

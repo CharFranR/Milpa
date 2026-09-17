@@ -15,7 +15,7 @@ const (
 
 type Offering struct {
 	ID          uuid.UUID
-	CompanyID   uuid.UUID
+	UserID      uuid.UUID
 	Type        OfferingType
 	Name        string
 	Description string
@@ -28,7 +28,7 @@ type Offering struct {
 
 // Builder
 
-func NewOffering(companyID uuid.UUID, name string, offeringType OfferingType, now time.Time) (*Offering, error) {
+func NewOffering(userID uuid.UUID, name string, offeringType OfferingType, now time.Time) (*Offering, error) {
 	if name == "" {
 		return nil, ErrNameRequired
 	}
@@ -41,7 +41,7 @@ func NewOffering(companyID uuid.UUID, name string, offeringType OfferingType, no
 
 	return &Offering{
 		ID:        uuid.New(),
-		CompanyID: companyID,
+		UserID:    userID,
 		Type:      offeringType,
 		Name:      name,
 		CreatedAt: now,

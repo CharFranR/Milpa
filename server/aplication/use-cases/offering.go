@@ -15,14 +15,14 @@ import (
 
 type OfferingUseCaseImpl struct {
 	offeringRepo port.OfferingRepository
-	companyRepo  port.CompanyRepository
+	userRepo     port.UserRepository
 	timer        port.TimeProvider
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, companyRepo port.CompanyRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
 		offeringRepo: offeringRepo,
-		companyRepo:  companyRepo,
+		userRepo:     userRepo,
 		timer:        timer,
 	}
 }
@@ -33,20 +33,20 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, err
 	}
 
-	company, err := uc.companyRepo.FindByID(ctx, req.CompanyID)
+	user, err := uc.userRepo.FindByID(ctx, req.UserID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
 	}
-	if company.Owner.ID != principal.UserID {
+	if user.ID != principal.UserID {
 		return nil, domain.ErrForbidden
 	}
 
 	now := uc.timer.Now()
 
-	offering, err := domain.NewOffering(req.CompanyID, req.Name, req.Type, now)
+	offering, err := domain.NewOffering(req.UserID, req.Name, req.Type, now)
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +73,8 @@ func (uc *OfferingUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.
 	return offeringToDTO(offering), nil
 }
 
-func (uc *OfferingUseCaseImpl) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.OfferingDTO, error) {
-	offerings, err := uc.offeringRepo.FindByCompany(ctx, companyID)
+func (uc *OfferingUseCaseImpl) GetByUserID(ctx context.Context, UserID uuid.UUID) ([]*dto.OfferingDTO, error) {
+	offerings, err := uc.offeringRepo.FindByUserID(ctx, UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
 func offeringToDTO(offering *domain.Offering) *dto.OfferingDTO {
 	return &dto.OfferingDTO{
 		ID:          offering.ID,
-		CompanyID:   offering.CompanyID,
+		UserID:      offering.UserID,
 		Type:        offering.Type,
 		Name:        offering.Name,
 		Description: offering.Description,
