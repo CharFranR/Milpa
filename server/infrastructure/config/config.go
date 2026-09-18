@@ -2,13 +2,16 @@ package config
 
 import (
 	"fmt"
+	"milpa/aplication/dto"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
 	DatabaseURL string
+	ESClient    dto.ESClient
 	JWTSecret   string
 	ServerPort  string
 }
@@ -26,8 +29,21 @@ func Load() *Config {
 		os.Getenv("DB_SSLMODE"),
 	)
 
+	MaxIdleConnsPerHost, _ := strconv.Atoi(os.Getenv("ESCLIENT_MAXID"))
+
+	// will use err in a log func later (or never)
+
+	ESClient := dto.ESClient{
+		Username:            os.Getenv("ESCLIENT_USER"),
+		Password:            os.Getenv("ESCLIENT_PASSWORD"),
+		Endpoint1:           os.Getenv("ESCLIENT_ENDPOINT1"),
+		Endpoint2:           os.Getenv("ESCLIENT_ENDPOINT2"),
+		MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+	}
+
 	return &Config{
 		DatabaseURL: DatabaseURL,
+		ESClient:    ESClient,
 		JWTSecret:   os.Getenv("JWT_SECRET"),
 		ServerPort:  os.Getenv("SERVER_PORT"),
 	}
