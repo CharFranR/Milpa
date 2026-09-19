@@ -465,7 +465,11 @@ func (f *fakeFuzzyRetrival) Search(ctx context.Context, term string) ([]dto.Fuzz
 	return nil, nil
 }
 
-func (f *fakeFuzzyRetrival) Index(ctx context.Context, p *dto.CreateOfferingRequest) error {
+func (f *fakeFuzzyRetrival) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
+	return nil
+}
+
+func (f *fakeFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexOfferingRequest) error {
 	return nil
 }
 

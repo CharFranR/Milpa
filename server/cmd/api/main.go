@@ -91,7 +91,7 @@ func main() {
 	categoryRepo := repo.NewCategoryRepository(pool)
 	inquiryRepo := repo.NewInquiryRepository(pool)
 
-	searchRepo := search.NewElasticSearchImpl(elasticSearchClient)
+	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
 	cacheClient := cache.NewCacheImpl(
 		os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"),

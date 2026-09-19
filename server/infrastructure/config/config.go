@@ -39,6 +39,7 @@ func Load() *Config {
 		Endpoint1:           os.Getenv("ESCLIENT_ENDPOINT1"),
 		Endpoint2:           os.Getenv("ESCLIENT_ENDPOINT2"),
 		MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+		Index:               os.Getenv("ESCLIENT_INDEX"),
 	}
 
 	return &Config{

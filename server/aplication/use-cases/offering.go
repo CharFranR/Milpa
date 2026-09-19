@@ -64,8 +64,27 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, err
 	}
 
+	// Build enriched index request for Elasticsearch
+	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+
+	indexReq := &dto.IndexOfferingRequest{
+		ID:             offering.ID.String(),
+		Name:           offering.Name,
+		Description:    offering.Description,
+		Price:          offering.Price,
+		Type:           offering.Type.String(),
+		ImageURL:       offering.ImageURL,
+		UserID:         req.UserID.String(),
+		FarmerName:     user.FullName(),
+		FarmerVerified: farmerVerified,
+		Department:     user.Address.Department,
+		Municipality:   user.Address.Municipality,
+		Latitude:       user.Address.Latitude,
+		Longitude:      user.Address.Longitude,
+	}
+
 	// Save in elasticsearch
-	err = uc.fuzzyRetrival.Index(ctx, &req)
+	err = uc.fuzzyRetrival.Index(ctx, indexReq)
 
 	if err != nil {
 		return nil, fmt.Errorf("CreateOffering.elasticsearch err: %w", err)
@@ -125,7 +144,38 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 
 	offering.Touch(now)
 
-	return uc.offeringRepo.Update(ctx, offering)
+	if err := uc.offeringRepo.Update(ctx, offering); err != nil {
+		return err
+	}
+
+	// Update in Elasticsearch — rebuild the full index document
+	user, err := uc.userRepo.FindByID(ctx, offering.UserID)
+	if err != nil {
+		// Log but don't fail — PG update already succeeded
+		return nil
+	}
+
+	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+
+	indexReq := &dto.IndexOfferingRequest{
+		ID:             offering.ID.String(),
+		Name:           offering.Name,
+		Description:    offering.Description,
+		Price:          offering.Price,
+		Type:           offering.Type.String(),
+		ImageURL:       offering.ImageURL,
+		UserID:         offering.UserID.String(),
+		FarmerName:     user.FullName(),
+		FarmerVerified: farmerVerified,
+		Department:     user.Address.Department,
+		Municipality:   user.Address.Municipality,
+		Latitude:       user.Address.Latitude,
+		Longitude:      user.Address.Longitude,
+	}
+
+	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexReq)
+
+	return nil
 }
 
 func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
