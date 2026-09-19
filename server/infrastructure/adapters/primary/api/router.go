@@ -18,6 +18,7 @@ func NewRouter(
 	inquiry *handler.InquiryHandler,
 	authMW *middleware.AuthMiddleware,
 	image *handler.ImageHandler,
+	search *handler.SearchHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -57,6 +58,7 @@ func NewRouter(
 			r.With(authMW.Authenticate).Post("/", offering.Create)
 			r.With(authMW.Authenticate).Post("/create2/", offering.Create_v2)
 			r.With(authMW.Authenticate).Patch("/{id}", offering.Update)
+			r.With(authMW.Authenticate).Patch("/{id}", offering.DeleteOffering)
 		})
 
 		r.Route("/reviews", func(r chi.Router) {
@@ -72,6 +74,8 @@ func NewRouter(
 			r.With(authMW.Authenticate).Patch("/{id}", inquiry.Update)
 		})
 		r.Get("/images/{filename}", image.Get)
+
+		r.Get("/search/{term}", search.List)
 	})
 
 	return r

@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -14,16 +15,18 @@ import (
 )
 
 type OfferingUseCaseImpl struct {
-	offeringRepo port.OfferingRepository
-	userRepo     port.UserRepository
-	timer        port.TimeProvider
+	offeringRepo  port.OfferingRepository
+	fuzzyRetrival port.FuzzyRetrival
+	userRepo      port.UserRepository
+	timer         port.TimeProvider
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
-		offeringRepo: offeringRepo,
-		userRepo:     userRepo,
-		timer:        timer,
+		offeringRepo:  offeringRepo,
+		userRepo:      userRepo,
+		timer:         timer,
+		fuzzyRetrival: fuzzyRetrival,
 	}
 }
 
@@ -59,6 +62,13 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 
 	if err := uc.offeringRepo.Save(ctx, offering); err != nil {
 		return nil, err
+	}
+
+	// Save in elasticsearch
+	err = uc.fuzzyRetrival.Index(ctx, &req)
+
+	if err != nil {
+		return nil, fmt.Errorf("CreateOffering.elasticsearch err: %w", err)
 	}
 
 	return offeringToDTO(offering), nil
@@ -116,6 +126,23 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 	offering.Touch(now)
 
 	return uc.offeringRepo.Update(ctx, offering)
+}
+
+func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
+
+	err := uc.offeringRepo.Delete(ctx, id)
+
+	if err != nil {
+		return fmt.Errorf("Offering Delete error: %w", err)
+	}
+
+	err = uc.fuzzyRetrival.Delete(ctx, string(id.String()))
+
+	if err != nil {
+		return fmt.Errorf("Offering Fuzzy Delete error: %w", err)
+	}
+
+	return nil
 }
 
 var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)

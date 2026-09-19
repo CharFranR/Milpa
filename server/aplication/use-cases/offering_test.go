@@ -61,7 +61,7 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 					return tt.saveErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{})
 
 			got, err := uc.CreateOffering(tt.ctx, tt.req)
 
@@ -135,7 +135,7 @@ func TestOfferingUseCaseGetByID(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{})
 
 			got, err := uc.GetByID(context.Background(), testOfferingID)
 
@@ -219,7 +219,7 @@ func TestOfferingUseCaseGetByCompany(t *testing.T) {
 					return tt.offerings, nil
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{})
 
 			got, err := uc.GetByUserID(context.Background(), testCompanyID)
 
@@ -298,7 +298,7 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{})
 
 			err := uc.UpdateOffering(context.Background(), testOfferingID, tt.req)
 

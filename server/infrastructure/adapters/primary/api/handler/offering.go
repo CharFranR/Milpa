@@ -70,7 +70,7 @@ func (h *OfferingHandler) Create_v2(w http.ResponseWriter, r *http.Request) {
 	idType, err := strconv.Atoi(r.FormValue("type"))
 
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "user_id not a valid number")
+		respondError(w, http.StatusBadRequest, "type is not valid")
 		return
 	}
 
@@ -172,4 +172,20 @@ func (h *OfferingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond(w, http.StatusOK, nil)
+}
+
+func (h *OfferingHandler) DeleteOffering(w http.ResponseWriter, r *http.Request) {
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Not a valid id")
+	}
+
+	if err := h.uc.DeleteOffering(r.Context(), id); err != nil {
+		handleError(w, err)
+	}
+
+	respond(w, http.StatusOK, nil)
+
 }

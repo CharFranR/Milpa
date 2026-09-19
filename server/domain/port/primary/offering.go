@@ -13,4 +13,5 @@ type OfferingUseCase interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*dto.OfferingDTO, error)
 	UpdateOffering(ctx context.Context, id uuid.UUID, req dto.UpdateOfferingRequest) error
+	DeleteOffering(ctx context.Context, id uuid.UUID) error
 }

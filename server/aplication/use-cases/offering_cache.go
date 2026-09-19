@@ -87,4 +87,13 @@ func (uc *CachedOfferingUseCase) UpdateOffering(ctx context.Context, id uuid.UUI
 	return nil
 }
 
+func (uc *CachedOfferingUseCase) DeleteOffering(ctx context.Context, id uuid.UUID) error {
+	err := uc.DeleteOffering(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 var _ primary.OfferingUseCase = (*CachedOfferingUseCase)(nil)

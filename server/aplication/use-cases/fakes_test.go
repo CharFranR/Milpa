@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 	"milpa/internal/auth"
@@ -456,4 +457,18 @@ func (f fakeTimer) Now() time.Time {
 
 func newFakeTimer() fakeTimer {
 	return fakeTimer{now: fixedTime}
+}
+
+type fakeFuzzyRetrival struct{}
+
+func (f *fakeFuzzyRetrival) Search(ctx context.Context, term string) ([]dto.FuzzySearchDto, error) {
+	return nil, nil
+}
+
+func (f *fakeFuzzyRetrival) Index(ctx context.Context, p *dto.CreateOfferingRequest) error {
+	return nil
+}
+
+func (f *fakeFuzzyRetrival) Delete(ctx context.Context, id string) error {
+	return nil
 }

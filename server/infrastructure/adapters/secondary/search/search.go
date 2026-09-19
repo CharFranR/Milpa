@@ -14,8 +14,8 @@ type ElasticSearchImpl struct {
 	client *elasticsearch.Client
 }
 
-func NewElasticSearchImpl(client *elasticsearch.Client) ElasticSearchImpl {
-	return ElasticSearchImpl{client: client}
+func NewElasticSearchImpl(client *elasticsearch.Client) *ElasticSearchImpl {
+	return &ElasticSearchImpl{client: client}
 }
 
 func (E *ElasticSearchImpl) Search(ctx context.Context, term string) ([]dto.FuzzySearchDto, error) {
@@ -83,4 +83,25 @@ func (E *ElasticSearchImpl) Search(ctx context.Context, term string) ([]dto.Fuzz
 	}
 
 	return result, nil
+}
+
+func (E *ElasticSearchImpl) Index(ctx context.Context, p *dto.CreateOfferingRequest) error {
+
+	JsonData, err := json.Marshal(p)
+
+	if err != nil {
+		return fmt.Errorf("Index: Error in json marshal: %w", err)
+	}
+
+	_, err = E.client.Index(
+		"products", // Harcode, deuda tecnica
+		bytes.NewReader(JsonData),
+		E.client.Index.WithContext(ctx),
+	)
+
+	return nil
+}
+
+func (E *ElasticSearchImpl) Delete(ctx context.Context, temp string) error {
+	return nil
 }
