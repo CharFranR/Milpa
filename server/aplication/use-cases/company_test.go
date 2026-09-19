@@ -329,7 +329,7 @@ func TestCompanyUseCaseUpdateCompany(t *testing.T) {
 			}
 			uc := usecases.NewCompanyUseCase(companyRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer())
 
-			err := uc.UpdateCompany(context.Background(), testCompanyID, tt.req)
+			err := uc.UpdateCompany(principalCtx(), testCompanyID, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {
