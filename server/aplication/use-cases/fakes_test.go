@@ -461,8 +461,8 @@ func newFakeTimer() fakeTimer {
 
 type fakeFuzzyRetrival struct{}
 
-func (f *fakeFuzzyRetrival) Search(ctx context.Context, term string) ([]dto.FuzzySearchDto, error) {
-	return nil, nil
+func (f *fakeFuzzyRetrival) Search(ctx context.Context, query *dto.SearchQuery) (*dto.SearchResponse, error) {
+	return &dto.SearchResponse{}, nil
 }
 
 func (f *fakeFuzzyRetrival) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {

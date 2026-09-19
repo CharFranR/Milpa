@@ -75,7 +75,7 @@ func NewRouter(
 		})
 		r.Get("/images/{filename}", image.Get)
 
-		r.Get("/search/{term}", search.List)
+		r.Get("/search", search.Search)
 	})
 
 	return r

@@ -6,5 +6,5 @@ import (
 )
 
 type FuzzyUseCase interface {
-	Search(ctx context.Context, term string) ([]dto.FuzzySearchDto, error)
+	Search(ctx context.Context, req dto.SearchRequest) (*dto.SearchResponse, error)
 }
