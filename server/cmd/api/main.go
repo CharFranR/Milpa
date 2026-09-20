@@ -15,6 +15,7 @@ import (
 	"milpa/aplication/dto"
 	usecases "milpa/aplication/use-cases"
 	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
 	"milpa/infrastructure/adapters/primary/api"
 	"milpa/infrastructure/adapters/primary/api/handler"
 	"milpa/infrastructure/adapters/primary/api/middleware"
@@ -101,11 +102,12 @@ func main() {
 
 	var userUC primary.UserUseCase = usecases.NewUserUseCase(userRepo, hasher, jwtProvider, clock)
 	var companyUC primary.CompanyUseCase = usecases.NewCompanyUseCase(companyRepo, userRepo, categoryRepo, clock)
-	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo)
 	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, clock)
 	var categoryUC primary.CategoryUseCase = usecases.NewCategoryUseCase(categoryRepo)
 	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, clock)
-	var searchUC primary.FuzzyUseCase = usecases.NewSearchImpl(searchRepo)
+	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
+
+	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, searchUC.(port.Invalidator))
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)

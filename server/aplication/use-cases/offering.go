@@ -15,18 +15,20 @@ import (
 )
 
 type OfferingUseCaseImpl struct {
-	offeringRepo  port.OfferingRepository
-	fuzzyRetrival port.FuzzyRetrival
-	userRepo      port.UserRepository
-	timer         port.TimeProvider
+	offeringRepo     port.OfferingRepository
+	fuzzyRetrival    port.FuzzyRetrival
+	userRepo         port.UserRepository
+	timer            port.TimeProvider
+	searchInvalidator port.Invalidator
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival, searchInvalidator port.Invalidator) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
-		offeringRepo:  offeringRepo,
-		userRepo:      userRepo,
-		timer:         timer,
-		fuzzyRetrival: fuzzyRetrival,
+		offeringRepo:     offeringRepo,
+		userRepo:         userRepo,
+		timer:            timer,
+		fuzzyRetrival:    fuzzyRetrival,
+		searchInvalidator: searchInvalidator,
 	}
 }
 
@@ -89,6 +91,8 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 	if err != nil {
 		return nil, fmt.Errorf("CreateOffering.elasticsearch err: %w", err)
 	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
 	return offeringToDTO(offering), nil
 }
@@ -175,6 +179,8 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 
 	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexReq)
 
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
 	return nil
 }
 
@@ -191,6 +197,8 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 	if err != nil {
 		return fmt.Errorf("Offering Fuzzy Delete error: %w", err)
 	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
 	return nil
 }
