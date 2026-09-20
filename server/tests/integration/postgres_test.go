@@ -136,3 +136,28 @@ func TestMain(m *testing.M) {
 
 	os.Exit(code)
 }
+
+// cleanupTables truncates all tables in foreign-key-safe order so each test
+// starts with a clean database. Call this at the top of every setup*TestData
+// helper or directly in a Test function.
+func cleanupTables(t *testing.T) {
+	t.Helper()
+
+	ctx := context.Background()
+	tables := []string{
+		"reviews",
+		"inquiries",
+		"offerings",
+		"company_categories",
+		"companies",
+		"users",
+		"categories",
+		"addresses",
+	}
+	for _, tbl := range tables {
+		_, err := TestPool.Exec(ctx, "TRUNCATE TABLE "+tbl+" CASCADE")
+		if err != nil {
+			t.Fatalf("cleanupTables: truncate %s: %v", tbl, err)
+		}
+	}
+}

@@ -17,6 +17,7 @@ var testInquiryID2 uuid.UUID = uuid.MustParse("77777777-7777-7777-7777-777777777
 
 func setupInquiryTestData(t *testing.T) {
 	t.Helper()
+	cleanupTables(t)
 
 	userRepo := repository.NewUserRepository(TestPool)
 	companyRepo := repository.NewCompanyRepository(TestPool)
@@ -55,7 +56,7 @@ func setupInquiryTestData(t *testing.T) {
 
 	err = offeringRepo.Save(context.Background(), &domain.Offering{
 		ID:        testInquiryOfferingID,
-		UserID:    inquiryCompanyID,
+		UserID:    testInquiryUserID,
 		Type:      domain.OfferingProduct,
 		Name:      "Test Offering",
 		Price:     100.00,

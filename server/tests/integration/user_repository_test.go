@@ -31,6 +31,7 @@ func basicUser(id uuid.UUID) *domain.User {
 }
 
 func TestSave(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	tests := []struct {
@@ -183,6 +184,7 @@ func TestSave(t *testing.T) {
 }
 
 func TestFindByID(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
@@ -252,6 +254,7 @@ func TestFindByID(t *testing.T) {
 }
 
 func TestFindByEmail(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
@@ -312,6 +315,7 @@ func TestFindByEmail(t *testing.T) {
 }
 
 func TestExistsByEmail(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
@@ -352,6 +356,7 @@ func TestExistsByEmail(t *testing.T) {
 }
 
 func TestExistsByID(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
@@ -392,6 +397,7 @@ func TestExistsByID(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
+	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 
 	savedUser := basicUser(testUserID)
