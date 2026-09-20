@@ -3,6 +3,7 @@ package port
 import (
 	"context"
 
+	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
 
 	"github.com/google/uuid"
@@ -26,7 +27,7 @@ type CompanyRepository interface {
 
 type OfferingRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
-	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
 	Save(ctx context.Context, offering *domain.Offering) error
 	Update(ctx context.Context, offering *domain.Offering) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -50,4 +51,10 @@ type InquiryRepository interface {
 	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
 	Save(ctx context.Context, inquiry *domain.Inquiry) error
 	Update(ctx context.Context, inquiry *domain.Inquiry) error
+}
+
+type ImageStore interface {
+	Upload(ctx context.Context, file []byte, filename string) (string, error)
+	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)
+	Delete(ctx context.Context, filename string) error
 }

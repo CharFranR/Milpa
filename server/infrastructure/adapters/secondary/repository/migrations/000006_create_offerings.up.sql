@@ -1,6 +1,6 @@
 CREATE TABLE offerings (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company_id  UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type        SMALLINT NOT NULL,
     name        VARCHAR(40) NOT NULL,
     description TEXT NOT NULL DEFAULT '',

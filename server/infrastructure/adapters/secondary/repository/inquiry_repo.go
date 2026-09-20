@@ -81,7 +81,9 @@ func (r *InquiryRepositoryImpl) FindByCompany(ctx context.Context, companyID uui
 		SELECT i.id, i.user_id, i.offering_id, COALESCE(o.name, ''), i.message, i.status, i.created_at
 		FROM inquiries i
 		JOIN offerings o ON i.offering_id = o.id
-		WHERE o.company_id = $1
+		JOIN users u ON o.user_id = u.id
+		JOIN companies c ON u.id = c.owner_id
+		WHERE c.id = $1
 		ORDER BY i.created_at DESC
 	`
 

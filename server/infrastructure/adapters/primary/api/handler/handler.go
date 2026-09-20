@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	domain "milpa/domain/entities"
@@ -62,6 +63,7 @@ func isValidationError(err error) bool {
 func handleError(w http.ResponseWriter, err error) {
 	code := statusCode(err)
 	if code == http.StatusInternalServerError {
+		log.Printf("ERROR: %v", err)
 		respondError(w, code, "internal server error")
 		return
 	}

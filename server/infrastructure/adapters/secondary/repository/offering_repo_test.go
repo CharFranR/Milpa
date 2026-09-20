@@ -17,7 +17,7 @@ func TestOfferingFindByID(t *testing.T) {
 
 	offering := &domain.Offering{
 		ID:          offeringID,
-		CompanyID:   companyID,
+		UserID:      companyID,
 		Type:        domain.OfferingProduct,
 		Name:        "maiz",
 		Description: "maiz organico",
@@ -36,7 +36,7 @@ func TestOfferingFindByID(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				rows := pgxmock.NewRows([]string{"id", "company_id", "type", "name", "description", "price", "image_url", "created_at", "updated_at"}).
-					AddRow(offering.ID, offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
+					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
 				m.ExpectQuery("FROM offerings").WithArgs(offeringID).WillReturnRows(rows)
 			},
 		},
@@ -77,7 +77,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 
 	offering := &domain.Offering{
 		ID:          offeringID,
-		CompanyID:   companyID,
+		UserID:      companyID,
 		Type:        domain.OfferingProduct,
 		Name:        "maiz",
 		Description: "maiz organico",
@@ -96,7 +96,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				rows := pgxmock.NewRows([]string{"id", "company_id", "type", "name", "description", "price", "image_url", "created_at", "updated_at"}).
-					AddRow(offering.ID, offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
+					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
 				m.ExpectQuery("FROM offerings").WithArgs(companyID).WillReturnRows(rows)
 			},
 		},
@@ -119,7 +119,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 			repo := repository.NewOfferingRepository(mockPool)
 
 			tt.expect(mockPool)
-			_, err = repo.FindByCompany(context.Background(), companyID)
+			_, err = repo.FindByUserID(context.Background(), companyID)
 
 			if (tt.wantErr) != (err != nil) {
 				t.Errorf("FindByCompany() error = %v, wantErr %v", err, tt.wantErr)
@@ -137,7 +137,7 @@ func TestOfferingSave(t *testing.T) {
 
 	offering := &domain.Offering{
 		ID:          offeringID,
-		CompanyID:   companyID,
+		UserID:      companyID,
 		Type:        domain.OfferingProduct,
 		Name:        "maiz",
 		Description: "maiz organico",
@@ -156,7 +156,7 @@ func TestOfferingSave(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO offerings").
-					WithArgs(offering.ID, offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
+					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
 					WillReturnResult(pgxmock.NewResult("INSERT", 1))
 			},
 		},
@@ -165,7 +165,7 @@ func TestOfferingSave(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO offerings").
-					WithArgs(offering.ID, offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
+					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
 					WillReturnError(errors.New("exec failed"))
 			},
 		},
@@ -199,7 +199,7 @@ func TestOfferingUpdate(t *testing.T) {
 
 	offering := &domain.Offering{
 		ID:          offeringID,
-		CompanyID:   companyID,
+		UserID:      companyID,
 		Type:        domain.OfferingProduct,
 		Name:        "maiz",
 		Description: "maiz organico",
@@ -218,7 +218,7 @@ func TestOfferingUpdate(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("UPDATE offerings").
-					WithArgs(offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
+					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
 					WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 			},
 		},
@@ -227,7 +227,7 @@ func TestOfferingUpdate(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("UPDATE offerings").
-					WithArgs(offering.CompanyID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
+					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
 					WillReturnError(errors.New("exec failed"))
 			},
 		},

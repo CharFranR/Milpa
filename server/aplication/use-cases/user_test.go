@@ -346,7 +346,7 @@ func TestUserUseCaseUpdateProfile(t *testing.T) {
 			}
 			uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
 
-			err := uc.UpdateProfile(context.Background(), testUserID, tt.req)
+			err := uc.UpdateProfile(principalCtx(), testUserID, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {

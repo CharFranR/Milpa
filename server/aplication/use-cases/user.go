@@ -9,6 +9,7 @@ import (
 	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
 	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
 )
 
 type UserUseCaseImpl struct {
@@ -106,9 +107,18 @@ func (uc *UserUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.User
 }
 
 func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
 	user, err := uc.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	if user.ID != principal.UserID {
+		return domain.ErrForbidden
 	}
 
 	if req.Email != nil {

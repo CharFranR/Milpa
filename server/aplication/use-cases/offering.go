@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -14,16 +15,20 @@ import (
 )
 
 type OfferingUseCaseImpl struct {
-	offeringRepo port.OfferingRepository
-	companyRepo  port.CompanyRepository
-	timer        port.TimeProvider
+	offeringRepo     port.OfferingRepository
+	fuzzyRetrival    port.FuzzyRetrival
+	userRepo         port.UserRepository
+	timer            port.TimeProvider
+	searchInvalidator port.Invalidator
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, companyRepo port.CompanyRepository, timer port.TimeProvider) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival, searchInvalidator port.Invalidator) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
-		offeringRepo: offeringRepo,
-		companyRepo:  companyRepo,
-		timer:        timer,
+		offeringRepo:     offeringRepo,
+		userRepo:         userRepo,
+		timer:            timer,
+		fuzzyRetrival:    fuzzyRetrival,
+		searchInvalidator: searchInvalidator,
 	}
 }
 
@@ -33,20 +38,20 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, err
 	}
 
-	company, err := uc.companyRepo.FindByID(ctx, req.CompanyID)
+	user, err := uc.userRepo.FindByID(ctx, req.UserID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
 	}
-	if company.Owner.ID != principal.UserID {
+	if user.ID != principal.UserID {
 		return nil, domain.ErrForbidden
 	}
 
 	now := uc.timer.Now()
 
-	offering, err := domain.NewOffering(req.CompanyID, req.Name, req.Type, now)
+	offering, err := domain.NewOffering(req.UserID, req.Name, req.Type, now)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +66,34 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, err
 	}
 
+	// Build enriched index request for Elasticsearch
+	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+
+	indexReq := &dto.IndexOfferingRequest{
+		ID:             offering.ID.String(),
+		Name:           offering.Name,
+		Description:    offering.Description,
+		Price:          offering.Price,
+		Type:           offering.Type.String(),
+		ImageURL:       offering.ImageURL,
+		UserID:         req.UserID.String(),
+		FarmerName:     user.FullName(),
+		FarmerVerified: farmerVerified,
+		Department:     user.Address.Department,
+		Municipality:   user.Address.Municipality,
+		Latitude:       user.Address.Latitude,
+		Longitude:      user.Address.Longitude,
+	}
+
+	// Save in elasticsearch
+	err = uc.fuzzyRetrival.Index(ctx, indexReq)
+
+	if err != nil {
+		return nil, fmt.Errorf("CreateOffering.elasticsearch err: %w", err)
+	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
 	return offeringToDTO(offering), nil
 }
 
@@ -73,8 +106,8 @@ func (uc *OfferingUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.
 	return offeringToDTO(offering), nil
 }
 
-func (uc *OfferingUseCaseImpl) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.OfferingDTO, error) {
-	offerings, err := uc.offeringRepo.FindByCompany(ctx, companyID)
+func (uc *OfferingUseCaseImpl) GetByUserID(ctx context.Context, UserID uuid.UUID) ([]*dto.OfferingDTO, error) {
+	offerings, err := uc.offeringRepo.FindByUserID(ctx, UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +148,59 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 
 	offering.Touch(now)
 
-	return uc.offeringRepo.Update(ctx, offering)
+	if err := uc.offeringRepo.Update(ctx, offering); err != nil {
+		return err
+	}
+
+	// Update in Elasticsearch — rebuild the full index document
+	user, err := uc.userRepo.FindByID(ctx, offering.UserID)
+	if err != nil {
+		// Log but don't fail — PG update already succeeded
+		return nil
+	}
+
+	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+
+	indexReq := &dto.IndexOfferingRequest{
+		ID:             offering.ID.String(),
+		Name:           offering.Name,
+		Description:    offering.Description,
+		Price:          offering.Price,
+		Type:           offering.Type.String(),
+		ImageURL:       offering.ImageURL,
+		UserID:         offering.UserID.String(),
+		FarmerName:     user.FullName(),
+		FarmerVerified: farmerVerified,
+		Department:     user.Address.Department,
+		Municipality:   user.Address.Municipality,
+		Latitude:       user.Address.Latitude,
+		Longitude:      user.Address.Longitude,
+	}
+
+	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexReq)
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
+	return nil
+}
+
+func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
+
+	err := uc.offeringRepo.Delete(ctx, id)
+
+	if err != nil {
+		return fmt.Errorf("Offering Delete error: %w", err)
+	}
+
+	err = uc.fuzzyRetrival.Delete(ctx, string(id.String()))
+
+	if err != nil {
+		return fmt.Errorf("Offering Fuzzy Delete error: %w", err)
+	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
+	return nil
 }
 
 var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
@@ -123,7 +208,7 @@ var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
 func offeringToDTO(offering *domain.Offering) *dto.OfferingDTO {
 	return &dto.OfferingDTO{
 		ID:          offering.ID,
-		CompanyID:   offering.CompanyID,
+		UserID:      offering.UserID,
 		Type:        offering.Type,
 		Name:        offering.Name,
 		Description: offering.Description,

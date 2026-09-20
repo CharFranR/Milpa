@@ -17,6 +17,7 @@ var testReviewID2 uuid.UUID = uuid.MustParse("66666666-6666-6666-6666-6666666666
 
 func setupReviewTestData(t *testing.T) {
 	t.Helper()
+	cleanupTables(t)
 
 	userRepo := repository.NewUserRepository(TestPool)
 	companyRepo := repository.NewCompanyRepository(TestPool)

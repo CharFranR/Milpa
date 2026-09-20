@@ -91,9 +91,18 @@ func (uc *CompanyUseCaseImpl) GetByOwner(ctx context.Context, ownerID uuid.UUID)
 }
 
 func (uc *CompanyUseCaseImpl) UpdateCompany(ctx context.Context, id uuid.UUID, req dto.UpdateCompanyRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
 	company, err := uc.companyRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	if company.Owner.ID != principal.UserID {
+		return domain.ErrForbidden
 	}
 
 	if req.Name != nil {

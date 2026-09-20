@@ -19,6 +19,7 @@ var fixedTime2 time.Time = time.Date(2026, 8, 13, 10, 0, 0, 0, time.UTC)
 
 func setupCompanyTestData(t *testing.T) {
 	t.Helper()
+	cleanupTables(t)
 
 	userRepo := repository.NewUserRepository(TestPool)
 	catRepo := repository.NewCategoryRepository(TestPool)

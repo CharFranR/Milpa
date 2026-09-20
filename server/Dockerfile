@@ -24,4 +24,6 @@ COPY --from=builder /app/api .
 COPY --from=builder /app/migrate .
 COPY --from=builder /app/infrastructure/adapters/secondary/repository/migrations ./infrastructure/adapters/secondary/repository/migrations
 
+RUN mkdir -p /app/uploads
+
 EXPOSE 8080

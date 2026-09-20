@@ -17,48 +17,42 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		ctx        context.Context
-		req        dto.CreateOfferingRequest
-		companyErr error
-		ownerID    uuid.UUID
-		saveErr    error
-		wantErr    error
-		wantPrice  float64
+		name    string
+		ctx     context.Context
+		req     dto.CreateOfferingRequest
+		userErr error
+		saveErr error
+		wantErr error
+		wantPrice float64
 	}{
 		{
 			name:      "happy path",
 			ctx:       principalCtx(),
-			req:       dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn", Description: "Fresh corn", Price: 10.5, ImageURL: "http://img.milpa.com/corn.png"},
+			req:       dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct, Name: "Organic Corn", Description: "Fresh corn", Price: 10.5, ImageURL: "http://img.milpa.com/corn.png"},
 			wantPrice: 10.5,
 		},
 		{
 			name: "zero price ignored",
 			ctx:  principalCtx(),
-			req:  dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingService, Name: "Delivery"},
+			req:  dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingService, Name: "Delivery"},
 		},
-		{name: "unauthenticated", ctx: context.Background(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn"}, wantErr: auth.ErrUnauthenticated},
-		{name: "company error", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn"}, companyErr: errFake, wantErr: errFake},
-		{name: "company not found", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn"}, companyErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
-		{name: "forbidden", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn"}, ownerID: testOtherID, wantErr: domain.ErrForbidden},
-		{name: "empty name", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct}, wantErr: domain.ErrNameRequired},
-		{name: "invalid type", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingType(99), Name: "Organic Corn"}, wantErr: domain.ErrInvalidOfferingType},
-		{name: "save error", ctx: principalCtx(), req: dto.CreateOfferingRequest{CompanyID: testCompanyID, Type: domain.OfferingProduct, Name: "Organic Corn"}, saveErr: errFake, wantErr: errFake},
+		{name: "unauthenticated", ctx: context.Background(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct, Name: "Organic Corn"}, wantErr: auth.ErrUnauthenticated},
+		{name: "user error", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct, Name: "Organic Corn"}, userErr: errFake, wantErr: errFake},
+		{name: "user not found", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct, Name: "Organic Corn"}, userErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "forbidden", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testOtherID, Type: domain.OfferingProduct, Name: "Organic Corn"}, wantErr: domain.ErrForbidden},
+		{name: "empty name", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct}, wantErr: domain.ErrNameRequired},
+		{name: "invalid type", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingType(99), Name: "Organic Corn"}, wantErr: domain.ErrInvalidOfferingType},
+		{name: "save error", ctx: principalCtx(), req: dto.CreateOfferingRequest{UserID: testUserID, Type: domain.OfferingProduct, Name: "Organic Corn"}, saveErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			companyRepo := newFakeCompanyRepo()
-			if tt.companyErr != nil || tt.ownerID != uuid.Nil {
-				companyRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Company, error) {
-					if tt.companyErr != nil {
-						return nil, tt.companyErr
-					}
-					company := mustCompany()
-					company.Owner.ID = tt.ownerID
-					return company, nil
+			userRepo := newFakeUserRepo()
+			if tt.userErr != nil {
+				userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+					return nil, tt.userErr
 				}
 			}
 			offeringRepo := newFakeOfferingRepo()
@@ -67,7 +61,7 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 					return tt.saveErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, companyRepo, newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.CreateOffering(tt.ctx, tt.req)
 
@@ -87,8 +81,8 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 			if got.ID == uuid.Nil {
 				t.Error("expected a generated ID, got nil UUID")
 			}
-			if got.CompanyID != tt.req.CompanyID {
-				t.Errorf("company id = %v, want %v", got.CompanyID, tt.req.CompanyID)
+			if got.UserID != tt.req.UserID {
+				t.Errorf("user id = %v, want %v", got.UserID, tt.req.UserID)
 			}
 			if got.Type != tt.req.Type {
 				t.Errorf("type = %v, want %v", got.Type, tt.req.Type)
@@ -141,7 +135,7 @@ func TestOfferingUseCaseGetByID(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeCompanyRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.GetByID(context.Background(), testOfferingID)
 
@@ -161,8 +155,8 @@ func TestOfferingUseCaseGetByID(t *testing.T) {
 			if got.ID != testOfferingID {
 				t.Errorf("id = %v, want %v", got.ID, testOfferingID)
 			}
-			if got.CompanyID != testCompanyID {
-				t.Errorf("company id = %v, want %v", got.CompanyID, testCompanyID)
+			if got.UserID != testUserID {
+				t.Errorf("user id = %v, want %v", got.UserID, testUserID)
 			}
 			if got.Type != domain.OfferingProduct {
 				t.Errorf("type = %v, want %v", got.Type, domain.OfferingProduct)
@@ -217,17 +211,17 @@ func TestOfferingUseCaseGetByCompany(t *testing.T) {
 
 			offeringRepo := newFakeOfferingRepo()
 			if tt.repoErr != nil {
-				offeringRepo.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+				offeringRepo.findByUserID = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
 					return nil, tt.repoErr
 				}
 			} else {
-				offeringRepo.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+				offeringRepo.findByUserID = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
 					return tt.offerings, nil
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeCompanyRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			got, err := uc.GetByCompany(context.Background(), testCompanyID)
+			got, err := uc.GetByUserID(context.Background(), testCompanyID)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -252,8 +246,8 @@ func TestOfferingUseCaseGetByCompany(t *testing.T) {
 				if dto.Name != tt.offerings[i].Name {
 					t.Errorf("dto %d name = %q, want %q", i, dto.Name, tt.offerings[i].Name)
 				}
-				if dto.CompanyID != tt.offerings[i].CompanyID {
-					t.Errorf("dto %d company id = %v, want %v", i, dto.CompanyID, tt.offerings[i].CompanyID)
+				if dto.UserID != tt.offerings[i].UserID {
+					t.Errorf("dto %d company id = %v, want %v", i, dto.UserID, tt.offerings[i].UserID)
 				}
 			}
 		})
@@ -304,7 +298,7 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeCompanyRepo(), newFakeTimer())
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			err := uc.UpdateOffering(context.Background(), testOfferingID, tt.req)
 
