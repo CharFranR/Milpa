@@ -25,4 +25,12 @@ var (
 	ErrValidRoleRequired    = errors.New("valid user role is required ")
 	ErrPhoneNumberRequired  = errors.New("A phone number is required")
 	ErrUserNotFound         = errors.New("user not found")
+
+	// Liquidation errors
+	ErrProductNameRequired      = errors.New("product name is required")
+	ErrInvalidQuantity          = errors.New("quantity must be greater than zero")
+	ErrUnitOfMeasureRequired    = errors.New("unit of measure is required")
+	ErrLiquidationNotOpen       = errors.New("liquidation is not open")
+	ErrLiquidationCannotAssign  = errors.New("liquidation cannot be assigned in current status")
+	ErrInvalidVisibility        = errors.New("visibility must be public or private")
 )
