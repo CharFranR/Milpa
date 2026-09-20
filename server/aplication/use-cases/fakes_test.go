@@ -476,3 +476,12 @@ func (f *fakeFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexO
 func (f *fakeFuzzyRetrival) Delete(ctx context.Context, id string) error {
 	return nil
 }
+
+type fakeInvalidator struct {
+	called bool
+}
+
+func (f *fakeInvalidator) InvalidateAll(ctx context.Context) error {
+	f.called = true
+	return nil
+}
