@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: milpa-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    envVars:
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: milpa-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: milpa-db
+          property: port
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: milpa-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: milpa-db
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: milpa-db
+          property: database
+      - key: DB_SSLMODE
+        value: require
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SERVER_PORT
+        value: "8080"
+      - key: REDIS_URL
+        fromDatabase:
+          name: milpa-redis
+          property: redisURL
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        sync: false
+      - key: REDIS_PASSWORD
+        value: ""
+      - key: ESCLIENT_USER
+        sync: false
+      - key: ESCLIENT_PASSWORD
+        sync: false
+      - key: ESCLIENT_ENDPOINT1
+        sync: false
+      - key: ESCLIENT_ENDPOINT2
+        sync: false
+      - key: ESCLIENT_MAXID
+        value: "10"
+    healthCheckPath: /api/v1/categories
+    autoDeploy: true
+
+databases:
+  - name: milpa-db
+    plan: free
+    databaseName: milpa
+    ipAllowList: []
+
+  - name: milpa-redis
+    plan: free
+    ipAllowList: []

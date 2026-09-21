@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -96,7 +97,7 @@ func main() {
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
 	cacheClient := cache.NewCacheImpl(
-		os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"),
+		resolveRedisAddr(),
 		os.Getenv("REDIS_PASSWORD"),
 		0,
 	)
@@ -160,4 +161,18 @@ func main() {
 	if err := srv.Shutdown(shutdown); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
+}
+
+func resolveRedisAddr() string {
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		host := strings.TrimPrefix(url, "redis://")
+		if idx := strings.Index(host, "@"); idx != -1 {
+			host = host[idx+1:]
+		}
+		if idx := strings.Index(host, "/"); idx != -1 {
+			host = host[:idx]
+		}
+		return host
+	}
+	return os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 }
