@@ -34,7 +34,7 @@ services:
       - key: REDIS_URL
         fromDatabase:
           name: milpa-redis
-          property: redisURL
+          property: connectionString
       - key: REDIS_HOST
         sync: false
       - key: REDIS_PORT
