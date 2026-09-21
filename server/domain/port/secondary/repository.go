@@ -53,6 +53,15 @@ type InquiryRepository interface {
 	Update(ctx context.Context, inquiry *domain.Inquiry) error
 }
 
+type LiquidationRepository interface {
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.Liquidation, error)
+	FindBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Liquidation, error)
+	FindOpen(ctx context.Context) ([]domain.Liquidation, error)
+	Save(ctx context.Context, liquidation *domain.Liquidation) error
+	Update(ctx context.Context, liquidation *domain.Liquidation) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
 type ImageStore interface {
 	Upload(ctx context.Context, file []byte, filename string) (string, error)
 	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)

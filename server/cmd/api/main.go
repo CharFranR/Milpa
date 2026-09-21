@@ -91,6 +91,7 @@ func main() {
 	reviewRepo := repo.NewReviewRepository(pool)
 	categoryRepo := repo.NewCategoryRepository(pool)
 	inquiryRepo := repo.NewInquiryRepository(pool)
+	liquidationRepo := repo.NewLiquidationRepository(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -108,6 +109,7 @@ func main() {
 	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
 
 	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, searchUC.(port.Invalidator))
+	var liquidationUC primary.LiquidationUseCase = usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
@@ -124,12 +126,13 @@ func main() {
 	reviewHandler := handler.NewReviewHandler(reviewUC)
 	categoryHandler := handler.NewCategoryHandler(categoryUC)
 	inquiryHandler := handler.NewInquiryHandler(inquiryUC)
+	liquidationHandler := handler.NewLiquidationHandler(liquidationUC)
 	imageHandler := handler.NewImageHandler(imageStore)
 	searchHandler := handler.NewSearchHandler(searchUC)
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, authMW, imageHandler, searchHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, imageHandler, searchHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,

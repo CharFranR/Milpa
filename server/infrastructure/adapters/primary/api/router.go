@@ -16,6 +16,7 @@ func NewRouter(
 	review *handler.ReviewHandler,
 	category *handler.CategoryHandler,
 	inquiry *handler.InquiryHandler,
+	liquidation *handler.LiquidationHandler,
 	authMW *middleware.AuthMiddleware,
 	image *handler.ImageHandler,
 	search *handler.SearchHandler,
@@ -73,6 +74,16 @@ func NewRouter(
 			r.With(authMW.Authenticate).Post("/", inquiry.Create)
 			r.With(authMW.Authenticate).Patch("/{id}", inquiry.Update)
 		})
+
+		r.Route("/liquidations", func(r chi.Router) {
+			r.Get("/open", liquidation.GetOpen)
+			r.Get("/", liquidation.GetBySupplier)
+			r.Get("/{id}", liquidation.GetByID)
+			r.With(authMW.Authenticate).Post("/", liquidation.Create)
+			r.With(authMW.Authenticate).Patch("/{id}", liquidation.Update)
+			r.With(authMW.Authenticate).Delete("/{id}", liquidation.Delete)
+		})
+
 		r.Get("/images/{filename}", image.Get)
 
 		r.Get("/search", search.Search)
