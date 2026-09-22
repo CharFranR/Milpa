@@ -18,8 +18,11 @@ func NewRouter(
 	inquiry *handler.InquiryHandler,
 	liquidation *handler.LiquidationHandler,
 	authMW *middleware.AuthMiddleware,
+	suspensionMW *middleware.SuspensionMiddleware,
 	image *handler.ImageHandler,
 	search *handler.SearchHandler,
+	report *handler.ReportHandler,
+	moderation *handler.ModerationHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -43,50 +46,62 @@ func NewRouter(
 
 		r.Route("/users", func(r chi.Router) {
 			r.Get("/{id}", user.GetByID)
-			r.With(authMW.Authenticate).Patch("/{id}", user.UpdateProfile)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", user.UpdateProfile)
 		})
 
 		r.Route("/companies", func(r chi.Router) {
 			r.Get("/{id}", company.GetByID)
 			r.Get("/", company.GetByOwner)
-			r.With(authMW.Authenticate).Post("/", company.Create)
-			r.With(authMW.Authenticate).Patch("/{id}", company.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", company.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", company.Update)
 		})
 
 		r.Route("/offerings", func(r chi.Router) {
 			r.Get("/{id}", offering.GetByID)
 			r.Get("/", offering.GetByUserID)
-			r.With(authMW.Authenticate).Post("/", offering.Create)
-			r.With(authMW.Authenticate).Post("/create2/", offering.Create_v2)
-			r.With(authMW.Authenticate).Patch("/{id}", offering.Update)
-			r.With(authMW.Authenticate).Patch("/{id}", offering.DeleteOffering)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", offering.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/create2/", offering.Create_v2)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.DeleteOffering)
 		})
 
 		r.Route("/reviews", func(r chi.Router) {
 			r.Get("/", review.List)
-			r.With(authMW.Authenticate).Post("/", review.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", review.Create)
 		})
 
 		r.Route("/inquiries", func(r chi.Router) {
 			r.Get("/company/{company_id}", inquiry.GetByCompany)
 			r.Get("/{id}", inquiry.GetByID)
 			r.Get("/", inquiry.GetByUser)
-			r.With(authMW.Authenticate).Post("/", inquiry.Create)
-			r.With(authMW.Authenticate).Patch("/{id}", inquiry.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", inquiry.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", inquiry.Update)
 		})
 
 		r.Route("/liquidations", func(r chi.Router) {
 			r.Get("/open", liquidation.GetOpen)
 			r.Get("/", liquidation.GetBySupplier)
 			r.Get("/{id}", liquidation.GetByID)
-			r.With(authMW.Authenticate).Post("/", liquidation.Create)
-			r.With(authMW.Authenticate).Patch("/{id}", liquidation.Update)
-			r.With(authMW.Authenticate).Delete("/{id}", liquidation.Delete)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", liquidation.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", liquidation.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", liquidation.Delete)
 		})
 
 		r.Get("/images/{filename}", image.Get)
 
 		r.Get("/search", search.Search)
+
+		r.Route("/reports", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", report.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", report.List)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/action", report.Resolve)
+		})
+
+		r.Route("/admin", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/users/{id}/suspend", moderation.SuspendUser)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/offerings/{id}", moderation.DeleteOffering)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/audit-logs", moderation.ListAuditLogs)
+		})
 	})
 
 	return r

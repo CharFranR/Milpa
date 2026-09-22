@@ -57,7 +57,16 @@ func isValidationError(err error) bool {
 		errors.Is(err, domain.ErrDepartmentRequired) ||
 		errors.Is(err, domain.ErrMunicipalityRequired) ||
 		errors.Is(err, domain.ErrAddressLineRequired) ||
-		errors.Is(err, domain.ErrOwnerRequired)
+		errors.Is(err, domain.ErrOwnerRequired) ||
+		errors.Is(err, domain.ErrReporterRequired) ||
+		errors.Is(err, domain.ErrInvalidReportTargetType) ||
+		errors.Is(err, domain.ErrTargetRequired) ||
+		errors.Is(err, domain.ErrReasonRequired) ||
+		errors.Is(err, domain.ErrSelfReport) ||
+		errors.Is(err, domain.ErrReportAlreadyPending) ||
+		errors.Is(err, domain.ErrReportAlreadyResolved) ||
+		errors.Is(err, domain.ErrCannotSuspendSelf) ||
+		errors.Is(err, domain.ErrCannotSuspendAdmin)
 }
 
 func handleError(w http.ResponseWriter, err error) {

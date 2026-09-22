@@ -93,6 +93,8 @@ func main() {
 	categoryRepo := repo.NewCategoryRepository(pool)
 	inquiryRepo := repo.NewInquiryRepository(pool)
 	liquidationRepo := repo.NewLiquidationRepository(pool)
+	reportRepo := repo.NewReportRepository(pool)
+	auditLogRepo := repo.NewAuditLogRepository(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -112,6 +114,9 @@ func main() {
 	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, searchUC.(port.Invalidator))
 	var liquidationUC primary.LiquidationUseCase = usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
 
+	var reportUC primary.ReportUseCase = usecases.NewReportUseCase(reportRepo, auditLogRepo, userRepo, offeringRepo, clock)
+	var moderationUC primary.ModerationUseCase = usecases.NewModerationUseCase(userRepo, offeringRepo, auditLogRepo, offeringUC, clock)
+
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
 	offeringUC = usecases.NewCachedOfferingUseCase(offeringUC, cacheClient)
@@ -130,10 +135,13 @@ func main() {
 	liquidationHandler := handler.NewLiquidationHandler(liquidationUC)
 	imageHandler := handler.NewImageHandler(imageStore)
 	searchHandler := handler.NewSearchHandler(searchUC)
+	reportHandler := handler.NewReportHandler(reportUC)
+	moderationHandler := handler.NewModerationHandler(moderationUC)
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
+	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, imageHandler, searchHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
