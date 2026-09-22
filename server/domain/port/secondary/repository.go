@@ -62,6 +62,19 @@ type LiquidationRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+type ReportRepository interface {
+	Save(ctx context.Context, report *domain.Report) error
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.Report, error)
+	FindAll(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error)
+	Resolve(ctx context.Context, report *domain.Report) error
+	ExistsPendingByTarget(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error)
+}
+
+type AuditLogRepository interface {
+	Save(ctx context.Context, log *domain.AuditLog) error
+	FindAll(ctx context.Context, action string, actorID string, targetType string, page, pageSize int) ([]domain.AuditLog, int, error)
+}
+
 type ImageStore interface {
 	Upload(ctx context.Context, file []byte, filename string) (string, error)
 	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)
