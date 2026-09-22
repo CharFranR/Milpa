@@ -25,13 +25,13 @@ func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) 
 	var user domain.User
 
 	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash FROM users WHERE id = $1
+		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at FROM users WHERE id = $1
 
 	`
 
 	err := userRepo.pool.QueryRow(ctx, query, id).Scan(
 		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email, &user.PhoneNumber,
-		&user.PasswordHash,
+		&user.PasswordHash, &user.SuspendedAt,
 	)
 
 	if err != nil {
@@ -48,12 +48,12 @@ func (userRepo *UserRepositoryImpl) FindByEmail(ctx context.Context, email strin
 	var user domain.User
 
 	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash FROM users WHERE email = $1::text
+		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at FROM users WHERE email = $1::text
 	`
 
 	err := userRepo.pool.QueryRow(ctx, query, email).Scan(
 		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email,
-		&user.PhoneNumber, &user.PasswordHash,
+		&user.PhoneNumber, &user.PasswordHash, &user.SuspendedAt,
 	)
 
 	if err != nil {
@@ -239,12 +239,12 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 
 	query := `
 		UPDATE users
-		SET first_name = $1, last_name = $2, role = $3,  updated_at = $4, address_id = $5, email = $6, phone_number = $7, password_hash = $8
-		WHERE id = $9
+		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = $5, email = $6, phone_number = $7, password_hash = $8, suspended_at = $9
+		WHERE id = $10
 	`
 
 	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullUUID(user.Address.ID), user.Email,
-		user.PhoneNumber, user.PasswordHash, user.ID)
+		user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID)
 
 	if err != nil {
 		return fmt.Errorf("user.Update: %w", err)
