@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	TestPool      *pgxpool.Pool
-	TestContainer *postgres.PostgresContainer
-	TestESClient  *elasticsearch.Client
+	TestPool       *pgxpool.Pool
+	TestContainer  *postgres.PostgresContainer
+	TestESClient   *elasticsearch.Client
 	TestESEndpoint string
-	TestRedisAddr string
+	TestRedisAddr  string
 )
 
 func TestMain(m *testing.M) {
@@ -52,6 +52,10 @@ func TestMain(m *testing.M) {
 			filepath.Join(dbCredentials.migrationsPath, "000006_create_offerings.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000007_create_inquiries.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000008_create_reviews.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000009_create_liquidations.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000010_create_reports.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000011_create_audit_logs.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000012_add_user_suspended_at.up.sql"),
 		),
 		postgres.WithDatabase(dbCredentials.dbName),
 		postgres.WithUsername(dbCredentials.dbUser),
@@ -145,8 +149,11 @@ func cleanupTables(t *testing.T) {
 
 	ctx := context.Background()
 	tables := []string{
+		"audit_logs",
+		"reports",
 		"reviews",
 		"inquiries",
+		"liquidations",
 		"offerings",
 		"company_categories",
 		"companies",
