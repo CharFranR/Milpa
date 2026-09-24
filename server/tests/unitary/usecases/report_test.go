@@ -300,9 +300,6 @@ func TestReportUseCaseResolve(t *testing.T) {
 		if len(reportRepo.resolved) != 1 {
 			t.Errorf("expected 1 report resolved, got %d", len(reportRepo.resolved))
 		}
-		if len(reportRepo.cascadeResolved) != 1 {
-			t.Errorf("expected 1 sibling cascade after a successful resolve, got %d", len(reportRepo.cascadeResolved))
-		}
 	})
 
 	t.Run("reject report", func(t *testing.T) {
@@ -322,30 +319,37 @@ func TestReportUseCaseResolve(t *testing.T) {
 		if result.Status != "rejected" {
 			t.Errorf("expected status rejected, got %s", result.Status)
 		}
-		if len(reportRepo.cascadeResolved) != 1 {
-			t.Errorf("expected 1 sibling cascade after a successful resolve, got %d", len(reportRepo.cascadeResolved))
+		if len(reportRepo.resolved) != 1 {
+			t.Errorf("expected 1 report resolved, got %d", len(reportRepo.resolved))
 		}
 	})
 
-	t.Run("resolve failure skips sibling cascade", func(t *testing.T) {
+	t.Run("resolve failure stops before response building", func(t *testing.T) {
 		reportRepo := newFakeReportRepo()
 		reportRepo.resolve = func(ctx context.Context, report *domain.Report) error {
 			return errors.New("resolve failed")
 		}
 		auditRepo := newFakeAuditLogRepo()
 		userRepo := newFakeUserRepo()
+		userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+			t.Error("FindByID must not be called after a failed resolve")
+			return nil, nil
+		}
 		offeringRepo := newFakeOfferingRepo()
 		timer := newFakeTimer()
 
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "approve"}
-		_, err := uc.Resolve(adminCtx(), testReportID, req)
+		result, err := uc.Resolve(adminCtx(), testReportID, req)
 		if err == nil {
 			t.Fatal("expected error when resolve fails, got nil")
 		}
-		if len(reportRepo.cascadeResolved) != 0 {
-			t.Errorf("expected no sibling cascade after a failed resolve, got %d", len(reportRepo.cascadeResolved))
+		if err.Error() != "resolve failed" {
+			t.Errorf("expected the resolve error to propagate, got %v", err)
+		}
+		if result != nil {
+			t.Errorf("expected no response after a failed resolve, got %+v", result)
 		}
 	})
 

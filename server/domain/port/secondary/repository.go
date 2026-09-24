@@ -67,7 +67,6 @@ type ReportRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Report, error)
 	FindAll(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error)
 	Resolve(ctx context.Context, report *domain.Report) error
-	ResolvePendingByTarget(ctx context.Context, report *domain.Report) error
 	ExistsPendingByTarget(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error)
 }
 

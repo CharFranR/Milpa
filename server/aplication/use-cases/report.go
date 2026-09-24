@@ -213,9 +213,6 @@ func (uc *ReportUseCaseImpl) Resolve(ctx context.Context, id uuid.UUID, req dto.
 	if err := uc.reportRepo.Resolve(ctx, report); err != nil {
 		return nil, err
 	}
-	if err := uc.reportRepo.ResolvePendingByTarget(ctx, report); err != nil {
-		return nil, err
-	}
 
 	return uc.buildResponse(ctx, report)
 }

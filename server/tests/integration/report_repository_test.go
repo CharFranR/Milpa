@@ -550,7 +550,7 @@ func TestReportResolveMissingOrAlreadyResolved(t *testing.T) {
 	})
 }
 
-func TestReportResolvePendingByTarget(t *testing.T) {
+func TestReportResolveClosesSiblingReports(t *testing.T) {
 	tests := []struct {
 		Name           string
 		Resolve        func(r *domain.Report, adminID uuid.UUID, now time.Time)
@@ -593,8 +593,13 @@ func TestReportResolvePendingByTarget(t *testing.T) {
 			if err := db.Resolve(ctx, stored); err != nil {
 				t.Fatalf("Resolve() error: %v", err)
 			}
-			if err := db.ResolvePendingByTarget(ctx, stored); err != nil {
-				t.Fatalf("ResolvePendingByTarget() error: %v", err)
+
+			resolved, err := db.FindByID(ctx, stored.ID)
+			if err != nil {
+				t.Fatalf("FindByID() primary: %v", err)
+			}
+			if resolved.Status != tt.ExpectedStatus {
+				t.Errorf("primary Status = %v, want %v", resolved.Status, tt.ExpectedStatus)
 			}
 
 			closed, err := db.FindByID(ctx, sibling.ID)
