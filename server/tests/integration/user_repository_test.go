@@ -583,3 +583,124 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestUserSuspendedAtNullWhenNeverSuspended(t *testing.T) {
+	cleanupTables(t)
+	db := repository.NewUserRepository(TestPool)
+	ctx := context.Background()
+
+	savedUser := basicUser(testUserID)
+	if _, err := db.Save(ctx, savedUser); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	byID, err := db.FindByID(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("FindByID() error: %v", err)
+	}
+	if byID.SuspendedAt != nil {
+		t.Errorf("FindByID() SuspendedAt = %v, want nil for a user that was never suspended", *byID.SuspendedAt)
+	}
+	if byID.IsSuspended() {
+		t.Error("FindByID() IsSuspended() = true, want false")
+	}
+
+	byEmail, err := db.FindByEmail(ctx, savedUser.Email)
+	if err != nil {
+		t.Fatalf("FindByEmail() error: %v", err)
+	}
+	if byEmail.SuspendedAt != nil {
+		t.Errorf("FindByEmail() SuspendedAt = %v, want nil for a user that was never suspended", *byEmail.SuspendedAt)
+	}
+	if byEmail.IsSuspended() {
+		t.Error("FindByEmail() IsSuspended() = true, want false")
+	}
+}
+
+func TestUserSuspendedAtRoundtrip(t *testing.T) {
+	cleanupTables(t)
+	db := repository.NewUserRepository(TestPool)
+	ctx := context.Background()
+
+	suspendedAt := fixedTime2
+
+	savedUser := basicUser(testUserID)
+	if _, err := db.Save(ctx, savedUser); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	savedUser.Suspend(suspendedAt)
+	if err := db.Update(ctx, savedUser); err != nil {
+		t.Fatalf("Update() after Suspend: %v", err)
+	}
+
+	byID, err := db.FindByID(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("FindByID() after Suspend: %v", err)
+	}
+	if byID.SuspendedAt == nil {
+		t.Fatal("FindByID() SuspendedAt = nil, want the suspension timestamp")
+	}
+	if !byID.SuspendedAt.Equal(suspendedAt) {
+		t.Errorf("FindByID() SuspendedAt = %v, want %v", *byID.SuspendedAt, suspendedAt)
+	}
+	if !byID.IsSuspended() {
+		t.Error("FindByID() IsSuspended() = false, want true")
+	}
+
+	byEmail, err := db.FindByEmail(ctx, savedUser.Email)
+	if err != nil {
+		t.Fatalf("FindByEmail() after Suspend: %v", err)
+	}
+	if byEmail.SuspendedAt == nil {
+		t.Fatal("FindByEmail() SuspendedAt = nil, want the suspension timestamp")
+	}
+	if !byEmail.SuspendedAt.Equal(suspendedAt) {
+		t.Errorf("FindByEmail() SuspendedAt = %v, want %v", *byEmail.SuspendedAt, suspendedAt)
+	}
+
+	reactivatedAt := suspendedAt.Add(time.Hour)
+	byID.Reactivate(reactivatedAt)
+	if err := db.Update(ctx, byID); err != nil {
+		t.Fatalf("Update() after Reactivate: %v", err)
+	}
+
+	afterReactivate, err := db.FindByID(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("FindByID() after Reactivate: %v", err)
+	}
+	if afterReactivate.SuspendedAt != nil {
+		t.Errorf("FindByID() SuspendedAt = %v after Reactivate, want nil", *afterReactivate.SuspendedAt)
+	}
+}
+
+// TestUserSuspendedAtDroppedBySave documents the actual repository contract.
+//
+// FINDING (production code not changed): UserRepositoryImpl.Save builds an
+// INSERT that does not list the suspended_at column, so a suspension set on a
+// user before Save is silently discarded and the row is stored with
+// suspended_at = NULL. Read paths (FindByID/FindByEmail) and Update do handle
+// the column, so today's flows (create first, suspend later through Update)
+// keep working, but any caller that suspends before the first Save loses the
+// suspension.
+func TestUserSuspendedAtDroppedBySave(t *testing.T) {
+	cleanupTables(t)
+	db := repository.NewUserRepository(TestPool)
+	ctx := context.Background()
+
+	suspendedAt := fixedTime2
+
+	savedUser := basicUser(testUserID)
+	savedUser.SuspendedAt = &suspendedAt
+	if _, err := db.Save(ctx, savedUser); err != nil {
+		t.Fatalf("Save() error: %v", err)
+	}
+
+	byID, err := db.FindByID(ctx, testUserID)
+	if err != nil {
+		t.Fatalf("FindByID() error: %v", err)
+	}
+	if byID.SuspendedAt != nil {
+		t.Errorf("FindByID() SuspendedAt = %v, want nil because Save does not persist the column", *byID.SuspendedAt)
+	}
+}
