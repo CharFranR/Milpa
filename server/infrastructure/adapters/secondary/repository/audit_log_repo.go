@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
@@ -112,6 +114,9 @@ func (r *AuditLogRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*d
 		&log.Metadata, &log.CreatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("audit_log.FindByID: %w", domain.ErrNotFound)
+		}
 		return nil, fmt.Errorf("audit_log.FindByID: %w", err)
 	}
 

@@ -33,8 +33,8 @@ func TestInquiryFindByID(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "user_id", "offering_id", "message", "status", "created_at"}).
-					AddRow(inquiry.ID, inquiry.UserID, inquiry.OfferingID, inquiry.Message, inquiry.Status, inquiry.CreatedAt)
+				rows := pgxmock.NewRows([]string{"id", "user_id", "offering_id", "offering_name", "message", "status", "created_at"}).
+					AddRow(inquiry.ID, inquiry.UserID, inquiry.OfferingID, inquiry.OfferingName, inquiry.Message, inquiry.Status, inquiry.CreatedAt)
 				m.ExpectQuery("FROM inquiries").WithArgs(inquiryID).WillReturnRows(rows)
 			},
 		},
@@ -91,8 +91,8 @@ func TestInquiryFindByUser(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "user_id", "offering_id", "message", "status", "created_at"}).
-					AddRow(inquiry.ID, inquiry.UserID, inquiry.OfferingID, inquiry.Message, inquiry.Status, inquiry.CreatedAt)
+				rows := pgxmock.NewRows([]string{"id", "user_id", "offering_id", "offering_name", "message", "status", "created_at"}).
+					AddRow(inquiry.ID, inquiry.UserID, inquiry.OfferingID, inquiry.OfferingName, inquiry.Message, inquiry.Status, inquiry.CreatedAt)
 				m.ExpectQuery("FROM inquiries").WithArgs(userID).WillReturnRows(rows)
 			},
 		},

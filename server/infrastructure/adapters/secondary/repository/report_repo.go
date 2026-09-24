@@ -119,18 +119,66 @@ func (r *ReportRepositoryImpl) FindAll(ctx context.Context, status string, targe
 }
 
 func (r *ReportRepositoryImpl) Resolve(ctx context.Context, report *domain.Report) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("report.Resolve: %w", err)
+	}
+
+	defer tx.Rollback(ctx)
+
 	query := `
 		UPDATE reports
 		SET status = $1, resolved_by = $2, resolved_at = $3, updated_at = $4
-		WHERE id = $5
+		WHERE id = $5 AND status = 'pending'
 	`
-	_, err := r.pool.Exec(ctx, query,
+	tag, err := tx.Exec(ctx, query,
 		report.Status, report.ResolvedBy, report.ResolvedAt, report.UpdatedAt, report.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("report.Resolve: %w", err)
 	}
+	if tag.RowsAffected() == 0 {
+		_ = tx.Rollback(ctx)
+		return r.resolveMissError(ctx, report.ID)
+	}
+
+	if err := r.closePendingSiblings(ctx, tx, report); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("report.Resolve: %w", err)
+	}
 	return nil
+}
+
+func (r *ReportRepositoryImpl) closePendingSiblings(ctx context.Context, tx pgx.Tx, report *domain.Report) error {
+	query := `
+		UPDATE reports
+		SET status = $1, resolved_by = $2, resolved_at = $3, updated_at = $4
+		WHERE target_type = $5 AND target_id = $6 AND status = 'pending'
+	`
+	_, err := tx.Exec(ctx, query,
+		report.Status, report.ResolvedBy, report.ResolvedAt, report.UpdatedAt,
+		report.TargetType, report.TargetID,
+	)
+	if err != nil {
+		return fmt.Errorf("report.Resolve: %w", err)
+	}
+	return nil
+}
+
+func (r *ReportRepositoryImpl) resolveMissError(ctx context.Context, id uuid.UUID) error {
+	query := `SELECT status FROM reports WHERE id = $1`
+	var status domain.ReportStatus
+	err := r.pool.QueryRow(ctx, query, id).Scan(&status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("report.Resolve: %w", domain.ErrNotFound)
+		}
+		return fmt.Errorf("report.Resolve: %w", err)
+	}
+	return fmt.Errorf("report.Resolve: %w", domain.ErrReportAlreadyResolved)
 }
 
 func (r *ReportRepositoryImpl) ExistsPendingByTarget(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error) {

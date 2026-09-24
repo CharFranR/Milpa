@@ -2,6 +2,7 @@ package usecases_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -232,6 +233,50 @@ func TestReportUseCaseList(t *testing.T) {
 			t.Errorf("expected ErrForbidden, got %v", err)
 		}
 	})
+
+	t.Run("invalid status", func(t *testing.T) {
+		reportRepo := newFakeReportRepo()
+		reportRepo.findAll = func(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error) {
+			t.Error("FindAll must not be called for an unknown status")
+			return nil, 0, nil
+		}
+		auditRepo := newFakeAuditLogRepo()
+		userRepo := newFakeUserRepo()
+		offeringRepo := newFakeOfferingRepo()
+		timer := newFakeTimer()
+
+		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
+
+		_, err := uc.List(adminCtx(), "bogus", "", 1, 20)
+		if err == nil {
+			t.Fatal("expected error for unknown status, got nil")
+		}
+		if err != domain.ErrInvalidReportStatus {
+			t.Errorf("expected ErrInvalidReportStatus, got %v", err)
+		}
+	})
+
+	t.Run("invalid target type", func(t *testing.T) {
+		reportRepo := newFakeReportRepo()
+		reportRepo.findAll = func(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error) {
+			t.Error("FindAll must not be called for an unknown target type")
+			return nil, 0, nil
+		}
+		auditRepo := newFakeAuditLogRepo()
+		userRepo := newFakeUserRepo()
+		offeringRepo := newFakeOfferingRepo()
+		timer := newFakeTimer()
+
+		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
+
+		_, err := uc.List(adminCtx(), "", "bogus", 1, 20)
+		if err == nil {
+			t.Fatal("expected error for unknown target type, got nil")
+		}
+		if err != domain.ErrInvalidReportTargetType {
+			t.Errorf("expected ErrInvalidReportTargetType, got %v", err)
+		}
+	})
 }
 
 func TestReportUseCaseResolve(t *testing.T) {
@@ -273,6 +318,38 @@ func TestReportUseCaseResolve(t *testing.T) {
 		}
 		if result.Status != "rejected" {
 			t.Errorf("expected status rejected, got %s", result.Status)
+		}
+		if len(reportRepo.resolved) != 1 {
+			t.Errorf("expected 1 report resolved, got %d", len(reportRepo.resolved))
+		}
+	})
+
+	t.Run("resolve failure stops before response building", func(t *testing.T) {
+		reportRepo := newFakeReportRepo()
+		reportRepo.resolve = func(ctx context.Context, report *domain.Report) error {
+			return errors.New("resolve failed")
+		}
+		auditRepo := newFakeAuditLogRepo()
+		userRepo := newFakeUserRepo()
+		userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+			t.Error("FindByID must not be called after a failed resolve")
+			return nil, nil
+		}
+		offeringRepo := newFakeOfferingRepo()
+		timer := newFakeTimer()
+
+		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
+
+		req := dto.ResolveReportRequest{Action: "approve"}
+		result, err := uc.Resolve(adminCtx(), testReportID, req)
+		if err == nil {
+			t.Fatal("expected error when resolve fails, got nil")
+		}
+		if err.Error() != "resolve failed" {
+			t.Errorf("expected the resolve error to propagate, got %v", err)
+		}
+		if result != nil {
+			t.Errorf("expected no response after a failed resolve, got %+v", result)
 		}
 	})
 
