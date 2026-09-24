@@ -27,6 +27,7 @@ type User struct {
 	Email        string
 	PhoneNumber  string
 	PasswordHash string
+	SuspendedAt  *time.Time
 }
 
 // Builder
@@ -99,4 +100,18 @@ func (u *User) SetPasswordHash(hash string) {
 
 func (u *User) Touch(now time.Time) {
 	u.UpdatedAt = now
+}
+
+func (u *User) Suspend(now time.Time) {
+	u.SuspendedAt = &now
+	u.Touch(now)
+}
+
+func (u *User) Reactivate(now time.Time) {
+	u.SuspendedAt = nil
+	u.Touch(now)
+}
+
+func (u User) IsSuspended() bool {
+	return u.SuspendedAt != nil
 }
