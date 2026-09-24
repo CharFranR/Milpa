@@ -674,16 +674,7 @@ func TestUserSuspendedAtRoundtrip(t *testing.T) {
 	}
 }
 
-// TestUserSuspendedAtDroppedBySave documents the actual repository contract.
-//
-// FINDING (production code not changed): UserRepositoryImpl.Save builds an
-// INSERT that does not list the suspended_at column, so a suspension set on a
-// user before Save is silently discarded and the row is stored with
-// suspended_at = NULL. Read paths (FindByID/FindByEmail) and Update do handle
-// the column, so today's flows (create first, suspend later through Update)
-// keep working, but any caller that suspends before the first Save loses the
-// suspension.
-func TestUserSuspendedAtDroppedBySave(t *testing.T) {
+func TestUserSuspendedAtPersistedBySave(t *testing.T) {
 	cleanupTables(t)
 	db := repository.NewUserRepository(TestPool)
 	ctx := context.Background()
@@ -700,7 +691,13 @@ func TestUserSuspendedAtDroppedBySave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindByID() error: %v", err)
 	}
-	if byID.SuspendedAt != nil {
-		t.Errorf("FindByID() SuspendedAt = %v, want nil because Save does not persist the column", *byID.SuspendedAt)
+	if byID.SuspendedAt == nil {
+		t.Fatal("FindByID() SuspendedAt = nil, want the suspension timestamp set before Save")
+	}
+	if !byID.SuspendedAt.Equal(suspendedAt) {
+		t.Errorf("FindByID() SuspendedAt = %v, want %v", *byID.SuspendedAt, suspendedAt)
+	}
+	if !byID.IsSuspended() {
+		t.Error("FindByID() IsSuspended() = false, want true")
 	}
 }

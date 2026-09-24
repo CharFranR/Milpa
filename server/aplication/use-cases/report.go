@@ -17,11 +17,11 @@ import (
 )
 
 type ReportUseCaseImpl struct {
-	reportRepo  port.ReportRepository
-	auditRepo   port.AuditLogRepository
-	userRepo    port.UserRepository
+	reportRepo   port.ReportRepository
+	auditRepo    port.AuditLogRepository
+	userRepo     port.UserRepository
 	offeringRepo port.OfferingRepository
-	timer       port.TimeProvider
+	timer        port.TimeProvider
 }
 
 func NewReportUseCase(
@@ -111,6 +111,17 @@ func (uc *ReportUseCaseImpl) List(ctx context.Context, status string, targetType
 		pageSize = 20
 	}
 
+	if status != "" {
+		switch domain.ReportStatus(status) {
+		case domain.ReportPending, domain.ReportApproved, domain.ReportRejected:
+		default:
+			return nil, domain.ErrInvalidReportStatus
+		}
+	}
+	if targetType != "" && targetType != string(domain.ReportTargetOffering) && targetType != string(domain.ReportTargetUser) {
+		return nil, domain.ErrInvalidReportTargetType
+	}
+
 	reports, total, err := uc.reportRepo.FindAll(ctx, status, targetType, page, pageSize)
 	if err != nil {
 		return nil, err
@@ -181,7 +192,7 @@ func (uc *ReportUseCaseImpl) Resolve(ctx context.Context, id uuid.UUID, req dto.
 				return nil, err
 			}
 			deleteMeta, _ := json.Marshal(map[string]string{
-				"report_id":  report.ID.String(),
+				"report_id":   report.ID.String(),
 				"offering_id": report.TargetID.String(),
 			})
 			deleteLog := domain.NewAuditLog(principal.UserID, domain.AuditActionOfferingDeleted, "offering", report.TargetID, deleteMeta, now)
@@ -200,6 +211,9 @@ func (uc *ReportUseCaseImpl) Resolve(ctx context.Context, id uuid.UUID, req dto.
 	}
 
 	if err := uc.reportRepo.Resolve(ctx, report); err != nil {
+		return nil, err
+	}
+	if err := uc.reportRepo.ResolvePendingByTarget(ctx, report); err != nil {
 		return nil, err
 	}
 
@@ -248,11 +262,11 @@ func (uc *ReportUseCaseImpl) buildResponse(ctx context.Context, report *domain.R
 var _ primary.ReportUseCase = (*ReportUseCaseImpl)(nil)
 
 type ModerationUseCaseImpl struct {
-	userRepo      port.UserRepository
-	offeringRepo  port.OfferingRepository
-	auditRepo     port.AuditLogRepository
-	offeringUC    primary.OfferingUseCase
-	timer         port.TimeProvider
+	userRepo     port.UserRepository
+	offeringRepo port.OfferingRepository
+	auditRepo    port.AuditLogRepository
+	offeringUC   primary.OfferingUseCase
+	timer        port.TimeProvider
 }
 
 func NewModerationUseCase(

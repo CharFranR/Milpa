@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 var testAuditLogIDs = []uuid.UUID{
@@ -81,9 +80,6 @@ func setupAuditLogTestData(t *testing.T) {
 	}
 }
 
-// assertMetadataEqual compares metadata semantically: PostgreSQL jsonb does
-// not preserve key order or whitespace, so a raw byte comparison would be
-// flaky even for identical payloads.
 func assertMetadataEqual(t *testing.T, want, got json.RawMessage) {
 	t.Helper()
 
@@ -121,13 +117,9 @@ func TestAuditLogSaveAndFindByID(t *testing.T) {
 			ExpectedErr: nil,
 		},
 		{
-			// FINDING (production behaviour, not changed here): unlike the
-			// other repositories, AuditLogRepositoryImpl.FindByID does not
-			// translate pgx.ErrNoRows into domain.ErrNotFound, so callers
-			// must compare against the pgx sentinel instead.
 			Name:        "Audit Log Not Found",
 			ID:          testAuditLogNotFoundID,
-			ExpectedErr: pgx.ErrNoRows,
+			ExpectedErr: domain.ErrNotFound,
 		},
 	}
 
@@ -179,7 +171,6 @@ func TestAuditLogFindAllOrderingAndPagination(t *testing.T) {
 	setupAuditLogTestData(t)
 	db := repository.NewAuditLogRepository(TestPool)
 
-	// Distinct created_at values keep ORDER BY created_at DESC deterministic.
 	saved := make([]*domain.AuditLog, 0, len(testAuditLogIDs))
 	for i, id := range testAuditLogIDs {
 		entry := newAuditLogFixture(id, testAuditActorID, domain.AuditActionReportCreated, "report", testAuditReportTargetID,

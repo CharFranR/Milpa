@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	testReportID   = uuid.MustParse("88888888-8888-8888-8888-888888888888")
-	testAdminID    = uuid.MustParse("99999999-9999-9999-9999-999999999999")
-	testTargetID   = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	testReportID = uuid.MustParse("88888888-8888-8888-8888-888888888888")
+	testAdminID  = uuid.MustParse("99999999-9999-9999-9999-999999999999")
+	testTargetID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 )
 
 func adminCtx() context.Context {
@@ -30,13 +30,15 @@ func mustReport() *domain.Report {
 }
 
 type fakeReportRepo struct {
-	save               func(ctx context.Context, report *domain.Report) error
-	findByID           func(ctx context.Context, id uuid.UUID) (*domain.Report, error)
-	findAll            func(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error)
-	resolve            func(ctx context.Context, report *domain.Report) error
-	existsPending      func(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error)
-	saved              []*domain.Report
-	resolved           []*domain.Report
+	save                   func(ctx context.Context, report *domain.Report) error
+	findByID               func(ctx context.Context, id uuid.UUID) (*domain.Report, error)
+	findAll                func(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error)
+	resolve                func(ctx context.Context, report *domain.Report) error
+	resolvePendingByTarget func(ctx context.Context, report *domain.Report) error
+	existsPending          func(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error)
+	saved                  []*domain.Report
+	resolved               []*domain.Report
+	cascadeResolved        []*domain.Report
 }
 
 func newFakeReportRepo() *fakeReportRepo {
@@ -55,6 +57,10 @@ func newFakeReportRepo() *fakeReportRepo {
 	}
 	f.resolve = func(ctx context.Context, report *domain.Report) error {
 		f.resolved = append(f.resolved, report)
+		return nil
+	}
+	f.resolvePendingByTarget = func(ctx context.Context, report *domain.Report) error {
+		f.cascadeResolved = append(f.cascadeResolved, report)
 		return nil
 	}
 	f.existsPending = func(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error) {
@@ -79,14 +85,18 @@ func (f *fakeReportRepo) Resolve(ctx context.Context, report *domain.Report) err
 	return f.resolve(ctx, report)
 }
 
+func (f *fakeReportRepo) ResolvePendingByTarget(ctx context.Context, report *domain.Report) error {
+	return f.resolvePendingByTarget(ctx, report)
+}
+
 func (f *fakeReportRepo) ExistsPendingByTarget(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error) {
 	return f.existsPending(ctx, reporterID, targetType, targetID)
 }
 
 type fakeAuditLogRepo struct {
-	save  func(ctx context.Context, log *domain.AuditLog) error
+	save    func(ctx context.Context, log *domain.AuditLog) error
 	findAll func(ctx context.Context, action string, actorID string, targetType string, page, pageSize int) ([]domain.AuditLog, int, error)
-	saved []*domain.AuditLog
+	saved   []*domain.AuditLog
 }
 
 func newFakeAuditLogRepo() *fakeAuditLogRepo {

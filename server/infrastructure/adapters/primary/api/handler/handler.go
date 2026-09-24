@@ -60,6 +60,7 @@ func isValidationError(err error) bool {
 		errors.Is(err, domain.ErrOwnerRequired) ||
 		errors.Is(err, domain.ErrReporterRequired) ||
 		errors.Is(err, domain.ErrInvalidReportTargetType) ||
+		errors.Is(err, domain.ErrInvalidReportStatus) ||
 		errors.Is(err, domain.ErrTargetRequired) ||
 		errors.Is(err, domain.ErrReasonRequired) ||
 		errors.Is(err, domain.ErrSelfReport) ||

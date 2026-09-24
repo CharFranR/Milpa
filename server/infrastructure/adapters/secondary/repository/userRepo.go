@@ -161,12 +161,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 	var id string
 
 	query := `
-		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		returning id
 	`
 	err = tx.QueryRow(ctx, query, user.ID, user.FirstName, user.LastName, user.Role, user.CreatedAt, user.UpdatedAt, nullUUID(AddressID), user.Email, user.PhoneNumber,
-		user.PasswordHash).Scan(&id)
+		user.PasswordHash, user.SuspendedAt).Scan(&id)
 
 	if err != nil {
 		return "", fmt.Errorf("user.Save: insert user: %v", err)

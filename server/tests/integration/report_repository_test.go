@@ -183,8 +183,6 @@ func TestReportFindAllPagination(t *testing.T) {
 	setupReportTestData(t)
 	db := repository.NewReportRepository(TestPool)
 
-	// One pending report per target keeps the partial unique index happy, and
-	// distinct created_at values make ORDER BY created_at DESC deterministic.
 	saved := make([]*domain.Report, 0, len(testReportIDs))
 	for i, id := range testReportIDs {
 		report := newReportFixture(id, testReportReporterID, domain.ReportTargetOffering, testReportTargetIDs[i], domain.ReportPending, fixedTime.Add(time.Duration(i)*time.Minute))
@@ -327,11 +325,6 @@ func TestReportFindAllFilters(t *testing.T) {
 			ExpectedTotal: 0,
 		},
 		{
-			// FINDING (production behaviour, not changed here): status and
-			// target_type are report_status/report_target_type enums in
-			// PostgreSQL, so an unknown literal makes the statement fail
-			// instead of returning an empty page. The use case does not
-			// validate these values before reaching the repository.
 			Name:          "Unknown status fails at the database",
 			Status:        "bogus",
 			ExpectErr:     true,
@@ -415,17 +408,11 @@ func TestReportExistsPendingByTarget(t *testing.T) {
 		t.Errorf("Save() duplicate pending report: constraint = %s, want idx_reports_pending_unique", pgErr.ConstraintName)
 	}
 
-	// idx_reports_pending_unique is scoped to (reporter_id, target_type,
-	// target_id), so a different reporter may still open a pending report
-	// for the very same target.
 	otherReporter := newReportFixture(testReportIDs[2], testReportSecondReporterID, domain.ReportTargetOffering, testReportTargetIDs[0], domain.ReportPending, fixedTime.Add(2*time.Minute))
 	if err := db.Save(ctx, otherReporter); err != nil {
 		t.Fatalf("Save() pending report from another reporter: %v", err)
 	}
 
-	// Once the report leaves the pending state the partial index no longer
-	// applies, so a new pending report for the same reporter and target is
-	// accepted again.
 	pending.Status = domain.ReportApproved
 	if err := db.Resolve(ctx, pending); err != nil {
 		t.Fatalf("Resolve() error: %v", err)
@@ -505,16 +492,6 @@ func TestReportResolve(t *testing.T) {
 	}
 }
 
-// TestReportResolveMissingOrAlreadyResolved documents the actual repository
-// contract, which differs from the epic specification.
-//
-// FINDING (production code not changed): ReportRepositoryImpl.Resolve runs a
-// bare UPDATE and never inspects the affected row count, so it reports success
-// both for ids that do not exist and for reports that are already resolved
-// (silently overwriting the terminal state). The guards required by the spec
-// live one layer up, in aplication/use-cases/report.go: FindByID returns
-// domain.ErrNotFound and report.IsResolved() returns
-// domain.ErrReportAlreadyResolved before Resolve is ever called.
 func TestReportResolveMissingOrAlreadyResolved(t *testing.T) {
 	setupReportTestData(t)
 	db := repository.NewReportRepository(TestPool)
@@ -524,8 +501,8 @@ func TestReportResolveMissingOrAlreadyResolved(t *testing.T) {
 		ghost := newReportFixture(testReportNotFoundID, testReportReporterID, domain.ReportTargetOffering, testReportTargetIDs[0], domain.ReportPending, fixedTime)
 
 		err := db.Resolve(ctx, ghost)
-		if err != nil {
-			t.Errorf("Resolve() on a missing report error = %v, want nil (no rows affected is not an error here)", err)
+		if !errors.Is(err, domain.ErrNotFound) {
+			t.Errorf("Resolve() on a missing report error = %v, want %v", err, domain.ErrNotFound)
 		}
 
 		_, findErr := db.FindByID(ctx, testReportNotFoundID)
@@ -556,16 +533,109 @@ func TestReportResolveMissingOrAlreadyResolved(t *testing.T) {
 		second.Reject(testReportAdminID, fixedTime2.Add(time.Hour))
 
 		err = db.Resolve(ctx, second)
-		if err != nil {
-			t.Errorf("Resolve() on an already-resolved report error = %v, want nil (no terminal-state guard at this layer)", err)
+		if !errors.Is(err, domain.ErrReportAlreadyResolved) {
+			t.Errorf("Resolve() on an already-resolved report error = %v, want %v", err, domain.ErrReportAlreadyResolved)
 		}
 
 		final, err := db.FindByID(ctx, report.ID)
 		if err != nil {
 			t.Fatalf("FindByID() after second Resolve: %v", err)
 		}
-		if final.Status != domain.ReportRejected {
-			t.Errorf("Resolve() second call Status = %v, want %v (the repository overwrites the terminal state)", final.Status, domain.ReportRejected)
+		if final.Status != domain.ReportApproved {
+			t.Errorf("Resolve() second call Status = %v, want %v (the terminal state must not be overwritten)", final.Status, domain.ReportApproved)
+		}
+		if final.ResolvedAt == nil || !final.ResolvedAt.Equal(fixedTime2) {
+			t.Errorf("Resolve() second call ResolvedAt = %v, want %v (the first resolution must be preserved)", final.ResolvedAt, fixedTime2)
 		}
 	})
+}
+
+func TestReportResolvePendingByTarget(t *testing.T) {
+	tests := []struct {
+		Name           string
+		Resolve        func(r *domain.Report, adminID uuid.UUID, now time.Time)
+		ExpectedStatus domain.ReportStatus
+	}{
+		{
+			Name:           "Approve closes every pending report for the target",
+			Resolve:        (*domain.Report).Approve,
+			ExpectedStatus: domain.ReportApproved,
+		},
+		{
+			Name:           "Reject closes every pending report for the target",
+			Resolve:        (*domain.Report).Reject,
+			ExpectedStatus: domain.ReportRejected,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			setupReportTestData(t)
+			db := repository.NewReportRepository(TestPool)
+			ctx := context.Background()
+
+			primary := newReportFixture(testReportIDs[0], testReportReporterID, domain.ReportTargetOffering, testReportTargetIDs[0], domain.ReportPending, fixedTime)
+			sibling := newReportFixture(testReportIDs[1], testReportSecondReporterID, domain.ReportTargetOffering, testReportTargetIDs[0], domain.ReportPending, fixedTime.Add(time.Minute))
+			otherTarget := newReportFixture(testReportIDs[2], testReportSecondReporterID, domain.ReportTargetOffering, testReportTargetIDs[1], domain.ReportPending, fixedTime.Add(2*time.Minute))
+
+			for _, report := range []*domain.Report{primary, sibling, otherTarget} {
+				if err := db.Save(ctx, report); err != nil {
+					t.Fatalf("Save() %s: %v", report.ID, err)
+				}
+			}
+
+			stored, err := db.FindByID(ctx, primary.ID)
+			if err != nil {
+				t.Fatalf("FindByID() error: %v", err)
+			}
+
+			tt.Resolve(stored, testReportAdminID, fixedTime2)
+			if err := db.Resolve(ctx, stored); err != nil {
+				t.Fatalf("Resolve() error: %v", err)
+			}
+			if err := db.ResolvePendingByTarget(ctx, stored); err != nil {
+				t.Fatalf("ResolvePendingByTarget() error: %v", err)
+			}
+
+			closed, err := db.FindByID(ctx, sibling.ID)
+			if err != nil {
+				t.Fatalf("FindByID() sibling: %v", err)
+			}
+			if closed.Status != tt.ExpectedStatus {
+				t.Errorf("sibling Status = %v, want %v", closed.Status, tt.ExpectedStatus)
+			}
+			if closed.ResolvedBy == nil {
+				t.Fatal("sibling ResolvedBy = nil, want the admin id")
+			}
+			if *closed.ResolvedBy != testReportAdminID {
+				t.Errorf("sibling ResolvedBy = %v, want %v", *closed.ResolvedBy, testReportAdminID)
+			}
+			if closed.ResolvedAt == nil {
+				t.Fatal("sibling ResolvedAt = nil, want the resolution timestamp")
+			}
+			if !closed.ResolvedAt.Equal(fixedTime2) {
+				t.Errorf("sibling ResolvedAt = %v, want %v", closed.ResolvedAt, fixedTime2)
+			}
+			if !closed.UpdatedAt.Equal(fixedTime2) {
+				t.Errorf("sibling UpdatedAt = %v, want %v", closed.UpdatedAt, fixedTime2)
+			}
+
+			untouched, err := db.FindByID(ctx, otherTarget.ID)
+			if err != nil {
+				t.Fatalf("FindByID() report on a different target: %v", err)
+			}
+			if untouched.Status != domain.ReportPending {
+				t.Errorf("report on a different target Status = %v, want %v", untouched.Status, domain.ReportPending)
+			}
+			if untouched.ResolvedBy != nil {
+				t.Errorf("report on a different target ResolvedBy = %v, want nil", untouched.ResolvedBy)
+			}
+			if untouched.ResolvedAt != nil {
+				t.Errorf("report on a different target ResolvedAt = %v, want nil", untouched.ResolvedAt)
+			}
+			if !untouched.UpdatedAt.Equal(otherTarget.UpdatedAt) {
+				t.Errorf("report on a different target UpdatedAt = %v, want %v", untouched.UpdatedAt, otherTarget.UpdatedAt)
+			}
+		})
+	}
 }
