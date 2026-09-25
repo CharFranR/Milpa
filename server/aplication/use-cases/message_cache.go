@@ -24,15 +24,15 @@ func NewCachedMessageUseCase(next primary.MessageUserCase, cache port.Cache) *Ca
 	}
 }
 
-func (uc *CachedMessageUseCase) CreateMessage(ctx context.Context, req dto.MessageDTO) error {
-	err := uc.next.CreateMessage(ctx, req)
+func (uc *CachedMessageUseCase) CreateMessage(ctx context.Context, req dto.MessageDTO) (*dto.MessageDTO, error) {
+	response, err := uc.next.CreateMessage(ctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	_ = uc.cache.DeleteByPrefix(ctx, "messages:byconversation:"+req.ConversationID.String()+":")
 
-	return nil
+	return response, nil
 }
 
 func (uc *CachedMessageUseCase) ListMessage(ctx context.Context, conversationID uuid.UUID) (*[]dto.MessageDTO, error) {

@@ -28,10 +28,10 @@ func NewMessageUseCase(messageRepo port.MessageRepository, conversationRepo port
 	}
 }
 
-func (uc *MessageUseCaseImpl) CreateMessage(ctx context.Context, req dto.MessageDTO) error {
+func (uc *MessageUseCaseImpl) CreateMessage(ctx context.Context, req dto.MessageDTO) (*dto.MessageDTO, error) {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	now := uc.timer.Now()
@@ -39,21 +39,21 @@ func (uc *MessageUseCaseImpl) CreateMessage(ctx context.Context, req dto.Message
 	conversation, err := uc.conversationRepo.GetByID(ctx, req.ConversationID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrNotFound
+			return nil, domain.ErrNotFound
 		}
-		return err
+		return nil, err
 	}
 
-	if !isConversationParticipant(conversation, principal.UserID) {
-		return domain.ErrForbidden
+	if !conversation.IsConversationParticipant(principal.UserID) {
+		return nil, domain.ErrForbidden
 	}
 
 	message, err := domain.NewMessage(req.ConversationID, principal.UserID, req.Content, now)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return uc.messageRepo.Save(ctx, message)
+	return messageToDTO(message), uc.messageRepo.Save(ctx, message)
 }
 
 func (uc *MessageUseCaseImpl) ListMessage(ctx context.Context, conversationID uuid.UUID) (*[]dto.MessageDTO, error) {
@@ -74,7 +74,7 @@ func (uc *MessageUseCaseImpl) ListMessage(ctx context.Context, conversationID uu
 		return nil, err
 	}
 
-	if !isConversationParticipant(conversation, principal.UserID) {
+	if !conversation.IsConversationParticipant(principal.UserID) {
 		return nil, domain.ErrForbidden
 	}
 

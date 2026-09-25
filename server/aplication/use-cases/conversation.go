@@ -87,10 +87,6 @@ func (uc *ConversationUseCaseImpl) ListConversations(ctx context.Context) (*[]dt
 	return &dtos, nil
 }
 
-func isConversationParticipant(conversation *domain.Conversation, userID uuid.UUID) bool {
-	return conversation.BuyerID == userID || conversation.FarmerID == userID
-}
-
 func (uc *ConversationUseCaseImpl) GetConversation(ctx context.Context, id uuid.UUID) (*dto.ConversationDTO, error) {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
@@ -109,7 +105,7 @@ func (uc *ConversationUseCaseImpl) GetConversation(ctx context.Context, id uuid.
 		return nil, err
 	}
 
-	if !isConversationParticipant(conversation, principal.UserID) {
+	if !conversation.IsConversationParticipant(principal.UserID) {
 		return nil, domain.ErrForbidden
 	}
 
@@ -134,7 +130,7 @@ func (uc *ConversationUseCaseImpl) DeleteConversation(ctx context.Context, id uu
 		return err
 	}
 
-	if !isConversationParticipant(conversation, principal.UserID) {
+	if !conversation.IsConversationParticipant(principal.UserID) {
 		return domain.ErrForbidden
 	}
 

@@ -54,7 +54,7 @@ func TestMessageUseCaseCreateMessage(t *testing.T) {
 			}
 			uc := usecases.NewMessageUseCase(messageRepo, conversationRepo, newFakeTimer())
 
-			err := uc.CreateMessage(tt.ctx, tt.req)
+			_, err := uc.CreateMessage(tt.ctx, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {

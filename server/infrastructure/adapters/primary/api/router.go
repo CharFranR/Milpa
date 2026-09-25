@@ -7,6 +7,7 @@ import (
 
 	"milpa/infrastructure/adapters/primary/api/handler"
 	"milpa/infrastructure/adapters/primary/api/middleware"
+	"milpa/infrastructure/adapters/primary/api/ws"
 )
 
 func NewRouter(
@@ -25,6 +26,7 @@ func NewRouter(
 	moderation *handler.ModerationHandler,
 	conversation *handler.ConversationHandler,
 	message *handler.MessageHandler,
+	chat *ws.Handler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -110,6 +112,10 @@ func NewRouter(
 		r.Route("/messages", func(r chi.Router) {
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", message.Create)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", message.Delete)
+		})
+
+		r.Route("/ws", func(r chi.Router) {
+			r.With(authMW.AuthenticateWebSocket, suspensionMW.CheckSuspension).Get("/{conversationID}", chat.WSHandler)
 		})
 
 		r.Route("/admin", func(r chi.Router) {

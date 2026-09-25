@@ -39,3 +39,7 @@ func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, 
 		Updated_at: now,
 	}, nil
 }
+
+func (c *Conversation) IsConversationParticipant(userID uuid.UUID) bool {
+	return c.BuyerID == userID || c.FarmerID == userID
+}

@@ -16,6 +16,11 @@ type ConversationDTO struct {
 	Updated_at time.Time `json:"updated_at"`
 }
 
+type CreateWSConversation struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
 type CreateConversationDTO struct {
 	ID         uuid.UUID `json:"id"`
 	FarmerID   uuid.UUID `json:"farmer_id"`

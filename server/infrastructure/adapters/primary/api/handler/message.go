@@ -26,7 +26,7 @@ func (h *MessageHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.uc.CreateMessage(r.Context(), req); err != nil {
+	if _, err := h.uc.CreateMessage(r.Context(), req); err != nil {
 		handleError(w, err)
 		return
 	}

@@ -20,6 +20,7 @@ import (
 	"milpa/infrastructure/adapters/primary/api"
 	"milpa/infrastructure/adapters/primary/api/handler"
 	"milpa/infrastructure/adapters/primary/api/middleware"
+	"milpa/infrastructure/adapters/primary/api/ws"
 	"milpa/infrastructure/adapters/secondary/auth"
 	"milpa/infrastructure/adapters/secondary/cache"
 	repo "milpa/infrastructure/adapters/secondary/repository"
@@ -147,10 +148,15 @@ func main() {
 	conversationHandler := handler.NewConversationHandler(conversationUC)
 	messageHandler := handler.NewMessageHandler(messageUC)
 
+	hub := ws.NewHub()
+	go hub.Run()
+
+	chatHandler := ws.NewHandler(hub, messageUC, conversationUC)
+
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
