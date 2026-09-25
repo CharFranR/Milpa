@@ -23,10 +23,17 @@ var (
 	testCategoryID = uuid.MustParse("55555555-5555-5555-5555-555555555555")
 	testInquiryID  = uuid.MustParse("66666666-6666-6666-6666-666666666666")
 	testOtherID    = uuid.MustParse("77777777-7777-7777-7777-777777777777")
+
+	testConversationID = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	testMessageID      = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 )
 
 func principalCtx() context.Context {
 	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleMIPYME})
+}
+
+func principalCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleMIPYME})
 }
 
 func strPtr(s string) *string {
@@ -95,6 +102,24 @@ func mustInquiry() *domain.Inquiry {
 
 func mustCategory() *domain.Category {
 	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products"}
+}
+
+func mustConversation() *domain.Conversation {
+	conversation, err := domain.NewConvesation(testCompanyID, testUserID, testOfferingID, fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	conversation.ID = testConversationID
+	return conversation
+}
+
+func mustMessage() *domain.Message {
+	message, err := domain.NewMessage(testConversationID, testUserID, "Is it still available?", fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	message.ID = testMessageID
+	return message
 }
 
 type fakeUserRepo struct {
@@ -391,6 +416,116 @@ func (f *fakeInquiryRepo) Save(ctx context.Context, inquiry *domain.Inquiry) err
 
 func (f *fakeInquiryRepo) Update(ctx context.Context, inquiry *domain.Inquiry) error {
 	return f.update(ctx, inquiry)
+}
+
+type fakeConversationRepo struct {
+	save        func(ctx context.Context, conversation *domain.Conversation) error
+	list        func(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
+	listMessage func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	getByID     func(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	delete      func(ctx context.Context, id uuid.UUID) error
+	saved       []*domain.Conversation
+	listedIDs   []uuid.UUID
+	deleted     []uuid.UUID
+}
+
+func newFakeConversationRepo() *fakeConversationRepo {
+	f := &fakeConversationRepo{}
+	f.save = func(ctx context.Context, conversation *domain.Conversation) error {
+		f.saved = append(f.saved, conversation)
+		return nil
+	}
+	f.list = func(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error) {
+		return []domain.Conversation{*mustConversation()}, nil
+	}
+	f.listMessage = func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+		return []domain.Message{*mustMessage()}, nil
+	}
+	f.getByID = func(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
+		conversation := mustConversation()
+		conversation.ID = id
+		return conversation, nil
+	}
+	f.delete = func(ctx context.Context, id uuid.UUID) error {
+		f.deleted = append(f.deleted, id)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeConversationRepo) Save(ctx context.Context, conversation *domain.Conversation) error {
+	return f.save(ctx, conversation)
+}
+
+func (f *fakeConversationRepo) List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error) {
+	f.listedIDs = append(f.listedIDs, userID)
+	return f.list(ctx, userID)
+}
+
+func (f *fakeConversationRepo) ListMessage(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+	return f.listMessage(ctx, conversationID)
+}
+
+func (f *fakeConversationRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
+	return f.getByID(ctx, id)
+}
+
+func (f *fakeConversationRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return f.delete(ctx, id)
+}
+
+type fakeMessageRepo struct {
+	save                 func(ctx context.Context, message *domain.Message) error
+	bulkSave             func(ctx context.Context, messages *[]domain.Message) error
+	listByConversationID func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	getMessageByID       func(ctx context.Context, id uuid.UUID) (*domain.Message, error)
+	delete               func(ctx context.Context, id uuid.UUID) error
+	saved                []*domain.Message
+	deleted              []uuid.UUID
+}
+
+func newFakeMessageRepo() *fakeMessageRepo {
+	f := &fakeMessageRepo{}
+	f.save = func(ctx context.Context, message *domain.Message) error {
+		f.saved = append(f.saved, message)
+		return nil
+	}
+	f.bulkSave = func(ctx context.Context, messages *[]domain.Message) error {
+		return nil
+	}
+	f.listByConversationID = func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+		return []domain.Message{*mustMessage()}, nil
+	}
+	f.getMessageByID = func(ctx context.Context, id uuid.UUID) (*domain.Message, error) {
+		message := mustMessage()
+		message.ID = id
+		return message, nil
+	}
+	f.delete = func(ctx context.Context, id uuid.UUID) error {
+		f.deleted = append(f.deleted, id)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeMessageRepo) Save(ctx context.Context, message *domain.Message) error {
+	return f.save(ctx, message)
+}
+
+func (f *fakeMessageRepo) BulkSave(ctx context.Context, messages *[]domain.Message) error {
+	return f.bulkSave(ctx, messages)
+}
+
+func (f *fakeMessageRepo) ListByConversationID(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+	return f.listByConversationID(ctx, conversationID)
+}
+
+func (f *fakeMessageRepo) GetMessageByID(ctx context.Context, id uuid.UUID) (*domain.Message, error) {
+	return f.getMessageByID(ctx, id)
+}
+
+func (f *fakeMessageRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return f.delete(ctx, id)
 }
 
 type fakeHasher struct {
