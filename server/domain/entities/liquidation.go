@@ -6,13 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// LiquidationStatus represents the state of a liquidation in its lifecycle.
-//
-//	OPEN ──┬── CLOSED  (seller pulled listing)
-//	       ├── ASSIGNED (seller selected a buyer)
-//	       └── EXPIRED (TTL ran out)
-//
-// All three outcomes are terminal.
 type LiquidationStatus int
 
 const (

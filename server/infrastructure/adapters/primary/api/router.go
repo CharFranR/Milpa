@@ -23,6 +23,8 @@ func NewRouter(
 	search *handler.SearchHandler,
 	report *handler.ReportHandler,
 	moderation *handler.ModerationHandler,
+	conversation *handler.ConversationHandler,
+	message *handler.MessageHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -95,6 +97,19 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", report.Create)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", report.List)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/action", report.Resolve)
+		})
+
+		r.Route("/conversations", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", conversation.List)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", conversation.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", conversation.GetByID)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", conversation.Delete)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}/messages", message.List)
+		})
+
+		r.Route("/messages", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", message.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", message.Delete)
 		})
 
 		r.Route("/admin", func(r chi.Router) {

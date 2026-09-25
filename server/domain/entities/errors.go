@@ -46,4 +46,14 @@ var (
 	ErrCannotSuspendSelf       = errors.New("you cannot suspend yourself")
 	ErrCannotSuspendAdmin      = errors.New("cannot suspend an administrator")
 	ErrUserSuspended           = errors.New("your account has been suspended")
+
+	// Conversation errors
+	ErrFarmerConversationRequired  = errors.New("farmer for conversation in required")
+	ErrBuyerConversationRequired   = errors.New("buyer for a conversation in required")
+	ErrOfferingconversationRequied = errors.New("offering for conversation is required")
+
+	// Message errors
+	ErrConversationRequired   = errors.New("conversation is required for message")
+	ErrSenderMessageRequired  = errors.New("sender for message in required")
+	ErrContentMessageRequired = errors.New("content message is required")
 )

@@ -95,6 +95,8 @@ func main() {
 	liquidationRepo := repo.NewLiquidationRepository(pool)
 	reportRepo := repo.NewReportRepository(pool)
 	auditLogRepo := repo.NewAuditLogRepository(pool)
+	conversationRepo := repo.NewConverationImpl(pool)
+	messageRepo := repo.NewMessageRepositoryImpl(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -117,12 +119,17 @@ func main() {
 	var reportUC primary.ReportUseCase = usecases.NewReportUseCase(reportRepo, auditLogRepo, userRepo, offeringRepo, clock)
 	var moderationUC primary.ModerationUseCase = usecases.NewModerationUseCase(userRepo, offeringRepo, auditLogRepo, offeringUC, clock)
 
+	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
+	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
+
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
 	offeringUC = usecases.NewCachedOfferingUseCase(offeringUC, cacheClient)
 	reviewUC = usecases.NewCachedReviewUseCase(reviewUC, cacheClient)
 	inquiryUC = usecases.NewCachedInquiryUseCase(inquiryUC, cacheClient)
 	userUC = usecases.NewCachedUserUseCase(userUC, cacheClient)
+	conversationUC = usecases.NewCachedConversationUseCase(conversationUC, cacheClient)
+	messageUC = usecases.NewCachedMessageUseCase(messageUC, cacheClient)
 
 	imageStore := storage.NewLocalImageStore("./uploads")
 
@@ -137,11 +144,13 @@ func main() {
 	searchHandler := handler.NewSearchHandler(searchUC)
 	reportHandler := handler.NewReportHandler(reportUC)
 	moderationHandler := handler.NewModerationHandler(moderationUC)
+	conversationHandler := handler.NewConversationHandler(conversationUC)
+	messageHandler := handler.NewMessageHandler(messageUC)
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,

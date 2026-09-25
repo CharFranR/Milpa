@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	domain "milpa/domain/entities"
+	"milpa/internal/auth"
 )
 
 type envelope struct {
@@ -30,7 +31,7 @@ func statusCode(err error) int {
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, domain.ErrUnauthorized):
+	case errors.Is(err, domain.ErrUnauthorized) || errors.Is(err, auth.ErrUnauthenticated):
 		return http.StatusUnauthorized
 	case errors.Is(err, domain.ErrForbidden):
 		return http.StatusForbidden

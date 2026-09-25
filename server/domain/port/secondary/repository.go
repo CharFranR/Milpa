@@ -80,3 +80,19 @@ type ImageStore interface {
 	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)
 	Delete(ctx context.Context, filename string) error
 }
+
+type ConversationRepository interface {
+	Save(ctx context.Context, convesation *domain.Conversation) error
+	List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
+	ListMessage(ctx context.Context, conversastionID uuid.UUID) ([]domain.Message, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type MessageRepository interface {
+	Save(ctx context.Context, message *domain.Message) error
+	BulkSave(ctx context.Context, messages *[]domain.Message) error
+	ListByConversationID(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	GetMessageByID(ctx context.Context, id uuid.UUID) (*domain.Message, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
