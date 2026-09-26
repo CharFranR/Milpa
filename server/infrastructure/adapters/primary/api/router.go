@@ -29,6 +29,8 @@ func NewRouter(
 	chat *ws.Handler,
 	supplyRequest *handler.SupplyRequestHandler,
 	supplyOffer *handler.SupplyOfferHandler,
+	match *handler.MatchHandler,
+	recommendation *handler.RecommendationHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -134,6 +136,18 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyOffer.GetByID)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyOffer.Update)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/withdraw", supplyOffer.Withdraw)
+		})
+
+		r.Route("/matches", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/like/{offerID}", match.Like)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/pass/{offerID}", match.Pass)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}", match.ListByRequest)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}/prioritized", match.ListPrioritized)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{matchID}", match.GetByID)
+		})
+
+		r.Route("/recommendations", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/availability", recommendation.Availability)
 		})
 
 		r.Route("/ws", func(r chi.Router) {

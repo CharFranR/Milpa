@@ -28,7 +28,8 @@ type SupplyOfferUpdateDTO struct {
 }
 
 type PrioritizedOfferDTO struct {
-	Offer             SupplyOfferDTO `json:"offer"`
-	Score             float64        `json:"score"`
-	AvailableQuantity float32        `json:"available_quantity"`
+	Offer             SupplyOfferDTO         `json:"offer"`
+	Score             float64                `json:"score"`
+	AvailableQuantity float32                `json:"available_quantity"`
+	Contributions     []ScoreContributionDTO `json:"contributions"`
 }
