@@ -127,6 +127,7 @@ func main() {
 
 	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
 	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
+	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock)
 
 	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, matchRepo, clock)
 	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
@@ -162,6 +163,7 @@ func main() {
 	supplyOfferHandler := handler.NewSupplyOfferHandler(supplyOfferUC)
 	matchHandler := handler.NewMatchHandler(matchUC)
 	recommendationHandler := handler.NewRecommendationHandler(recommendationUC)
+	transactionHandler := handler.NewTransactionHandler(transactionUC)
 
 	hub := ws.NewHub()
 	go hub.Run()
@@ -172,6 +174,7 @@ func main() {
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
 	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, matchHandler, recommendationHandler)
+	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
