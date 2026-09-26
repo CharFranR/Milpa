@@ -27,6 +27,8 @@ func NewRouter(
 	conversation *handler.ConversationHandler,
 	message *handler.MessageHandler,
 	chat *ws.Handler,
+	supplyRequest *handler.SupplyRequestHandler,
+	supplyOffer *handler.SupplyOfferHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -112,6 +114,26 @@ func NewRouter(
 		r.Route("/messages", func(r chi.Router) {
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", message.Create)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", message.Delete)
+		})
+
+		r.Route("/supply-requests", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", supplyRequest.List)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", supplyRequest.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyRequest.GetByID)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyRequest.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/amounts", supplyRequest.UpdateAmounts)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/deadlines", supplyRequest.UpdateDeadlines)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/cancel", supplyRequest.Cancel)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/expire", supplyRequest.Expire)
+		})
+
+		r.Route("/supply-offers", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", supplyOffer.ListBySupplier)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", supplyOffer.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{request_id}", supplyOffer.ListByRequest)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyOffer.GetByID)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyOffer.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/withdraw", supplyOffer.Withdraw)
 		})
 
 		r.Route("/ws", func(r chi.Router) {

@@ -98,6 +98,9 @@ func main() {
 	auditLogRepo := repo.NewAuditLogRepository(pool)
 	conversationRepo := repo.NewConverationImpl(pool)
 	messageRepo := repo.NewMessageRepositoryImpl(pool)
+	supplyRequestRepo := repo.NewSupplyRequestRepository(pool)
+	supplyOfferRepo := repo.NewSupplyOfferRepository(pool)
+	matchRepo := repo.NewMatchRepository(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -123,6 +126,9 @@ func main() {
 	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
 	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
 
+	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, matchRepo, clock)
+	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
+
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
 	offeringUC = usecases.NewCachedOfferingUseCase(offeringUC, cacheClient)
@@ -147,6 +153,8 @@ func main() {
 	moderationHandler := handler.NewModerationHandler(moderationUC)
 	conversationHandler := handler.NewConversationHandler(conversationUC)
 	messageHandler := handler.NewMessageHandler(messageUC)
+	supplyRequestHandler := handler.NewSupplyRequestHandler(supplyRequestUC)
+	supplyOfferHandler := handler.NewSupplyOfferHandler(supplyOfferUC)
 
 	hub := ws.NewHub()
 	go hub.Run()
@@ -156,7 +164,7 @@ func main() {
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
