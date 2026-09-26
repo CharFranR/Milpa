@@ -1,0 +1,198 @@
+package usecases
+
+import (
+	"context"
+	"errors"
+	"sort"
+
+	"github.com/google/uuid"
+
+	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
+	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
+)
+
+type WeightedScoreFactor struct {
+	Factor primary.ScoreFactor
+	Weight float64
+}
+
+type availabilityScoreFactor struct{}
+
+func (availabilityScoreFactor) Name() string {
+	return "availability"
+}
+
+func (availabilityScoreFactor) Score(_ context.Context, input primary.OfferScoreInput) (float64, error) {
+	return float64(input.AvailableQuantity), nil
+}
+
+func AvailabilityScoreFactor() primary.ScoreFactor {
+	return availabilityScoreFactor{}
+}
+
+func DefaultScoreFactors() []WeightedScoreFactor {
+	return []WeightedScoreFactor{
+		{Factor: availabilityScoreFactor{}, Weight: 1},
+	}
+}
+
+type RecommendationUseCaseImpl struct {
+	offerRepo     port.SupplyOfferRepository
+	requestRepo   port.SupplyRequestRepository
+	inventoryRepo port.SupplierInventoryRepository
+	matchRepo     port.MatchRepository
+	factors       []WeightedScoreFactor
+}
+
+func NewRecommendationUseCase(
+	offerRepo port.SupplyOfferRepository,
+	requestRepo port.SupplyRequestRepository,
+	inventoryRepo port.SupplierInventoryRepository,
+	matchRepo port.MatchRepository,
+	factors []WeightedScoreFactor,
+) *RecommendationUseCaseImpl {
+	if len(factors) == 0 {
+		factors = DefaultScoreFactors()
+	}
+	return &RecommendationUseCaseImpl{
+		offerRepo:     offerRepo,
+		requestRepo:   requestRepo,
+		inventoryRepo: inventoryRepo,
+		matchRepo:     matchRepo,
+		factors:       factors,
+	}
+}
+
+func (uc *RecommendationUseCaseImpl) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float32, error) {
+	if _, err := auth.RequirePrincipal(ctx); err != nil {
+		return 0, err
+	}
+
+	return uc.availableQuantity(ctx, supplierID, productName, true)
+}
+
+func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyRequestID uuid.UUID) ([]*dto.PrioritizedOfferDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := uc.requestRepo.GetByID(ctx, supplyRequestID)
+	if err != nil {
+		return nil, err
+	}
+
+	if request.BuyerID != principal.UserID {
+		return nil, domain.ErrForbidden
+	}
+
+	offers, err := uc.offerRepo.ListByRequest(ctx, supplyRequestID)
+	if err != nil {
+		return nil, err
+	}
+
+	ranked := make([]*dto.PrioritizedOfferDTO, 0, len(offers))
+	for i := range offers {
+		if !offers[i].IsActionable() {
+			continue
+		}
+
+		available, err := uc.availableQuantity(ctx, offers[i].SupplierID, request.ProductName, false)
+		if err != nil {
+			return nil, err
+		}
+
+		input := primary.OfferScoreInput{
+			Offer:             offers[i],
+			Request:           request,
+			AvailableQuantity: available,
+		}
+
+		var score float64
+		contributions := make([]dto.ScoreContributionDTO, 0, len(uc.factors))
+		for _, weighted := range uc.factors {
+			factorScore, err := weighted.Factor.Score(ctx, input)
+			if err != nil {
+				return nil, err
+			}
+			weightedScore := weighted.Weight * factorScore
+			score += weightedScore
+			contributions = append(contributions, dto.ScoreContributionDTO{
+				Factor:        weighted.Factor.Name(),
+				Weight:        weighted.Weight,
+				Score:         factorScore,
+				WeightedScore: weightedScore,
+			})
+		}
+
+		ranked = append(ranked, &dto.PrioritizedOfferDTO{
+			Offer:             *matchOfferToDTO(&offers[i]),
+			Score:             score,
+			AvailableQuantity: available,
+			Contributions:     contributions,
+		})
+	}
+
+	sort.Slice(ranked, func(a, b int) bool {
+		if ranked[a].Score != ranked[b].Score {
+			return ranked[a].Score > ranked[b].Score
+		}
+		if !ranked[a].Offer.CreatedAt.Equal(ranked[b].Offer.CreatedAt) {
+			return ranked[a].Offer.CreatedAt.Before(ranked[b].Offer.CreatedAt)
+		}
+		return ranked[a].Offer.ID.String() < ranked[b].Offer.ID.String()
+	})
+
+	return ranked, nil
+}
+
+func (uc *RecommendationUseCaseImpl) availableQuantity(ctx context.Context, supplierID uuid.UUID, productName string, strictNotFound bool) (float32, error) {
+	inventory, err := uc.inventoryRepo.FindBySupplierAndProduct(ctx, supplierID, productName)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) && !strictNotFound {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	activeMatches, err := uc.matchRepo.ListActiveBySupplier(ctx, supplierID)
+	if err != nil {
+		return 0, err
+	}
+
+	var reserved float32
+	for i := range activeMatches {
+		if activeMatches[i].IsActive() {
+			reserved += activeMatches[i].MatchedAmount
+		}
+	}
+
+	available := inventory.Quantity - reserved
+	if available < 0 {
+		return 0, nil
+	}
+	return available, nil
+}
+
+var _ primary.RecommendationUseCase = (*RecommendationUseCaseImpl)(nil)
+
+func matchOfferToDTO(offer *domain.SupplyOffer) *dto.SupplyOfferDTO {
+	id := offer.ID
+	supplierID := offer.SupplierID
+	supplyRequest := offer.SupplyRequest
+	return &dto.SupplyOfferDTO{
+		ID:                  &id,
+		SupplierID:          &supplierID,
+		SupplyRequest:       &supplyRequest,
+		TotalAmount:         offer.TotalAmount,
+		AmountUnit:          offer.AmountUnit,
+		ProposedDeliveryDay: offer.ProposedDeliveryDay,
+		DeliveryAvailable:   offer.DeliveryAvailable,
+		Status:              offer.Status,
+		CreatedAt:           offer.CreatedAt,
+		UpdatedAt:           offer.UpdatedAt,
+	}
+}

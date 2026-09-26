@@ -24,3 +24,21 @@ type MatchUpdateDTO struct {
 	MatchedAmount float32                   `json:"matched_amount"`
 	AmountUnit    domain.MeasurementOptions `json:"amount_unit"`
 }
+
+type MatchCreatedDTO struct {
+	Match       *MatchDTO       `json:"match"`
+	Transaction *TransactionDTO `json:"transaction"`
+}
+
+type ScoreContributionDTO struct {
+	Factor        string  `json:"factor"`
+	Weight        float64 `json:"weight"`
+	Score         float64 `json:"score"`
+	WeightedScore float64 `json:"weighted_score"`
+}
+
+type AvailabilityDTO struct {
+	SupplierID        uuid.UUID `json:"supplier_id"`
+	ProductName       string    `json:"product_name"`
+	AvailableQuantity float32   `json:"available_quantity"`
+}
