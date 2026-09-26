@@ -56,4 +56,13 @@ var (
 	ErrConversationRequired   = errors.New("conversation is required for message")
 	ErrSenderMessageRequired  = errors.New("sender for message in required")
 	ErrContentMessageRequired = errors.New("content message is required")
+
+	ErrInvalidRequestStatus         = errors.New("invalid supply request status")
+	ErrInvalidOfferStatus           = errors.New("invalid offer status")
+	ErrInvalidMatchStatus           = errors.New("invalid match status")
+	ErrInvalidTransactionTransition = errors.New("invalid transaction transition")
+	ErrAlreadyConfirmed             = errors.New("participant has already confirmed")
+	ErrTerminalState                = errors.New("transaction is in a terminal state")
+	ErrInsufficientAmount           = errors.New("insufficient amount")
+	ErrInventoryNotFound            = errors.New("inventory not found")
 )

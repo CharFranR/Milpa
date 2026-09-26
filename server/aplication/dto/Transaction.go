@@ -7,12 +7,12 @@ import (
 )
 
 type TransactionDTO struct {
-	ID          *uuid.UUID                     `json:"id"`
-	MatchID     *uuid.UUID                     `json:"match_id"`
-	MatchStatus domain.TransactionStatuOptions `json:"status"`
+	ID      *uuid.UUID               `json:"id"`
+	MatchID *uuid.UUID               `json:"match_id"`
+	Status  domain.TransactionStatus `json:"status"`
 }
 
 type TransactionUpdateStatusDTO struct {
-	ID          *uuid.UUID                     `json:"id"`
-	MatchStatus domain.TransactionStatuOptions `json:"status"`
+	ID     *uuid.UUID               `json:"id"`
+	Status domain.TransactionStatus `json:"status"`
 }
