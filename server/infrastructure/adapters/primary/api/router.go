@@ -127,3 +127,18 @@ func NewRouter(
 
 	return r
 }
+
+func RegisterTransactionRoutes(
+	r chi.Router,
+	transaction *handler.TransactionHandler,
+	authMW *middleware.AuthMiddleware,
+	suspensionMW *middleware.SuspensionMiddleware,
+) {
+	r.Route("/api/v1/transactions", func(r chi.Router) {
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/matches/{match_id}", transaction.GetByMatch)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{request_id}", transaction.ListByRequest)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/confirm-start", transaction.ConfirmStart)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/confirm-delivery", transaction.ConfirmDelivery)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/cancel", transaction.Cancel)
+	})
+}

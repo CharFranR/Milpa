@@ -98,6 +98,10 @@ func main() {
 	auditLogRepo := repo.NewAuditLogRepository(pool)
 	conversationRepo := repo.NewConverationImpl(pool)
 	messageRepo := repo.NewMessageRepositoryImpl(pool)
+	transactionRepo := repo.NewTransactionRepository(pool)
+	matchRepo := repo.NewMatchRepository(pool)
+	supplyRequestRepo := repo.NewSupplyRequestRepository(pool)
+	supplyOfferRepo := repo.NewSupplyOfferRepository(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -122,6 +126,7 @@ func main() {
 
 	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
 	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
+	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
@@ -147,6 +152,7 @@ func main() {
 	moderationHandler := handler.NewModerationHandler(moderationUC)
 	conversationHandler := handler.NewConversationHandler(conversationUC)
 	messageHandler := handler.NewMessageHandler(messageUC)
+	transactionHandler := handler.NewTransactionHandler(transactionUC)
 
 	hub := ws.NewHub()
 	go hub.Run()
@@ -157,6 +163,7 @@ func main() {
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
 	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler)
+	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
