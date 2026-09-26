@@ -49,8 +49,8 @@ type SupplyGeneralUpdateDTO struct {
 	ID                   *uuid.UUID                `json:"id"`
 	ProductName          string                    `json:"product_name"`
 	TotalAmount          float32                   `json:"total_amount"`
-	AmountUnit           float32                   `json:"actual_amount"`
-	AmountUOF            domain.MeasurementOptions `json:"amount_measure"`
+	ActualAmount         float32                   `json:"actual_amount"`
+	AmountUnit           domain.MeasurementOptions `json:"amount_measure"`
 	NumberOfUnits        float32                   `json:"numer_units"`
 	AmountPerUnit        float32                   `json:"amount_unit"`
 	UnitOfMeasure        domain.MeasurementOptions `json:"unit_measure"`
