@@ -96,3 +96,36 @@ type MessageRepository interface {
 	GetMessageByID(ctx context.Context, id uuid.UUID) (*domain.Message, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
+
+type SupplyOfferRepository interface {
+	Create(ctx context.Context, SupplyOffer *domain.SupplyOffer) error
+	List(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplyOffer, error)
+	GetByID(ctx context.Context, SupplyOfferId uuid.UUID) (domain.SupplyOffer, error)
+	Update(ctx context.Context, SuplyOffer *domain.SupplyOffer) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type SupplyRequestRepository interface {
+	Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error
+	List(ctx context.Context, buyerID uuid.UUID) ([]domain.SupplyRequest, error)
+	GetByID(ctx context.Context, supplyRequest uuid.UUID) (domain.SupplyRequest, error)
+	Update(ctx context.Context, suplyRequest *domain.SupplyRequest) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type MatchRepository interface {
+	Create(ctx context.Context, match *domain.Match) error
+	ListByOffer(ctx context.Context, supplyOfferID uuid.UUID) ([]domain.Match, error)
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
+	GetByID(ctx context.Context, matchID uuid.UUID) (*domain.Match, error)
+	Update(ctx context.Context, match *domain.Match) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type TransactionRepository interface {
+	Create(ctx context.Context, transaction *domain.Transaction) error
+	List(ctx context.Context, matchID uuid.UUID) ([]domain.Transaction, error)
+	GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
+	Update(ctx context.Context, transaction *domain.Transaction) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
