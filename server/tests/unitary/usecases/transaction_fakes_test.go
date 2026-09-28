@@ -109,10 +109,6 @@ func (f *fakeTxTransactionRepo) ListByRequest(ctx context.Context, supplyRequest
 	return f.listByRequest(ctx, supplyRequestID)
 }
 
-func (f *fakeTxTransactionRepo) ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Transaction, error) {
-	return nil, nil
-}
-
 func (f *fakeTxTransactionRepo) GetByMatch(ctx context.Context, matchID uuid.UUID) (domain.Transaction, error) {
 	return f.getByMatch(ctx, matchID)
 }

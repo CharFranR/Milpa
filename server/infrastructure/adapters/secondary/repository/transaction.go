@@ -119,39 +119,6 @@ func (r *TransactionRepositoryImpl) ListByRequest(ctx context.Context, supplyReq
 	return transactions, nil
 }
 
-func (r *TransactionRepositoryImpl) ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Transaction, error) {
-	query := `
-		SELECT t.id, t.match_id, t.status, t.buyer_start_confirmed_at, t.supplier_start_confirmed_at,
-		       t.buyer_delivery_confirmed_at, t.supplier_delivery_confirmed_at, t.cancelled_by, t.cancel_reason,
-		       t.created_at, t.updated_at
-		FROM transactions t
-		JOIN matches m ON t.match_id = m.id
-		JOIN supply_offers o ON m.supply_offer_id = o.id
-		WHERE o.supplier_id = $1 AND t.status IN ($2, $3)
-	`
-
-	rows, err := r.db.Query(ctx, query, supplierID, domain.TransactionMatched, domain.TransactionInProgress)
-	if err != nil {
-		return nil, fmt.Errorf("transaction.ListActiveBySupplier: %w", err)
-	}
-	defer rows.Close()
-
-	var transactions []domain.Transaction
-	for rows.Next() {
-		transaction, err := scanTransaction(rows.Scan)
-		if err != nil {
-			return nil, fmt.Errorf("transaction.ListActiveBySupplier: %w", err)
-		}
-		transactions = append(transactions, transaction)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("transaction.ListActiveBySupplier: %w", err)
-	}
-
-	return transactions, nil
-}
-
 func (r *TransactionRepositoryImpl) GetByMatch(ctx context.Context, matchID uuid.UUID) (domain.Transaction, error) {
 	query := `
 		SELECT id, match_id, status, buyer_start_confirmed_at, supplier_start_confirmed_at,
