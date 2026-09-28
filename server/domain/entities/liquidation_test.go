@@ -509,3 +509,114 @@ func TestAllocationMethodString(t *testing.T) {
 		})
 	}
 }
+
+// TestLiquidationStatusScan covers the read direction of the VARCHAR columns:
+// the table stores text and the domain stores an integer, so without this every
+// liquidation read fails on the scan and a liquidation can never be read back.
+func TestLiquidationStatusScan(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		src     any
+		want    LiquidationStatus
+		wantErr bool
+	}{
+		{name: "open", src: "open", want: LiquidationOpen},
+		{name: "closed", src: "closed", want: LiquidationClosed},
+		{name: "expired", src: "expired", want: LiquidationExpired},
+		{name: "assigned", src: "assigned", want: LiquidationAssigned},
+		{name: "bytes", src: []byte("open"), want: LiquidationOpen},
+		{name: "unknown text", src: "archived", wantErr: true},
+		{name: "wrong type", src: 42, wantErr: true},
+		{name: "nil", src: nil, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got LiquidationStatus
+			err := got.Scan(tt.src)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("Scan(%v) = nil error, want one", tt.src)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Scan(%v) error: %v", tt.src, err)
+			}
+			if got != tt.want {
+				t.Errorf("Scan(%v) = %v, want %v", tt.src, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAllocationMethodScan(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		src     any
+		want    AllocationMethod
+		wantErr bool
+	}{
+		{name: "manual", src: "manual", want: AllocationManual},
+		{name: "bytes", src: []byte("manual"), want: AllocationManual},
+		{name: "unknown text", src: "auction", wantErr: true},
+		{name: "wrong type", src: true, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got AllocationMethod
+			err := got.Scan(tt.src)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("Scan(%v) = nil error, want one", tt.src)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Scan(%v) error: %v", tt.src, err)
+			}
+			if got != tt.want {
+				t.Errorf("Scan(%v) = %v, want %v", tt.src, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestLiquidationEnumRoundTrip pins that the stored vocabulary and the domain
+// vocabulary cannot drift: every status has to survive a String/Scan cycle.
+func TestLiquidationEnumRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []LiquidationStatus{LiquidationOpen, LiquidationClosed, LiquidationExpired, LiquidationAssigned} {
+		var got LiquidationStatus
+		if err := got.Scan(status.String()); err != nil {
+			t.Errorf("Scan(%q) error: %v", status.String(), err)
+			continue
+		}
+		if got != status {
+			t.Errorf("round trip of %v gave %v", status, got)
+		}
+	}
+
+	for _, method := range []AllocationMethod{AllocationManual} {
+		var got AllocationMethod
+		if err := got.Scan(method.String()); err != nil {
+			t.Errorf("Scan(%q) error: %v", method.String(), err)
+			continue
+		}
+		if got != method {
+			t.Errorf("round trip of %v gave %v", method, got)
+		}
+	}
+}
