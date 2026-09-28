@@ -2,18 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 
-	"milpa/aplication/dto"
 	usecases "milpa/aplication/use-cases"
 	"milpa/domain/port/primary"
 	port "milpa/domain/port/secondary"
@@ -27,6 +24,7 @@ import (
 	"milpa/infrastructure/adapters/secondary/search"
 	"milpa/infrastructure/adapters/secondary/storage"
 	timepkg "milpa/infrastructure/adapters/secondary/time"
+	"milpa/infrastructure/config"
 	"milpa/infrastructure/database"
 	elasticSsearch "milpa/infrastructure/searchService"
 )
@@ -36,32 +34,17 @@ func main() {
 		log.Println("no .env file found, using system env")
 	}
 
+	cfg := config.Load()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
-		os.Getenv("DB_SSLMODE"),
-	)
+	dsn := cfg.DatabaseURL
 
-	MaxIdleConnsPerHost, _ := strconv.Atoi(os.Getenv("ESCLIENT_MAXID"))
-
-	ClientData := dto.ESClient{
-		Username:            os.Getenv("ESCLIENT_USER"),
-		Password:            os.Getenv("ESCLIENT_PASSWORD"),
-		Endpoint1:           os.Getenv("ESCLIENT_ENDPOINT1"),
-		Endpoint2:           os.Getenv("ESCLIENT_ENDPOINT2"),
-		MaxIdleConnsPerHost: MaxIdleConnsPerHost,
+	elasticSearchClient, err := elasticSsearch.CreateESClient(cfg.ESClient)
+	if err != nil {
+		log.Fatalf("failed to create elasticsearch client: %v", err)
 	}
-
-	elasticSearchClient, err := elasticSsearch.CreateESClient(ClientData)
-
-	log.Println("main elasticSearchClient error: %w", err)
 
 	pool, err := database.CreatePool(ctx, dsn)
 	if err != nil {
@@ -73,15 +56,23 @@ func main() {
 	database.MakeMigrations(context.Background(), dsn)
 	log.Println("migrations complete")
 
-	jwtSecret := os.Getenv("JWT_SECRET")
+	// The search index is bootstrapped on boot for the same reason the SQL
+	// migrations are: Elasticsearch infers a mapping from the first document it
+	// sees, which silently mis-types every later document, and an index that
+	// was never created makes every search fail. Running it on an index that
+	// already exists is a no-op and leaves the indexed documents alone.
+	log.Printf("bootstrapping elasticsearch index %q...", cfg.ESClient.Index)
+	if err := search.EnsureIndex(context.Background(), elasticSearchClient, cfg.ESClient.Index); err != nil {
+		log.Fatalf("failed to bootstrap elasticsearch index: %v", err)
+	}
+	log.Println("elasticsearch index ready")
+
+	jwtSecret := cfg.JWTSecret
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET is required")
 	}
 
-	serverPort := os.Getenv("SERVER_PORT")
-	if serverPort == "" {
-		serverPort = "8080"
-	}
+	serverPort := cfg.ServerPort
 
 	hasher := auth.NewBcryptHasher(0)
 	jwtProvider := auth.NewJWTProvider(jwtSecret, 24*time.Hour)
@@ -105,7 +96,7 @@ func main() {
 	supplierInventoryRepo := repo.NewSupplierInventoryRepository(pool)
 	unitOfWork := repo.NewUnitOfWork(pool)
 
-	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
+	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, cfg.ESClient.Index)
 
 	cacheClient := cache.NewCacheImpl(
 		resolveRedisAddr(),

@@ -67,23 +67,7 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 	}
 
 	// Build enriched index request for Elasticsearch
-	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
-
-	indexReq := &dto.IndexOfferingRequest{
-		ID:             offering.ID.String(),
-		Name:           offering.Name,
-		Description:    offering.Description,
-		Price:          offering.Price,
-		Type:           offering.Type.String(),
-		ImageURL:       offering.ImageURL,
-		UserID:         req.UserID.String(),
-		FarmerName:     user.FullName(),
-		FarmerVerified: farmerVerified,
-		Department:     user.Address.Department,
-		Municipality:   user.Address.Municipality,
-		Latitude:       user.Address.Latitude,
-		Longitude:      user.Address.Longitude,
-	}
+	indexReq := indexRequestFor(offering, user)
 
 	// Save in elasticsearch
 	err = uc.fuzzyRetrival.Index(ctx, indexReq)
@@ -159,25 +143,7 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 		return nil
 	}
 
-	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
-
-	indexReq := &dto.IndexOfferingRequest{
-		ID:             offering.ID.String(),
-		Name:           offering.Name,
-		Description:    offering.Description,
-		Price:          offering.Price,
-		Type:           offering.Type.String(),
-		ImageURL:       offering.ImageURL,
-		UserID:         offering.UserID.String(),
-		FarmerName:     user.FullName(),
-		FarmerVerified: farmerVerified,
-		Department:     user.Address.Department,
-		Municipality:   user.Address.Municipality,
-		Latitude:       user.Address.Latitude,
-		Longitude:      user.Address.Longitude,
-	}
-
-	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexReq)
+	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexRequestFor(offering, user))
 
 	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
@@ -204,6 +170,31 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 }
 
 var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
+
+// indexRequestFor projects an offering and its producer onto the search
+// document. Create and update share it so the two paths can never disagree
+// about the document shape. The geo_point is derived by the search adapter from
+// the latitude and longitude set here, next to the mapping and the proximity
+// sort that have to agree on the same field name.
+func indexRequestFor(offering *domain.Offering, user *domain.User) *dto.IndexOfferingRequest {
+	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+
+	return &dto.IndexOfferingRequest{
+		ID:             offering.ID.String(),
+		Name:           offering.Name,
+		Description:    offering.Description,
+		Price:          offering.Price,
+		Type:           offering.Type.String(),
+		ImageURL:       offering.ImageURL,
+		UserID:         offering.UserID.String(),
+		FarmerName:     user.FullName(),
+		FarmerVerified: farmerVerified,
+		Department:     user.Address.Department,
+		Municipality:   user.Address.Municipality,
+		Latitude:       user.Address.Latitude,
+		Longitude:      user.Address.Longitude,
+	}
+}
 
 func offeringToDTO(offering *domain.Offering) *dto.OfferingDTO {
 	return &dto.OfferingDTO{

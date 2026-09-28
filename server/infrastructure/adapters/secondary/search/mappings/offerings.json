@@ -1,0 +1,27 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "fields": { "keyword": { "type": "keyword" } }
+      },
+      "description": { "type": "text" },
+      "price": { "type": "float" },
+      "type": { "type": "keyword" },
+      "image_url": { "type": "keyword", "index": false },
+      "user_id": { "type": "keyword" },
+      "farmer_name": { "type": "text" },
+      "farmer_verified": { "type": "boolean" },
+      "department": { "type": "keyword" },
+      "municipality": { "type": "keyword" },
+      "latitude": { "type": "float" },
+      "longitude": { "type": "float" },
+      "location": { "type": "geo_point" }
+    }
+  }
+}
