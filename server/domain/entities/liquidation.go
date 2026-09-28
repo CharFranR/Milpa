@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -170,5 +171,57 @@ func (a AllocationMethod) String() string {
 		return "manual"
 	default:
 		return "unknown"
+	}
+}
+
+// Scan parses the text form the liquidations table stores.
+//
+// The table holds status and allocation_method as VARCHAR constrained to the
+// same vocabulary String() produces, while the domain models them as integers.
+// Without this the read direction fails on every row, so a liquidation could be
+// created and then never read back by any of the query endpoints.
+//
+// The mapping is derived from String() so the vocabulary lives in exactly one
+// place; adding a status means adding it to the loop, not to a second table of
+// string literals.
+func (s *LiquidationStatus) Scan(src any) error {
+	text, err := scanText(src)
+	if err != nil {
+		return fmt.Errorf("liquidation status: %w", err)
+	}
+
+	for _, candidate := range []LiquidationStatus{LiquidationOpen, LiquidationClosed, LiquidationExpired, LiquidationAssigned} {
+		if candidate.String() == text {
+			*s = candidate
+			return nil
+		}
+	}
+
+	return fmt.Errorf("liquidation status: unknown value %q", text)
+}
+
+func (a *AllocationMethod) Scan(src any) error {
+	text, err := scanText(src)
+	if err != nil {
+		return fmt.Errorf("liquidation allocation method: %w", err)
+	}
+
+	if text == AllocationManual.String() {
+		*a = AllocationManual
+		return nil
+	}
+
+	return fmt.Errorf("liquidation allocation method: unknown value %q", text)
+}
+
+// scanText normalises what a driver may hand to Scan.
+func scanText(src any) (string, error) {
+	switch v := src.(type) {
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	default:
+		return "", fmt.Errorf("cannot scan %T", src)
 	}
 }

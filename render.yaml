@@ -51,6 +51,8 @@ services:
         sync: false
       - key: ESCLIENT_MAXID
         value: "10"
+      - key: ESCLIENT_INDEX
+        value: "milpa-offerings"
     healthCheckPath: /api/v1/categories
     autoDeploy: true
 

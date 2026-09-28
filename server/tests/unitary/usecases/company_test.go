@@ -89,8 +89,8 @@ func TestCompanyUseCaseCreateCompany(t *testing.T) {
 			if got.CategoryID != tt.categoryID {
 				t.Errorf("category id = %v, want %v", got.CategoryID, tt.categoryID)
 			}
-			if got.Address != tt.req.Address+", , " {
-				t.Errorf("address = %q, want %q", got.Address, tt.req.Address+", , ")
+			if got.AddressLine != tt.req.Address {
+				t.Errorf("address line = %q, want %q", got.AddressLine, tt.req.Address)
 			}
 			if got.Description != tt.req.Description {
 				t.Errorf("description = %q, want %q", got.Description, tt.req.Description)
@@ -150,7 +150,9 @@ func TestCompanyUseCaseGetByID(t *testing.T) {
 			}
 			uc := usecases.NewCompanyUseCase(companyRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer())
 
-			got, err := uc.GetByID(context.Background(), testCompanyID)
+			// Anonymous read: the public view, so the assertions below have to go
+			// through it rather than through contact fields.
+			view, err := uc.GetByID(context.Background(), testCompanyID)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -164,6 +166,13 @@ func TestCompanyUseCaseGetByID(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
+			}
+			if _, private := view.(*dto.PrivateCompanyDTO); private {
+				t.Fatal("GetByID() returned the private view to an anonymous caller")
+			}
+			got, ok := view.(*dto.PublicCompanyDTO)
+			if !ok {
+				t.Fatalf("GetByID() = %T, want *dto.PublicCompanyDTO", view)
 			}
 			if got.ID != testCompanyID {
 				t.Errorf("id = %v, want %v", got.ID, testCompanyID)
@@ -246,15 +255,22 @@ func TestCompanyUseCaseGetByOwner(t *testing.T) {
 			if len(got) != tt.wantLen {
 				t.Fatalf("dtos = %d, want %d", len(got), tt.wantLen)
 			}
-			for i, dto := range got {
-				if dto.ID != tt.companies[i].ID {
-					t.Errorf("dto %d id = %v, want %v", i, dto.ID, tt.companies[i].ID)
+			for i, view := range got {
+				if _, private := view.(*dto.PrivateCompanyDTO); private {
+					t.Fatalf("dto %d is the private view, want public for an anonymous caller", i)
 				}
-				if dto.Name != tt.companies[i].Name {
-					t.Errorf("dto %d name = %q, want %q", i, dto.Name, tt.companies[i].Name)
+				public, ok := view.(*dto.PublicCompanyDTO)
+				if !ok {
+					t.Fatalf("dto %d = %T, want *dto.PublicCompanyDTO", i, view)
 				}
-				if dto.OwnerID != tt.companies[i].Owner.ID {
-					t.Errorf("dto %d owner id = %v, want %v", i, dto.OwnerID, tt.companies[i].Owner.ID)
+				if public.ID != tt.companies[i].ID {
+					t.Errorf("dto %d id = %v, want %v", i, public.ID, tt.companies[i].ID)
+				}
+				if public.Name != tt.companies[i].Name {
+					t.Errorf("dto %d name = %q, want %q", i, public.Name, tt.companies[i].Name)
+				}
+				if public.OwnerID != tt.companies[i].Owner.ID {
+					t.Errorf("dto %d owner id = %v, want %v", i, public.OwnerID, tt.companies[i].Owner.ID)
 				}
 			}
 		})

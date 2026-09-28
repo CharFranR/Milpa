@@ -76,8 +76,11 @@ func (uc *LiquidationUseCaseImpl) CreateLiquidation(ctx context.Context, req dto
 	return liquidationToDTO(liq), nil
 }
 
+// GetByID reads a liquidation the caller is allowed to see. A private one that
+// belongs to somebody else is reported as not found rather than forbidden, so
+// the response does not confirm that it exists.
 func (uc *LiquidationUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.LiquidationDTO, error) {
-	liq, err := uc.liquidationRepo.FindByID(ctx, id)
+	liq, err := uc.liquidationRepo.FindVisibleByID(ctx, id, liquidationViewer(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +89,7 @@ func (uc *LiquidationUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*d
 }
 
 func (uc *LiquidationUseCaseImpl) GetBySupplier(ctx context.Context, supplierID uuid.UUID) ([]*dto.LiquidationDTO, error) {
-	liquidations, err := uc.liquidationRepo.FindBySupplier(ctx, supplierID)
+	liquidations, err := uc.liquidationRepo.FindBySupplier(ctx, supplierID, liquidationViewer(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +103,7 @@ func (uc *LiquidationUseCaseImpl) GetBySupplier(ctx context.Context, supplierID 
 }
 
 func (uc *LiquidationUseCaseImpl) GetOpen(ctx context.Context) ([]*dto.LiquidationDTO, error) {
-	liquidations, err := uc.liquidationRepo.FindOpen(ctx)
+	liquidations, err := uc.liquidationRepo.FindOpen(ctx, liquidationViewer(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +114,23 @@ func (uc *LiquidationUseCaseImpl) GetOpen(ctx context.Context) ([]*dto.Liquidati
 	}
 
 	return dtos, nil
+}
+
+// liquidationViewer resolves who is asking, for the visibility predicate.
+//
+// The liquidation routes are unauthenticated, so no principal is the normal
+// case and maps to uuid.Nil: an anonymous marketplace visitor, who sees public
+// liquidations only. A principal sees public ones plus their own regardless of
+// visibility.
+//
+// The four-way buyer-type restriction the brief also describes is deliberately
+// not here: it depends on the RBAC decision deferred to 4.3.
+func liquidationViewer(ctx context.Context) uuid.UUID {
+	principal, ok := auth.FromContext(ctx)
+	if !ok {
+		return uuid.Nil
+	}
+	return principal.UserID
 }
 
 func (uc *LiquidationUseCaseImpl) UpdateLiquidation(ctx context.Context, id uuid.UUID, req dto.UpdateLiquidationRequest) error {

@@ -201,7 +201,7 @@ func TestReportUseCaseList(t *testing.T) {
 
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
-		result, err := uc.List(adminCtx(), "", "", 1, 20)
+		result, err := uc.List(reportAdminCtx(), "", "", 1, 20)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -247,7 +247,7 @@ func TestReportUseCaseList(t *testing.T) {
 
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
-		_, err := uc.List(adminCtx(), "bogus", "", 1, 20)
+		_, err := uc.List(reportAdminCtx(), "bogus", "", 1, 20)
 		if err == nil {
 			t.Fatal("expected error for unknown status, got nil")
 		}
@@ -269,7 +269,7 @@ func TestReportUseCaseList(t *testing.T) {
 
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
-		_, err := uc.List(adminCtx(), "", "bogus", 1, 20)
+		_, err := uc.List(reportAdminCtx(), "", "bogus", 1, 20)
 		if err == nil {
 			t.Fatal("expected error for unknown target type, got nil")
 		}
@@ -290,7 +290,7 @@ func TestReportUseCaseResolve(t *testing.T) {
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "approve"}
-		result, err := uc.Resolve(adminCtx(), testReportID, req)
+		result, err := uc.Resolve(reportAdminCtx(), testReportID, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -312,7 +312,7 @@ func TestReportUseCaseResolve(t *testing.T) {
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "reject"}
-		result, err := uc.Resolve(adminCtx(), testReportID, req)
+		result, err := uc.Resolve(reportAdminCtx(), testReportID, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -341,7 +341,7 @@ func TestReportUseCaseResolve(t *testing.T) {
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "approve"}
-		result, err := uc.Resolve(adminCtx(), testReportID, req)
+		result, err := uc.Resolve(reportAdminCtx(), testReportID, req)
 		if err == nil {
 			t.Fatal("expected error when resolve fails, got nil")
 		}
@@ -368,7 +368,7 @@ func TestReportUseCaseResolve(t *testing.T) {
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "approve"}
-		_, err := uc.Resolve(adminCtx(), testReportID, req)
+		_, err := uc.Resolve(reportAdminCtx(), testReportID, req)
 		if err == nil {
 			t.Fatal("expected error for already resolved report, got nil")
 		}
@@ -387,7 +387,7 @@ func TestReportUseCaseResolve(t *testing.T) {
 		uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, timer)
 
 		req := dto.ResolveReportRequest{Action: "invalid"}
-		_, err := uc.Resolve(adminCtx(), testReportID, req)
+		_, err := uc.Resolve(reportAdminCtx(), testReportID, req)
 		if err == nil {
 			t.Fatal("expected error for invalid action, got nil")
 		}

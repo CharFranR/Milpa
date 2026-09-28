@@ -184,7 +184,7 @@ func (E *ElasticSearchImpl) buildQuery(query *dto.SearchQuery) map[string]interf
 		case dto.SortProximity:
 			sortClause = map[string]interface{}{
 				"_geo_distance": map[string]interface{}{
-					"location": map[string]interface{}{
+					geoPointField: map[string]interface{}{
 						"lat": query.Sort.Latitude,
 						"lon": query.Sort.Longitude,
 					},
@@ -203,10 +203,31 @@ func (E *ElasticSearchImpl) buildQuery(query *dto.SearchQuery) map[string]interf
 	return queryBody
 }
 
-func (E *ElasticSearchImpl) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
-	jsonData, err := json.Marshal(p)
+// buildDocument renders the search document, deriving the geo_point from the
+// flat latitude and longitude when the caller did not supply one.
+//
+// The copy is deliberate: the caller's request is not mutated. Deriving it here,
+// next to the mapping and the proximity sort that all name geoPointField, is
+// what makes "a document that carries coordinates also carries a geo_point" an
+// invariant of the adapter rather than a rule every caller has to remember.
+func buildDocument(p *dto.IndexOfferingRequest) ([]byte, error) {
+	doc := *p
+	if doc.Location == nil {
+		doc.Location = dto.NewGeoPoint(doc.Latitude, doc.Longitude)
+	}
+
+	jsonData, err := json.Marshal(doc)
 	if err != nil {
-		return fmt.Errorf("Index: error in json marshal: %w", err)
+		return nil, fmt.Errorf("error in json marshal: %w", err)
+	}
+
+	return jsonData, nil
+}
+
+func (E *ElasticSearchImpl) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
+	jsonData, err := buildDocument(p)
+	if err != nil {
+		return fmt.Errorf("Index: %w", err)
 	}
 
 	_, err = E.client.Index(
@@ -223,9 +244,9 @@ func (E *ElasticSearchImpl) Index(ctx context.Context, p *dto.IndexOfferingReque
 }
 
 func (E *ElasticSearchImpl) Update(ctx context.Context, id string, p *dto.IndexOfferingRequest) error {
-	jsonData, err := json.Marshal(p)
+	jsonData, err := buildDocument(p)
 	if err != nil {
-		return fmt.Errorf("Update: error in json marshal: %w", err)
+		return fmt.Errorf("Update: %w", err)
 	}
 
 	doc := map[string]interface{}{

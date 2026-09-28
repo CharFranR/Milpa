@@ -90,19 +90,40 @@ type SearchResponse struct {
 
 // Save in elastic search
 type IndexOfferingRequest struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Price          float64 `json:"price"`
-	Type           string  `json:"type"`
-	ImageURL       string  `json:"image_url"`
-	UserID         string  `json:"user_id"`
-	FarmerName     string  `json:"farmer_name"`
-	FarmerVerified bool    `json:"farmer_verified"`
-	Department     string  `json:"department"`
-	Municipality   string  `json:"municipality"`
-	Latitude       float64 `json:"latitude"`
-	Longitude      float64 `json:"longitude"`
+	ID             string    `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Price          float64   `json:"price"`
+	Type           string    `json:"type"`
+	ImageURL       string    `json:"image_url"`
+	UserID         string    `json:"user_id"`
+	FarmerName     string    `json:"farmer_name"`
+	FarmerVerified bool      `json:"farmer_verified"`
+	Department     string    `json:"department"`
+	Municipality   string    `json:"municipality"`
+	Latitude       float64   `json:"latitude"`
+	Longitude      float64   `json:"longitude"`
+	Location       *GeoPoint `json:"location,omitempty"`
+}
+
+// GeoPoint is the Elasticsearch geo_point object form, built from the
+// latitude and longitude the user address carries. It is the field the
+// proximity sort resolves against, so it has to be present on every document
+// that carries coordinates — otherwise _geo_distance has nothing to measure.
+type GeoPoint struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+
+// NewGeoPoint returns the geo_point for a pair of coordinates, or nil when the
+// pair carries no location at all. A zero pair is treated as absent because it
+// is indistinguishable from a farmer who never supplied coordinates, and
+// indexing it would plant the producer at null island.
+func NewGeoPoint(latitude, longitude float64) *GeoPoint {
+	if latitude == 0 && longitude == 0 {
+		return nil
+	}
+	return &GeoPoint{Lat: latitude, Lon: longitude}
 }
 
 type ESClient struct {
