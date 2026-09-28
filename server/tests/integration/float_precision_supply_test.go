@@ -8,14 +8,6 @@ import (
 	domain "milpa/domain/entities"
 )
 
-// moneyPrecisionResidual is the tolerance used when asserting that a fully
-// delivered request reserved everything it was asked for. 2.7 - 0.9 - 0.9 - 0.9
-// in IEEE-754 double arithmetic leaves a residue of about 2.2e-16, so an exact
-// zero is not assertable against a DOUBLE PRECISION column. The tolerance is
-// many orders of magnitude below the smallest quantity that carries meaning in
-// this domain and exists only to absorb that residue.
-const moneyPrecisionResidual = 1e-9
-
 // TestFullyDeliveredRequestWithFractionalAmountCompletes is the regression test
 // for the money type. A request for 2.7 delivered as three transactions of 0.9
 // is fully covered, but the completed amount was accumulated in float32, where
@@ -26,6 +18,14 @@ const moneyPrecisionResidual = 1e-9
 // Every amount is float64 in Go and DOUBLE PRECISION in PostgreSQL, and 3 * 0.9
 // is exactly the same double as 2.7, so the guard is false and the request is
 // closed.
+//
+// The final assertion is deliberately an exact == 0 and not a tolerance. Three
+// subtractions of 0.9 from 2.7 in IEEE-754 double arithmetic land on
+// 2.220446049250313e-16, not on zero, and no ordering of further additions
+// recovers an exact zero either. Completion therefore SETS actual_amount to 0
+// rather than leaving the residue behind, and this assertion is what keeps that
+// true: a tolerance would have passed just as happily against the dust, which
+// is precisely the state it exists to rule out.
 func TestFullyDeliveredRequestWithFractionalAmountCompletes(t *testing.T) {
 	setupConcurrencyTestData(t)
 	f := newConcFixture(t)
@@ -84,9 +84,14 @@ func TestFullyDeliveredRequestWithFractionalAmountCompletes(t *testing.T) {
 			status, deliveries, eachDelivery, totalAmount, concActualAmount(t, request.ID))
 	}
 
+	// Exact equality, not a tolerance: this is the assertion that distinguishes
+	// "completion zeroed the column" from "completion left 2.220446049250313e-16
+	// behind and happened to look close enough".
 	actual := concActualAmount(t, request.ID)
-	if math.Abs(actual) > moneyPrecisionResidual {
-		t.Errorf("actual amount = %v, want ~%v (the request was reserved in full)", actual, moneyPrecisionResidual)
+	if actual != 0 {
+		t.Errorf("actual amount after completion = %v (bits 0x%016x), want exactly 0: a completed request has nothing left to fulfil, "+
+			"so completion must SET actual_amount rather than leave the residue of three fractional subtractions",
+			actual, math.Float64bits(actual))
 	}
 
 	if got := concQueryCount(t, `SELECT count(*) FROM supply_requests WHERE id = $1 AND status = $2`,

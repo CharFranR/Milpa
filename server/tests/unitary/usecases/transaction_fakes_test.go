@@ -268,12 +268,22 @@ func (f *fakeTxRequestRepo) Reserve(ctx context.Context, supplyRequestID uuid.UU
 	return f.update(ctx, &current)
 }
 
+// Release mirrors the bare SQL addition and refuses an over-release the way
+// ck_supply_requests_amounts refuses it, instead of clamping it away. The error
+// is local to this package: nothing in the use case layer branches on it, and
+// naming it from the postgres adapter would drag infrastructure into a unit
+// test built on fakes to stay free of it.
 func (f *fakeTxRequestRepo) Release(ctx context.Context, supplyRequestID uuid.UUID, amount float64, at time.Time) error {
 	current, err := f.getByID(ctx, supplyRequestID)
 	if err != nil {
 		return err
 	}
-	current.ActualAmount = min(current.ActualAmount+amount, current.TotalAmount)
+	released := current.ActualAmount + amount
+	if released > current.TotalAmount || released < 0 {
+		return fmt.Errorf("fakeTxRequestRepo.Release: releasing %v from %v over total %v",
+			amount, current.ActualAmount, current.TotalAmount)
+	}
+	current.ActualAmount = released
 	current.UpdatedAt = at
 	return f.update(ctx, &current)
 }
@@ -284,6 +294,17 @@ func (f *fakeTxRequestRepo) UpdateStatus(ctx context.Context, supplyRequestID uu
 		return err
 	}
 	current.Status = status
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeTxRequestRepo) UpdateCompletion(ctx context.Context, supplyRequestID uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	current, err := f.getByID(ctx, supplyRequestID)
+	if err != nil {
+		return err
+	}
+	current.Status = status
+	current.ActualAmount = 0
 	current.UpdatedAt = at
 	return f.update(ctx, &current)
 }

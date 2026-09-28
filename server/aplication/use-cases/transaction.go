@@ -388,9 +388,12 @@ func (uc *TransactionUseCaseImpl) autoCloseRequest(ctx context.Context, scope po
 		return err
 	}
 
-	// Only the status is written: the request row is locked, so a full-row
-	// rewrite would only be able to push a stale snapshot back over the row.
-	return scope.Requests.UpdateStatus(ctx, session.request.ID, session.request.Status, session.request.UpdatedAt)
+	// Status and the zeroed actual_amount are written together, and nothing
+	// else: the request row is locked, so a full-row rewrite would only be able
+	// to push a stale snapshot back over the row. Zeroing actual_amount is what
+	// makes a fully delivered request land on an exact 0 instead of the
+	// IEEE-754 residue of subtracting its fractions one at a time.
+	return scope.Requests.UpdateCompletion(ctx, session.request.ID, session.request.Status, session.request.UpdatedAt)
 }
 
 func participantFor(principal auth.Principal, request *domain.SupplyRequest, offer *domain.SupplyOffer) (domain.TransactionParticipant, error) {
