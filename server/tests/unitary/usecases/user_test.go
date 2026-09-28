@@ -111,8 +111,8 @@ func TestUserUseCaseRegister(t *testing.T) {
 			if got.PhoneNumber != "555-1234" {
 				t.Errorf("phone number = %q, want %q", got.PhoneNumber, "555-1234")
 			}
-			if got.Address != "Managua, , " {
-				t.Errorf("address = %q, want %q", got.Address, "Managua, , ")
+			if got.AddressLine != "Managua" {
+				t.Errorf("address line = %q, want %q", got.AddressLine, "Managua")
 			}
 			if !got.CreatedAt.Equal(fixedTime) {
 				t.Errorf("created at = %v, want %v", got.CreatedAt, fixedTime)
@@ -249,7 +249,9 @@ func TestUserUseCaseGetByID(t *testing.T) {
 			}
 			uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
 
-			got, err := uc.GetByID(context.Background(), testUserID)
+			// Anonymous read: the public view, which has no field for an email
+			// at all, so the contact assertions cannot even be written here.
+			view, err := uc.GetByID(context.Background(), testUserID)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -264,23 +266,21 @@ func TestUserUseCaseGetByID(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+			if _, private := view.(*dto.PrivateUserDTO); private {
+				t.Fatal("GetByID() returned the private view to an anonymous caller")
+			}
+			got, ok := view.(*dto.PublicUserDTO)
+			if !ok {
+				t.Fatalf("GetByID() = %T, want *dto.PublicUserDTO", view)
+			}
 			if got.ID != testUserID {
 				t.Errorf("id = %v, want %v", got.ID, testUserID)
-			}
-			if got.Email != "user@milpa.com.ni" {
-				t.Errorf("email = %q, want %q", got.Email, "user@milpa.com.ni")
 			}
 			if got.FirstName != "John" || got.LastName != "Doe" {
 				t.Errorf("name = %q %q, want John Doe", got.FirstName, got.LastName)
 			}
 			if got.Role != domain.RolePending {
 				t.Errorf("role = %v, want %v", got.Role, domain.RolePending)
-			}
-			if got.Address != ", , " {
-				t.Errorf("address = %q, want %q", got.Address, ", , ")
-			}
-			if got.PhoneNumber != "" {
-				t.Errorf("phone number = %q, want empty", got.PhoneNumber)
 			}
 			if !got.CreatedAt.Equal(fixedTime) || !got.UpdatedAt.Equal(fixedTime) {
 				t.Errorf("timestamps = %v / %v, want %v", got.CreatedAt, got.UpdatedAt, fixedTime)

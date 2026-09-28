@@ -16,7 +16,7 @@ var (
 	testTargetID = uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 )
 
-func adminCtx() context.Context {
+func reportAdminCtx() context.Context {
 	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testAdminID, Role: domain.RoleAdmin})
 }
 

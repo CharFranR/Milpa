@@ -33,7 +33,7 @@ func NewUserUseCase(
 	}
 }
 
-func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserRequest) (*dto.UserDTO, error) {
+func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserRequest) (*dto.PrivateUserDTO, error) {
 	now := uc.timer.Now()
 
 	if req.Role != domain.RoleMIPYME && req.Role != domain.RoleProvider {
@@ -81,7 +81,8 @@ func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserReq
 		return nil, err
 	}
 
-	return userToDTO(user), nil
+	// The caller is the user that was just created, so this is the private view.
+	return privateUserDTO(user), nil
 }
 
 func (uc *UserUseCaseImpl) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
@@ -102,17 +103,24 @@ func (uc *UserUseCaseImpl) Login(ctx context.Context, req dto.LoginRequest) (*dt
 	return &dto.LoginResponse{
 		AccessToken: token,
 		ExpiresIn:   86400,
-		User:        *userToDTO(user),
+		User:        *privateUserDTO(user),
 	}, nil
 }
 
-func (uc *UserUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserDTO, error) {
+// GetByID returns the representation the caller is entitled to: the contact card
+// for the owner and for an admin, the public profile for everyone else,
+// including anonymous marketplace traffic.
+//
+// The decision lives here rather than in the handler because it is a policy
+// about who may see whose contact details, and the handler only has to
+// serialise whatever it is given.
+func (uc *UserUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (dto.UserView, error) {
 	user, err := uc.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return userToDTO(user), nil
+	return userViewFor(ctx, user), nil
 }
 
 func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) error {
@@ -175,16 +183,38 @@ func floatOrZero(v *float64) float64 {
 	return *v
 }
 
-func userToDTO(user *domain.User) *dto.UserDTO {
-	return &dto.UserDTO{
-		ID:          user.ID,
-		Email:       user.Email,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Address:     user.Address.FullAddress(),
-		PhoneNumber: user.PhoneNumber,
-		Role:        user.Role,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+// userViewFor applies the contact-detail boundary: the owner and an admin get
+// the private view, anyone else gets the public one.
+//
+// A caller with no principal at all is an anonymous marketplace visitor. The
+// read routes are unauthenticated, so absence of a principal is the normal case
+// there, not an error.
+func userViewFor(ctx context.Context, user *domain.User) dto.UserView {
+	principal, ok := auth.FromContext(ctx)
+	if ok && (principal.UserID == user.ID || principal.Role == domain.RoleAdmin) {
+		return privateUserDTO(user)
+	}
+	return publicUserDTO(user)
+}
+
+func publicUserDTO(user *domain.User) *dto.PublicUserDTO {
+	return &dto.PublicUserDTO{
+		ID:           user.ID,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Role:         user.Role,
+		Department:   user.Address.Department,
+		Municipality: user.Address.Municipality,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+	}
+}
+
+func privateUserDTO(user *domain.User) *dto.PrivateUserDTO {
+	return &dto.PrivateUserDTO{
+		PublicUserDTO: *publicUserDTO(user),
+		Email:         user.Email,
+		PhoneNumber:   user.PhoneNumber,
+		AddressLine:   user.Address.AddressLine,
 	}
 }

@@ -53,13 +53,15 @@ func NewRouter(
 		r.Get("/categories", category.GetAll)
 
 		r.Route("/users", func(r chi.Router) {
-			r.Get("/{id}", user.GetByID)
+			// The read stays open to the marketplace; optional authentication is
+			// what lets the owner and an admin receive the private view.
+			r.With(authMW.AuthenticateOptional).Get("/{id}", user.GetByID)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", user.UpdateProfile)
 		})
 
 		r.Route("/companies", func(r chi.Router) {
-			r.Get("/{id}", company.GetByID)
-			r.Get("/", company.GetByOwner)
+			r.With(authMW.AuthenticateOptional).Get("/{id}", company.GetByID)
+			r.With(authMW.AuthenticateOptional).Get("/", company.GetByOwner)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", company.Create)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", company.Update)
 		})

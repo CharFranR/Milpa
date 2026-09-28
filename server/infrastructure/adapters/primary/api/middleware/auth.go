@@ -31,6 +31,40 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
+// AuthenticateOptional attaches a principal when the request carries usable
+// credentials and otherwise lets it through untouched.
+//
+// It exists for the public marketplace reads, which are reachable without a
+// token but have to answer the owner and an admin with more than an anonymous
+// visitor gets. Requiring authentication there would close the marketplace;
+// ignoring the header would make the owner unable to see their own contact card.
+// Missing or unusable credentials degrade to anonymous rather than failing: a
+// stale token in a browser must not turn a public page into a 401.
+//
+// It never upgrades a request, only annotates it. A route that requires
+// authentication must use Authenticate.
+func (m *AuthMiddleware) AuthenticateOptional(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := bearerToken(r.Header.Get("Authorization"))
+		if token == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		claims, err := m.jwt.ValidateToken(token)
+		if err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		principal := auth.Principal{
+			UserID: claims.UserID,
+			Role:   claims.Role,
+		}
+		next.ServeHTTP(w, r.WithContext(auth.WithPrincipal(r.Context(), principal)))
+	})
+}
+
 func (m *AuthMiddleware) AuthenticateWebSocket(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := subprotocolToken(r)
