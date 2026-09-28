@@ -27,6 +27,10 @@ type RegisterUserRequest struct {
 	LastName        string             `json:"last_name"`
 	Role            domain.RoleOptions `json:"role"`
 	Address         string             `json:"address,omitempty"`
+	Department      string             `json:"department,omitempty"`
+	Municipality    string             `json:"municipality,omitempty"`
+	Latitude        *float64           `json:"latitude,omitempty"`
+	Longitude       *float64           `json:"longitude,omitempty"`
 	PhoneNumber     string             `json:"phone_number,omitempty"`
 	Password        string             `json:"password"`
 	ConfirmPassword string             `json:"confirm_password"`
@@ -38,11 +42,15 @@ type LoginRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Email       *string `json:"email,omitempty"`
-	FirstName   *string `json:"first_name,omitempty"`
-	LastName    *string `json:"last_name,omitempty"`
-	Address     *string `json:"address,omitempty"`
-	PhoneNumber *string `json:"phone_number,omitempty"`
+	Email        *string  `json:"email,omitempty"`
+	FirstName    *string  `json:"first_name,omitempty"`
+	LastName     *string  `json:"last_name,omitempty"`
+	Address      *string  `json:"address,omitempty"`
+	Department   *string  `json:"department,omitempty"`
+	Municipality *string  `json:"municipality,omitempty"`
+	Latitude     *float64 `json:"latitude,omitempty"`
+	Longitude    *float64 `json:"longitude,omitempty"`
+	PhoneNumber  *string  `json:"phone_number,omitempty"`
 }
 
 type LoginResponse struct {

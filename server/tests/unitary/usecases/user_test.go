@@ -289,6 +289,174 @@ func TestUserUseCaseGetByID(t *testing.T) {
 	}
 }
 
+func TestUserUseCaseRegisterPersistsLocation(t *testing.T) {
+	t.Parallel()
+
+	latitude := 12.435010881390852
+	longitude := -86.87811141017944
+
+	userRepo := newFakeUserRepo()
+	uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
+
+	_, err := uc.Register(context.Background(), dto.RegisterUserRequest{
+		Email:           "geo@milpa.com.ni",
+		FirstName:       "Jane",
+		LastName:        "Smith",
+		Role:            domain.RoleProvider,
+		Address:         "Costado Sur del Parque Central",
+		Department:      "Leon",
+		Municipality:    "Leon",
+		Latitude:        &latitude,
+		Longitude:       &longitude,
+		Password:        "secret123",
+		ConfirmPassword: "secret123",
+		PhoneNumber:     "555-1234",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(userRepo.saved) != 1 {
+		t.Fatalf("saved users = %d, want 1", len(userRepo.saved))
+	}
+	saved := userRepo.saved[0]
+	if saved.Address.Department != "Leon" {
+		t.Errorf("department = %q, want %q", saved.Address.Department, "Leon")
+	}
+	if saved.Address.Municipality != "Leon" {
+		t.Errorf("municipality = %q, want %q", saved.Address.Municipality, "Leon")
+	}
+	if saved.Address.Latitude != latitude {
+		t.Errorf("latitude = %v, want %v", saved.Address.Latitude, latitude)
+	}
+	if saved.Address.Longitude != longitude {
+		t.Errorf("longitude = %v, want %v", saved.Address.Longitude, longitude)
+	}
+	if !saved.Address.HasCoordinates() {
+		t.Error("HasCoordinates() = false, want true for a registration with coordinates")
+	}
+}
+
+func TestUserUseCaseRegisterRejectsOutOfRangeCoordinates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		latitude  float64
+		longitude float64
+	}{
+		{name: "latitude above range", latitude: 90.1, longitude: -86.8},
+		{name: "latitude below range", latitude: -91, longitude: -86.8},
+		{name: "longitude above range", latitude: 12.4, longitude: 180.5},
+		{name: "longitude below range", latitude: 12.4, longitude: -181},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			latitude, longitude := tt.latitude, tt.longitude
+			userRepo := newFakeUserRepo()
+			uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
+
+			_, err := uc.Register(context.Background(), dto.RegisterUserRequest{
+				Email:           "geo@milpa.com.ni",
+				FirstName:       "Jane",
+				LastName:        "Smith",
+				Role:            domain.RoleProvider,
+				Department:      "Leon",
+				Latitude:        &latitude,
+				Longitude:       &longitude,
+				Password:        "secret123",
+				ConfirmPassword: "secret123",
+				PhoneNumber:     "555-1234",
+			})
+
+			if !errors.Is(err, domain.ErrInvalidInput) {
+				t.Fatalf("error = %v, want %v", err, domain.ErrInvalidInput)
+			}
+			if len(userRepo.saved) != 0 {
+				t.Errorf("saved users = %d, want 0 for a rejected registration", len(userRepo.saved))
+			}
+		})
+	}
+}
+
+func TestUserUseCaseUpdateProfileKeepsAddressIdentity(t *testing.T) {
+	t.Parallel()
+
+	addressID := uuid.MustParse("88888888-8888-8888-8888-888888888888")
+	latitude := 13.0913
+	longitude := -86.0014
+
+	userRepo := newFakeUserRepo()
+	userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user := mustUser()
+		user.Address = domain.Address{
+			ID:           addressID,
+			Department:   "Jinotega",
+			Municipality: "Jinotega",
+			AddressLine:  "Barrio Centro",
+			Latitude:     12.4,
+			Longitude:    -86.8,
+		}
+		return user, nil
+	}
+
+	uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
+
+	// A change to the address line alone must not orphan the address row.
+	err := uc.UpdateProfile(principalCtx(), testUserID, dto.UpdateUserRequest{Address: strPtr("Barrio Nuevo")})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(userRepo.updated) != 1 {
+		t.Fatalf("updated users = %d, want 1", len(userRepo.updated))
+	}
+	if userRepo.updated[0].Address.ID != addressID {
+		t.Errorf("address id = %v, want the existing %v", userRepo.updated[0].Address.ID, addressID)
+	}
+	if userRepo.updated[0].Address.AddressLine != "Barrio Nuevo" {
+		t.Errorf("address line = %q, want %q", userRepo.updated[0].Address.AddressLine, "Barrio Nuevo")
+	}
+	if userRepo.updated[0].Address.Department != "Jinotega" {
+		t.Errorf("department = %q, want the untouched %q", userRepo.updated[0].Address.Department, "Jinotega")
+	}
+	if userRepo.updated[0].Address.Latitude != 12.4 {
+		t.Errorf("latitude = %v, want the untouched 12.4", userRepo.updated[0].Address.Latitude)
+	}
+
+	// A change of coordinates must actually change them.
+	err = uc.UpdateProfile(principalCtx(), testUserID, dto.UpdateUserRequest{Latitude: &latitude, Longitude: &longitude})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated := userRepo.updated[len(userRepo.updated)-1]
+	if updated.Address.Latitude != latitude || updated.Address.Longitude != longitude {
+		t.Errorf("coordinates = (%v, %v), want (%v, %v)", updated.Address.Latitude, updated.Address.Longitude, latitude, longitude)
+	}
+	if updated.Address.ID != addressID {
+		t.Errorf("address id = %v, want the existing %v", updated.Address.ID, addressID)
+	}
+}
+
+func TestUserUseCaseUpdateProfileRejectsOutOfRangeCoordinates(t *testing.T) {
+	t.Parallel()
+
+	latitude := 1000.0
+	userRepo := newFakeUserRepo()
+	uc := usecases.NewUserUseCase(userRepo, newFakeHasher(), newFakeJWT(), newFakeTimer())
+
+	err := uc.UpdateProfile(principalCtx(), testUserID, dto.UpdateUserRequest{Latitude: &latitude})
+
+	if !errors.Is(err, domain.ErrInvalidInput) {
+		t.Fatalf("error = %v, want %v", err, domain.ErrInvalidInput)
+	}
+	if len(userRepo.updated) != 0 {
+		t.Errorf("updated users = %d, want 0 for rejected coordinates", len(userRepo.updated))
+	}
+}
+
 func TestUserUseCaseUpdateProfile(t *testing.T) {
 	t.Parallel()
 

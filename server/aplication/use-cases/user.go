@@ -66,7 +66,16 @@ func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserReq
 	user.SetPasswordHash(hash)
 
 	user.PhoneNumber = req.PhoneNumber
-	user.Address = domain.Address{AddressLine: req.Address}
+	user.Address = domain.Address{
+		AddressLine:  req.Address,
+		Department:   req.Department,
+		Municipality: req.Municipality,
+		Latitude:     floatOrZero(req.Latitude),
+		Longitude:    floatOrZero(req.Longitude),
+	}
+	if err := user.Address.ValidateCoordinates(); err != nil {
+		return nil, err
+	}
 
 	if _, err := uc.userRepo.Save(ctx, user); err != nil {
 		return nil, err
@@ -131,7 +140,22 @@ func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req 
 		user.LastName = *req.LastName
 	}
 	if req.Address != nil {
-		user.Address = domain.Address{AddressLine: *req.Address}
+		user.Address.AddressLine = *req.Address
+	}
+	if req.Department != nil {
+		user.Address.Department = *req.Department
+	}
+	if req.Municipality != nil {
+		user.Address.Municipality = *req.Municipality
+	}
+	if req.Latitude != nil {
+		user.Address.Latitude = *req.Latitude
+	}
+	if req.Longitude != nil {
+		user.Address.Longitude = *req.Longitude
+	}
+	if err := user.Address.ValidateCoordinates(); err != nil {
+		return err
 	}
 	if req.PhoneNumber != nil {
 		user.PhoneNumber = *req.PhoneNumber
@@ -143,6 +167,13 @@ func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req 
 }
 
 var _ primary.UserUseCase = (*UserUseCaseImpl)(nil)
+
+func floatOrZero(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
 
 func userToDTO(user *domain.User) *dto.UserDTO {
 	return &dto.UserDTO{

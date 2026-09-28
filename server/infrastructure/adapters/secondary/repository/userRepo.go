@@ -20,19 +20,38 @@ func NewUserRepository(pool DB) *UserRepositoryImpl {
 	return &UserRepositoryImpl{pool: pool}
 }
 
-func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+// userColumns projects a user together with the address they point at.
+//
+// The address join is what makes the farmer's location readable back: without
+// it the repository only ever knew the address id, so every write of the
+// address columns would overwrite them with empty values.
+const userColumns = `
+	SELECT u.id, u.first_name, u.last_name, u.role, u.created_at, u.updated_at,
+	       u.address_id, u.email, u.phone_number, u.password_hash, u.suspended_at,
+	       COALESCE(a.department, ''), COALESCE(a.municipality, ''),
+	       COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
+	FROM users u
+	LEFT JOIN addresses a ON a.id = u.address_id
+`
 
+// scanUser maps one projected user row onto the entity. pgx.Row is an
+// interface, so a fake that replays recorded rows can stand in for the pool.
+func scanUser(row pgx.Row) (domain.User, error) {
 	var user domain.User
 
-	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at FROM users WHERE id = $1
-
-	`
-
-	err := userRepo.pool.QueryRow(ctx, query, id).Scan(
-		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email, &user.PhoneNumber,
-		&user.PasswordHash, &user.SuspendedAt,
+	err := row.Scan(
+		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+		&user.Address.ID, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.SuspendedAt,
+		&user.Address.Department, &user.Address.Municipality, &user.Address.AddressLine,
+		&user.Address.Latitude, &user.Address.Longitude,
 	)
+
+	return user, err
+}
+
+func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+
+	user, err := scanUser(userRepo.pool.QueryRow(ctx, userColumns+" WHERE u.id = $1", id))
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -45,16 +64,8 @@ func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) 
 }
 
 func (userRepo *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
-	var user domain.User
 
-	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at FROM users WHERE email = $1::text
-	`
-
-	err := userRepo.pool.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email,
-		&user.PhoneNumber, &user.PasswordHash, &user.SuspendedAt,
-	)
+	user, err := scanUser(userRepo.pool.QueryRow(ctx, userColumns+" WHERE u.email = $1::text", email))
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -142,9 +153,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 
 	var AddressID uuid.UUID
 
-	if user.Address.Department != "" {
+	// The addresses table marks department, municipality and address_line NOT
+	// NULL, so a row can only exist for an address that actually carries data.
+	// Gating on a single field used to mean no row was ever created.
+	if user.Address.HasData() {
 		query := `
-			INSERT INTO	addresses (id, department, municipality, address_line, latitude, longitude) 
+			INSERT INTO	addresses (id, department, municipality, address_line, latitude, longitude)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			returning id
 		`
@@ -221,8 +235,14 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 
 	defer tx.Rollback(ctx)
 
-	if user.Address.ID != uuid.Nil {
-		query := ` 
+	// addressID is what the user row should end up pointing at. It stays nil
+	// when this update carries no address at all, and the users statement below
+	// then leaves the existing address_id untouched instead of nulling it.
+	var addressID *uuid.UUID
+
+	switch {
+	case user.Address.ID != uuid.Nil:
+		query := `
 			UPDATE addresses
 			SET department = $1, municipality = $2, address_line = $3, latitude = $4, longitude = $5
 			WHERE id = $6
@@ -235,15 +255,32 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 			return fmt.Errorf("user.Update: address update: %w", err)
 		}
 
+		addressID = nullUUID(user.Address.ID)
+	case user.Address.HasData():
+		query := `
+			INSERT INTO addresses (id, department, municipality, address_line, latitude, longitude)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			returning id
+		`
+
+		var insertedID uuid.UUID
+		err = tx.QueryRow(ctx, query, uuid.New(), user.Address.Department, user.Address.Municipality,
+			user.Address.AddressLine, user.Address.Latitude, user.Address.Longitude).Scan(&insertedID)
+
+		if err != nil {
+			return fmt.Errorf("user.Update: address insert: %w", err)
+		}
+
+		addressID = nullUUID(insertedID)
 	}
 
 	query := `
 		UPDATE users
-		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = $5, email = $6, phone_number = $7, password_hash = $8, suspended_at = $9
+		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = COALESCE($5, address_id), email = $6, phone_number = $7, password_hash = $8, suspended_at = $9
 		WHERE id = $10
 	`
 
-	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullUUID(user.Address.ID), user.Email,
+	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, addressID, user.Email,
 		user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID)
 
 	if err != nil {
