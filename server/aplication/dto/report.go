@@ -21,15 +21,15 @@ type SuspendUserRequest struct {
 }
 
 type ReportResponse struct {
-	ID         uuid.UUID  `json:"id"`
-	Reporter   UserBrief  `json:"reporter"`
-	TargetType string     `json:"target_type"`
+	ID         uuid.UUID   `json:"id"`
+	Reporter   UserBrief   `json:"reporter"`
+	TargetType string      `json:"target_type"`
 	Target     TargetBrief `json:"target"`
-	Reason     string     `json:"reason"`
-	Status     string     `json:"status"`
-	ResolvedBy *uuid.UUID `json:"resolved_by,omitempty"`
-	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
+	Reason     string      `json:"reason"`
+	Status     string      `json:"status"`
+	ResolvedBy *uuid.UUID  `json:"resolved_by,omitempty"`
+	ResolvedAt *time.Time  `json:"resolved_at,omitempty"`
+	CreatedAt  time.Time   `json:"created_at"`
 }
 
 type UserBrief struct {

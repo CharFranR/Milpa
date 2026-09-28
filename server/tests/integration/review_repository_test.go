@@ -135,16 +135,16 @@ func TestReviewFindByCompany(t *testing.T) {
 	}
 
 	tests := []struct {
-		Name            string
-		CompanyID       uuid.UUID
-		ExpectedLen     int
-		ExpectedErr     error
+		Name             string
+		CompanyID        uuid.UUID
+		ExpectedLen      int
+		ExpectedErr      error
 		ExpectedComments []string
 	}{
 		{
-			Name:            "Company with reviews",
-			CompanyID:       testReviewCompanyID,
-			ExpectedLen:     2,
+			Name:             "Company with reviews",
+			CompanyID:        testReviewCompanyID,
+			ExpectedLen:      2,
 			ExpectedComments: []string{"Great!", "Okay"},
 		},
 		{

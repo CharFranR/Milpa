@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"milpa/aplication/dto"
+	"milpa/aplication/use-cases"
 	cacheAdapter "milpa/infrastructure/adapters/secondary/cache"
 	esAdapter "milpa/infrastructure/adapters/secondary/search"
-	"milpa/aplication/use-cases"
 
 	"github.com/google/uuid"
 )
@@ -36,19 +36,19 @@ func setupSearchIndex(t *testing.T) {
 	mapping := map[string]interface{}{
 		"mappings": map[string]interface{}{
 			"properties": map[string]interface{}{
-				"id":               map[string]interface{}{"type": "keyword"},
-				"name":             map[string]interface{}{"type": "text", "fields": map[string]interface{}{"keyword": map[string]interface{}{"type": "keyword"}}},
-				"description":      map[string]interface{}{"type": "text"},
-				"price":            map[string]interface{}{"type": "float"},
-				"type":             map[string]interface{}{"type": "keyword"},
-				"image_url":        map[string]interface{}{"type": "keyword", "index": false},
-				"user_id":          map[string]interface{}{"type": "keyword"},
-				"farmer_name":      map[string]interface{}{"type": "text"},
-				"farmer_verified":  map[string]interface{}{"type": "boolean"},
-				"department":       map[string]interface{}{"type": "keyword"},
-				"municipality":     map[string]interface{}{"type": "keyword"},
-				"location":         map[string]interface{}{"type": "geo_point"},
-				"created_at":       map[string]interface{}{"type": "date"},
+				"id":              map[string]interface{}{"type": "keyword"},
+				"name":            map[string]interface{}{"type": "text", "fields": map[string]interface{}{"keyword": map[string]interface{}{"type": "keyword"}}},
+				"description":     map[string]interface{}{"type": "text"},
+				"price":           map[string]interface{}{"type": "float"},
+				"type":            map[string]interface{}{"type": "keyword"},
+				"image_url":       map[string]interface{}{"type": "keyword", "index": false},
+				"user_id":         map[string]interface{}{"type": "keyword"},
+				"farmer_name":     map[string]interface{}{"type": "text"},
+				"farmer_verified": map[string]interface{}{"type": "boolean"},
+				"department":      map[string]interface{}{"type": "keyword"},
+				"municipality":    map[string]interface{}{"type": "keyword"},
+				"location":        map[string]interface{}{"type": "geo_point"},
+				"created_at":      map[string]interface{}{"type": "date"},
 			},
 		},
 	}

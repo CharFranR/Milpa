@@ -217,14 +217,14 @@ func (f *fakeFuzzySearch) Search(ctx context.Context, req dto.SearchRequest) (*d
 }
 
 type fakeCache struct {
-	calledGet           bool
-	calledSet           bool
-	calledDelete        bool
+	calledGet            bool
+	calledSet            bool
+	calledDelete         bool
 	calledDeleteByPrefix bool
-	deletedPrefix       string
-	deletedKey          string
-	getDest             any
-	getFound            bool
+	deletedPrefix        string
+	deletedKey           string
+	getDest              any
+	getFound             bool
 }
 
 func newFakeCache() *fakeCache {

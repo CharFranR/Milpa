@@ -14,10 +14,10 @@ func TestCategoryFindAll(t *testing.T) {
 	db := repository.NewCategoryRepository(TestPool)
 
 	tests := []struct {
-		Name         string
-		SetupCats    []domain.Category
-		ExpectedLen  int
-		ExpectedErr  error
+		Name          string
+		SetupCats     []domain.Category
+		ExpectedLen   int
+		ExpectedErr   error
 		ExpectedNames []string
 	}{
 		{
@@ -30,7 +30,7 @@ func TestCategoryFindAll(t *testing.T) {
 			SetupCats: []domain.Category{
 				{ID: uuid.New(), Name: "Tech", Description: "Technology services"},
 			},
-			ExpectedLen:  1,
+			ExpectedLen:   1,
 			ExpectedNames: []string{"Tech"},
 		},
 		{
@@ -39,7 +39,7 @@ func TestCategoryFindAll(t *testing.T) {
 				{ID: uuid.New(), Name: "Tech", Description: "Technology services"},
 				{ID: uuid.New(), Name: "Food", Description: "Food products"},
 			},
-			ExpectedLen:  2,
+			ExpectedLen:   2,
 			ExpectedNames: []string{"Tech", "Food"},
 		},
 	}

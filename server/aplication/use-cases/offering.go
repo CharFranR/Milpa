@@ -15,19 +15,19 @@ import (
 )
 
 type OfferingUseCaseImpl struct {
-	offeringRepo     port.OfferingRepository
-	fuzzyRetrival    port.FuzzyRetrival
-	userRepo         port.UserRepository
-	timer            port.TimeProvider
+	offeringRepo      port.OfferingRepository
+	fuzzyRetrival     port.FuzzyRetrival
+	userRepo          port.UserRepository
+	timer             port.TimeProvider
 	searchInvalidator port.Invalidator
 }
 
 func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival, searchInvalidator port.Invalidator) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
-		offeringRepo:     offeringRepo,
-		userRepo:         userRepo,
-		timer:            timer,
-		fuzzyRetrival:    fuzzyRetrival,
+		offeringRepo:      offeringRepo,
+		userRepo:          userRepo,
+		timer:             timer,
+		fuzzyRetrival:     fuzzyRetrival,
 		searchInvalidator: searchInvalidator,
 	}
 }
