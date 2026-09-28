@@ -6,7 +6,7 @@ Milpa is a marketplace API that connects agricultural producers (MIPYMEs) with b
 http://localhost:8080/api/v1
 ```
 
-This document is derived from the authoritative route table in `server/infrastructure/adapters/primary/api/router.go` (44 registrations / 43 distinct routes).
+This document is derived from the authoritative route table in `server/infrastructure/adapters/primary/api/router.go` (70 registrations / 69 distinct routes; 65 registered inside `NewRouter` and 5 by the separate `RegisterTransactionRoutes` entry point).
 
 ---
 
@@ -85,6 +85,86 @@ curl -s -X POST http://localhost:8080/api/v1/companies/ \
 ```
 
 `201 Created` returns the created company (`{"data": { ...CompanyDTO... }}`). A missing/invalid token returns `401 {"error":"missing or invalid authorization header"}`.
+
+### The supply chain, end to end
+
+The supply-chain surface is a multi-step sequence between two accounts, so it is worth walking through once. `BUYER` and `SUPPLIER` below are two different tokens; the roles do not gate the routes, ownership does.
+
+**1. The buyer opens a request** — `POST /api/v1/supply-requests/`, as `BUYER`:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/supply-requests/ \
+  -H "Authorization: Bearer $BUYER" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "product_name": "Cafe",
+    "total_amount": 500,
+    "amount_unit": 0,
+    "unit_of_measure": 0,
+    "description": "Cosecha 2026",
+    "address": {
+      "Department": "Matagalpa",
+      "Municipality": "Matagalpa",
+      "AddressLine": "Barrio San Jose"
+    },
+    "request_deadline": "2026-10-01T00:00:00Z",
+    "delivery_deadline": "2026-11-01T00:00:00Z",
+    "multiple_providers": true,
+    "min_amount_per_provider": 100
+  }'
+```
+
+`201 Created` returns the `SupplyRequestDTO`; note its `id` and that `actual_amount` comes back equal to `total_amount`.
+
+**2. The supplier offers** — `POST /api/v1/supply-offers/`, as `SUPPLIER`. First it can find open work with `GET /api/v1/supply-requests/available`, which hides the caller's own requests and anything already offered on:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/supply-offers/ \
+  -H "Authorization: Bearer $SUPPLIER" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "supply_request_id": "<request id from step 1>",
+    "total_amount": 500,
+    "measurement": 0,
+    "delivery_day": "2026-10-20T00:00:00Z",
+    "delivery_available": true
+  }'
+```
+
+`201 Created` returns the `SupplyOfferDTO`; note its `id`.
+
+**3. The buyer likes the offer** — `POST /api/v1/matches/like/{offerID}`, as `BUYER`. This is the single point where the match and the transaction are born, so the `201` carries both:
+
+```bash
+curl -s -X POST "http://localhost:8080/api/v1/matches/like/$OFFER_ID" \
+  -H "Authorization: Bearer $BUYER"
+```
+
+`201 Created` → `MatchCreatedDTO`. Take `data.match.id` and `data.transaction.id` from the response. The offer moves to `status: 1` and the request's `actual_amount` drops by the matched amount.
+
+> `GET /api/v1/matches/requests/{requestID}/prioritized` is the buyer's ranked shortlist of the remaining offers — worth calling before step 3, not after.
+
+**4. Both confirm the start** — `POST /api/v1/transactions/{transaction_id}/confirm-start`, called once by each side. The first call leaves the transaction at `status: 0`; the second moves it to `1`:
+
+```bash
+curl -s -X POST "http://localhost:8080/api/v1/transactions/$TX_ID/confirm-start" \
+  -H "Authorization: Bearer $BUYER"
+curl -s -X POST "http://localhost:8080/api/v1/transactions/$TX_ID/confirm-start" \
+  -H "Authorization: Bearer $SUPPLIER"
+```
+
+**5. Both confirm the delivery** — same route with `/confirm-delivery`, again once per side. The second call completes the transaction (`status: 2`):
+
+```bash
+curl -s -X POST "http://localhost:8080/api/v1/transactions/$TX_ID/confirm-delivery" \
+  -H "Authorization: Bearer $BUYER"
+curl -s -X POST "http://localhost:8080/api/v1/transactions/$TX_ID/confirm-delivery" \
+  -H "Authorization: Bearer $SUPPLIER"
+```
+
+**6. The request closes itself** — no call does this. Inside the second delivery confirmation, the completed transactions of the request are summed and, once they cover `total_amount`, the request is completed in the same unit of work: `GET /api/v1/supply-requests/{id}` now answers `status: 2` with `actual_amount: 0`.
+
+If the deal falls apart instead, `POST /api/v1/transactions/{transaction_id}/cancel` with a non-blank `{"reason": "..."}` releases everything atomically: transaction, match, the request's `actual_amount`, and the offer (which goes back to `status: 0` so it can be offered or matched again).
 
 ---
 
@@ -165,9 +245,15 @@ Exactly one key. Malformed JSON always yields `{"error":"invalid request body"}`
 | `domain.ErrForbidden` (role/ownership/participant) | 403 | `{"error":"forbidden"}` |
 | `domain.ErrNotFound` | 404 | `{"error":"resource not found"}` |
 | `domain.ErrDuplicate` / `ErrEmailTaken` | 409 | `{"error":"email already registered"}` |
+| `domain.ErrInvalidRequestStatus` / `ErrInvalidOfferStatus` / `ErrInvalidMatchStatus` | 409 | `{"error":"invalid supply request status"}` |
+| `domain.ErrInsufficientAmount` | 409 | `{"error":"insufficient amount: ..."}` |
+| `primary.ErrActiveMatch` | 409 | `{"error":"supply request already has an active match"}` |
+| `domain.ErrInvalidTransactionTransition` / `ErrAlreadyConfirmed` / `ErrTerminalState` | 409 | `{"error":"participant has already confirmed"}` |
 | Validation errors (`httpx.IsValidationError` list) | 400 | `{"error":"rating must be between 1 and 5"}` |
 | Handler-level input checks (bad UUID, blank field, unparsable body) | 400 | `{"error":"invalid user id"}`, `{"error":"email: cannot be blank"}` |
 | Everything else (unknown/`fmt.Errorf` errors) | 500 | `{"error":"internal server error"}` (message logged server-side) |
+
+> The supply-chain handlers do not rely on that table alone: `handleSupplyError` and `handleMatchError` pre-empt `409` for the sentinels above before delegating, and `handleTransactionError` has its own 409 set. That is why an out-of-order state machine step is a `409` and not a `500`. Two consequences worth knowing: the transaction handler's 409 set does **not** include `ErrInsufficientAmount`, and `repository.ErrAmountConstraint` is in no list at all, so both fall through to `500` if they ever reach the boundary. The messages in the 409 rows are the sentinel's own text; the use cases usually wrap them with detail (`"insufficient amount: offer total amount exceeds the remaining amount of the supply request"`).
 
 > **Gotcha:** some business-rule failures are plain `fmt.Errorf` errors and therefore fall through to `500 internal server error` instead of `400` — e.g. report `reason` length outside 10–500, an invalid report `action`, an invalid suspend `action`, liquidation `quantity <= 0`, or a liquidation that is not open. See the notes at the end.
 
@@ -195,6 +281,11 @@ Configured in `router.go`:
 | `status` (inquiry) | `0` pending, `1` read, `2` replied, `3` closed |
 | `status` (liquidation) | `0` open, `1` closed, `2` expired, `3` assigned |
 | `allocation_method` | `0` manual |
+| `amount_unit` / `unit_of_measure` / `measurement` (offer) | `0` Kg, `1` Lb, `2` Tn — one `MeasurementOptions` enum reused by all three keys |
+| `status` (supply request) | `0` open, `1` cancelled, `2` completed, `3` expired |
+| `status` (supply offer) | `0` active, `1` matched, `2` rejected, `3` withdrawn |
+| `status` (match) | `0` active, `1` cancelled |
+| `status` (transaction) | `0` matched, `1` in_progress, `2` completed, `3` cancelled |
 | `status` / `target_type` / `action` (reports & moderation) | strings: `pending`\|`approved`\|`rejected`, `offering`\|`user`, `approve`\|`reject`, `suspend`\|`reactivate` |
 
 ---
@@ -262,6 +353,73 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 | `GET /api/v1/inquiries/` | Public | query `user_id` (uuid, required) | `200` → `[InquiryDTO]` | `400` invalid `user_id` |
 | `POST /api/v1/inquiries/` | Bearer | JSON: `offering_id` (uuid), `message`. `user_id` = token user | `201` → `InquiryDTO` | `400` blank field; `401`; `403` |
 | `PATCH /api/v1/inquiries/{id}` | Bearer | path `id`; JSON: `status` (1, 2 or 3) | `200` `{}` | `400` invalid uuid/body or `status: 0`; `404` |
+
+### Supply requests
+
+Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspension` chain, so the Auth column is `Bearer` throughout; ownership is then checked in the use case, not the router.
+
+| Route | Auth | Params / body | Success | Notable statuses |
+|---|---|---|---|---|
+| `GET /api/v1/supply-requests/` | Bearer | — (requests whose `buyer_id` is the token user, all statuses) | `200` → `[SupplyRequestDTO]` | `401`; `403` suspended |
+| `POST /api/v1/supply-requests/` | Bearer | JSON: `product_name` (required, non-blank), `total_amount` (required, > 0); optional `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider`. Buyer = token user | `201` → `SupplyRequestDTO` | `400` blank `product_name`, `total_amount <= 0`, `request_deadline` after `delivery_deadline`, bad body; `401`; `403` suspended |
+| `GET /api/v1/supply-requests/available` | Bearer | — (open requests from *other* buyers with `actual_amount > 0`, minus any the caller already offered on) | `200` → `[SupplyRequestDTO]` | `401`; `403` suspended |
+| `GET /api/v1/supply-requests/{id}` | Bearer | path `id` (uuid) — any authenticated user, no ownership check | `200` → `SupplyRequestDTO` | `400` invalid uuid; `404` |
+| `PATCH /api/v1/supply-requests/{id}` | Bearer | path `id`; JSON: `SupplyGeneralUpdateDTO` — `product_name` and `total_amount` are **required** (the handler overwrites every other field, so omitting one zeroes it) | `200` `{}` | `400` validation; `403` not the buyer; `404`; `409` request not open |
+| `PATCH /api/v1/supply-requests/{id}/amounts` | Bearer | path `id`; JSON: `SupplyUpdateAmountsDTO` — `total_amount` (required, > 0), `actual_amount` (required, 0…`total_amount`) | `200` `{}` | `400` `actual_amount` out of range; `403` not the buyer; `404`; `409` request not open |
+| `PATCH /api/v1/supply-requests/{id}/deadlines` | Bearer | path `id`; JSON: `SupplyUpdateTimeDTO` — `request_deadline`, `delivery_deadline` | `200` `{}` | `400` `request_deadline` after `delivery_deadline`; `403` not the buyer; `404`; `409` request not open |
+| `POST /api/v1/supply-requests/{id}/cancel` | Bearer | path `id`; no body | `200` `{}` | `403` not the buyer; `404`; `409` not open, or an active match exists |
+| `POST /api/v1/supply-requests/{id}/expire` | Bearer | path `id`; no body | `200` `{}` | `403` not the buyer; `404`; `409` not open, or an active match exists |
+
+> Both amount-changing routes are additionally clamped against the amount already committed by active matches: `total_amount` may not drop below it, and `actual_amount` may not reach into it (`409 insufficient amount`). The three `PATCH` routes are not a full replacement — `Update` rewrites the whole row, `UpdateAmounts` and `UpdateDeadlines` touch only their own columns.
+
+### Supply offers
+
+| Route | Auth | Params / body | Success | Notable statuses |
+|---|---|---|---|---|
+| `GET /api/v1/supply-offers/` | Bearer | — (offers whose `supplier_id` is the token user, all statuses) | `200` → `[SupplyOfferDTO]` | `401`; `403` suspended |
+| `POST /api/v1/supply-offers/` | Bearer | JSON: `supply_request_id` (required, uuid), `total_amount` (required, > 0); optional `measurement`, `delivery_day`, `delivery_available`. Supplier = token user | `201` → `SupplyOfferDTO` | `400` missing request id / `total_amount <= 0` / below `min_amount_per_provider`; `401`; `403` offering on your own request; `404` unknown request; `409` request not open, duplicate offer from this supplier, active match on a single-provider request, or offer above the remaining amount |
+| `GET /api/v1/supply-offers/requests/{request_id}` | Bearer | path `request_id` (uuid) — **rejected offers are filtered out** | `200` → `[SupplyOfferDTO]` | `400` invalid uuid; `403` not the request's buyer; `404` |
+| `GET /api/v1/supply-offers/{id}` | Bearer | path `id` (uuid) — visible to the offer's supplier **or** the buyer of the underlying request | `200` → `SupplyOfferDTO` | `400` invalid uuid; `403` neither party; `404` |
+| `PATCH /api/v1/supply-offers/{id}` | Bearer | path `id`; JSON: `SupplyOfferUpdateDTO` — `total_amount` (required, > 0), `measurement`, `delivery_day`, `delivery_available` | `200` `{}` | `400` `total_amount <= 0` / below `min_amount_per_provider`; `403` not the supplier; `404`; `409` offer not active, or amount above the request's remaining amount |
+| `POST /api/v1/supply-offers/{id}/withdraw` | Bearer | path `id`; no body | `200` `{}` | `403` not the supplier; `404`; `409` offer not active |
+
+> One offer per supplier per request: a second `POST` on the same pair is `409 resource already exists`. The JSON keys here are the crossed ones — `measurement` (not `amount_unit`) and `delivery_day` (not `proposed_delivery_day`) — unlike the supply request DTOs, which were corrected. See the notes.
+
+### Matches
+
+| Route | Auth | Params / body | Success | Notable statuses |
+|---|---|---|---|---|
+| `POST /api/v1/matches/like/{offerID}` | Bearer | path `offerID` (uuid) — the buyer of the offer's request, no body | `201` → `MatchCreatedDTO` (`{match, transaction}`) | `400` invalid uuid; `403` not the request's buyer; `404` unknown offer; `409` offer not actionable, request not open, offer already matched, or amount above the remaining amount |
+| `POST /api/v1/matches/pass/{offerID}` | Bearer | path `offerID` (uuid) — the buyer, no body | `200` `{}` | `400` invalid uuid; `403` not the request's buyer; `404`; `409` offer not actionable |
+| `GET /api/v1/matches/requests/{requestID}` | Bearer | path `requestID` (uuid) — buyer only | `200` → `[MatchDTO]` | `400` invalid uuid; `403` not the buyer; `404` |
+| `GET /api/v1/matches/requests/{requestID}/prioritized` | Bearer | path `requestID` (uuid) — buyer only | `200` → `[PrioritizedOfferDTO]` (actionable offers, ranked) | `400` invalid uuid; `403` not the buyer; `404` |
+| `GET /api/v1/matches/{matchID}` | Bearer | path `matchID` (uuid) — buyer of the request or the matched supplier | `200` → `MatchDTO` | `400` invalid uuid; `403` neither party; `404` |
+
+> `like` is the only place a match *and* its transaction are created, and it does so as one unit of work: reservation, match, transaction and offer status all become visible or none do. On a `multiple_providers: false` request it is also the last one — the competing offers on that request are rejected in the same transaction. The `transaction` inside `MatchCreatedDTO` is a partial DTO (only `id`, `match_id`, `status`; every timestamp is `null` and `history` is `null`); read the full one from `GET /api/v1/transactions/matches/{match_id}`.
+
+`PrioritizedOfferDTO` is ordered by `score` descending, then by the offer's `created_at` ascending, then by id. The only configured factor is `availability` at weight `1` (`recommendation.go`, `DefaultScoreFactors`), so `score` currently equals `available_quantity`.
+
+### Recommendations
+
+| Route | Auth | Query params | Success | Notable statuses |
+|---|---|---|---|---|
+| `GET /api/v1/recommendations/availability` | Bearer | `supplier_id` (uuid, **required** and must equal the token user), `product_name` (required, non-blank) | `200` → `AvailabilityDTO` | `400` invalid/missing `supplier_id` or blank `product_name`; `403` `supplier_id` ≠ token user; `404` no inventory row for that supplier+product; `401` |
+
+> `available_quantity` is `inventory.quantity` minus the `matched_amount` of every active match of that supplier on the same product and the same `amount_unit`, floored at `0`. The `404` is deliberate on this route only: the internal helper swallows a missing inventory row and treats it as `0`, but the public read reports it.
+
+### Transactions
+
+Registered by the separate `RegisterTransactionRoutes` entry point, called on the same `chi.Mux` right after `NewRouter` (`cmd/api/main.go`), with the same `Authenticate` + `CheckSuspension` chain. Only the request's **buyer** and the matched offer's **supplier** are participants; anyone else gets `403`.
+
+| Route | Auth | Params / body | Success | Notable statuses |
+|---|---|---|---|---|
+| `GET /api/v1/transactions/matches/{match_id}` | Bearer | path `match_id` (uuid) — either participant | `200` → `TransactionDTO` | `400` invalid uuid; `403` not a participant; `404` |
+| `GET /api/v1/transactions/requests/{request_id}` | Bearer | path `request_id` (uuid) — the buyer sees all; a supplier sees only the transactions of their own matches | `200` → `[TransactionDTO]` | `400` invalid uuid; `403` not a participant, **and** `403` for a supplier whose filtered set comes out empty; `404` |
+| `POST /api/v1/transactions/{transaction_id}/confirm-start` | Bearer | path `transaction_id` (uuid); no body. Each participant calls it once | `200` `{}` | `400` invalid uuid; `403` not a participant; `404`; `409` wrong status (not `matched`), or this participant already confirmed |
+| `POST /api/v1/transactions/{transaction_id}/confirm-delivery` | Bearer | path `transaction_id` (uuid); no body. Each participant calls it once | `200` `{}` | `400` invalid uuid; `403` not a participant; `404`; `409` wrong status (not `in_progress`), or this participant already confirmed |
+| `POST /api/v1/transactions/{transaction_id}/cancel` | Bearer | path `transaction_id` (uuid); JSON: `{"reason": "..."}` — **required and non-blank** | `200` `{}` | `400` blank/missing `reason`; `403` not a participant; `404`; `409` transaction already completed or cancelled |
+
+> The status ladder is `0` matched → `1` in_progress → `2` completed, and it only advances when **both** participants have acted, so a single call is a no-op on the status. `confirm-delivery` runs as one unit of work with an auto-completion check: when the completed transactions of the request cover its `total_amount`, the request is completed and its `actual_amount` zeroed in the same transaction. `cancel` cascades the inverse atomically — transaction, match, the released `actual_amount`, and the matched offer returned to `status: 0`. None of the three takes a body other than `cancel`'s `reason`.
 
 ### Liquidations
 
@@ -397,6 +555,26 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `AuditLogResponse` | `id`, `actor_id`, `action`, `target_type`, `target_id`, `metadata?`, `created_at` |
 | Paginated reports / audit logs | `items`, `total`, `page`, `size` |
 | `SearchResponse` | `results` (`{id,name,description,price,type,image_url,farmer_id,farmer_name,farmer_verified,department,municipality,latitude,longitude}`), `total_hits`, `page`, `page_size`, `total_pages` |
+| `SupplyRequestDTO` | `id`, `buyer_id`, `product_name`, `total_amount`, `actual_amount`, `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider`, `status`, `created_at`, `updated_at` |
+| `SupplyGeneralUpdateDTO` (`PATCH /supply-requests/{id}`) | `id`, `product_name`, `total_amount`, `actual_amount`, `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider` |
+| `SupplyUpdateAmountsDTO` (`PATCH /supply-requests/{id}/amounts`) | `id`, `total_amount`, `actual_amount`, `amount_unit`, `amount_per_unit`, `unit_of_measure`, `multiple_providers`, `min_amount_per_provider` |
+| `SupplyUpdateTimeDTO` (`PATCH /supply-requests/{id}/deadlines`) | `id`, `request_deadline`, `delivery_deadline` |
+| `SupplyOfferDTO` | `id`, `supplier_id`, `supply_request_id`, `total_amount`, `measurement`, `delivery_day`, `delivery_available`, `status`, `created_at`, `updated_at` |
+| `SupplyOfferUpdateDTO` (`PATCH /supply-offers/{id}`) | `total_amount`, `measurement`, `delivery_day`, `delivery_available` |
+| `MatchDTO` | `id`, `supply_offer`, `supply_request`, `status`, `matched_amount`, `amount_unit`, `created_at`, `updated_at` |
+| `MatchCreatedDTO` (`POST /matches/like/{offerID}`) | `match` (`MatchDTO`), `transaction` (`TransactionDTO`, partial — see the Matches notes) |
+| `TransactionDTO` | `id`, `match_id`, `status`, `buyer_start_confirmed_at`, `supplier_start_confirmed_at`, `buyer_delivery_confirmed_at`, `supplier_delivery_confirmed_at`, `cancelled_by`, `cancel_reason`, `created_at`, `updated_at`, `history` |
+| `TransactionHistoryEntryDTO` (inside `history`) | `status`, `at`, `cancel_reason?`, `cancelled_by?` |
+| `TransactionCancelDTO` (`POST /transactions/{id}/cancel`) | `reason` |
+| `PrioritizedOfferDTO` | `offer` (`SupplyOfferDTO`), `score`, `available_quantity`, `contributions` |
+| `ScoreContributionDTO` (inside `contributions`) | `factor`, `weight`, `score`, `weighted_score` |
+| `AvailabilityDTO` | `supplier_id`, `product_name`, `available_quantity` |
+
+### Money, units and the `address` object
+
+- **Amounts are `float64`.** Every amount, score and quantity on this surface is an IEEE-754 double, serialized as a JSON number — not a fixed-point or minor-unit integer. `SupplyRequestDTO` carries both `total_amount` (what the buyer asked for) and `actual_amount` (what is still **un-reserved**); `actual_amount` starts equal to `total_amount`, drops by every `matched_amount`, comes back up on a transaction cancel, and is zeroed when the request completes.
+- **`amount_unit` vs `unit_of_measure`.** Both are the same `MeasurementOptions` enum (`0` Kg, `1` Lb, `2` Tn). `amount_unit` is the unit the amounts are counted in; `unit_of_measure` is the unit of the physical goods.
+- **`address` has no JSON tags.** `domain.Address` declares no struct tags and no custom marshaler, so the object serializes with its **Go field names**: `{"ID","Department","Municipality","AddressLine","Latitude","Longitude"}` — capitalized, unlike every other key in this document. See the notes.
 
 ---
 
@@ -404,22 +582,32 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in this document is a route that is not registered there.
 
-- [ ] **Route count:** `router.go` has **44** route registrations; `chi` resolves them into **43** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`).
-- [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing.
+- [ ] **Route count:** `router.go` has **70** route registrations; `chi` resolves them into **69** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **65** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:178` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted.
+- [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:72` and `router.go:73`.
 - [ ] **No ownership check on offering delete.** `OfferingUseCase.DeleteOffering` never inspects the principal, so any authenticated (non-suspended) user can delete any offering through that PATCH route. The admin route `DELETE /admin/offerings/{id}` is the audited path.
 - [ ] **`PATCH /api/v1/inquiries/{id}` has no ownership check** either — any authenticated user can change any inquiry's status.
 - [ ] **Handler bugs worth knowing:** `OfferingHandler.DeleteOffering` writes a `400` for an invalid uuid but does not `return`, producing a second response write; `POST /api/v1/messages/` and several other creates answer `201` with an empty `{}` body; `DELETE /admin/offerings/{id}` answers `204` while still writing a `{}` body.
 - [ ] **Several domain errors surface as `500`** instead of `400` because they are plain `fmt.Errorf`/unlisted sentinels (report reason length, invalid report/suspend `action`, liquidation quantity/status rules).
-- [ ] **Trailing slashes matter** for `POST /api/v1/offerings/create2/` (registered with a trailing slash). The collection routes (`/companies/`, `/offerings/`, `/reviews/`, `/inquiries/`, `/liquidations/`, `/reports/`, `/conversations/`, `/messages/`) also answer without the trailing slash thanks to chi's mount behavior.
-- [ ] **Ordering matters** where static and parameterized paths coexist: `GET /liquidations/open` wins over `GET /liquidations/{id}`, and `GET /inquiries/company/{company_id}` wins over `GET /inquiries/{id}` (chi matches static segments first).
+- [ ] **Breaking change — the supply request JSON keys were renamed.** `dto.SupplyRequestDTO`, `SupplyGeneralUpdateDTO` and `SupplyUpdateAmountsDTO` previously exposed crossed and misspelled keys, and the crossed pair was a duplicate-key bug: `amount_measure` for the enum, `amount_unit` for the per-unit float, `unit_measure`, plus `numer_units`, `Addrres` and `min_amount_provider`. They are now `amount_unit` (the enum), `amount_per_unit`, `number_of_units`, `unit_of_measure`, `address` and `min_amount_per_provider` — the snake_case of the Go field. Clients written against the old contract must be updated; `git show eae0fd8 -- server/aplication/dto/SupplyRequest.go` is the exact diff.
+- [ ] **Known inconsistency — `SupplyOfferDTO` was not renamed with it.** The offer side still carries the crossed keys: `AmountUnit` serializes as `measurement` and `ProposedDeliveryDay` as `delivery_day` (`aplication/dto/SupplyOffer.go:15-16`, and the same pair in `SupplyOfferUpdateDTO` at :25-26). This is documented as-is, not as a bug to expect to be fixed: reading an offer's unit means reading `measurement`, and the request it belongs to uses `amount_unit` for the same enum.
+- [ ] **`address` serializes with Go field names.** `domain.Address` carries no JSON tags and no custom marshaler, so `SupplyRequestDTO.address` is `{"ID","Department","Municipality","AddressLine","Latitude","Longitude"}` — capitalized, unlike every other key here. A client that lowercases keys will silently read an all-zero object.
+- [ ] **The availability endpoint enforces ownership, and that is deliberate.** `GET /api/v1/recommendations/availability` requires `supplier_id` to equal the token user, so it answers `403` for anyone else (`use-cases/recommendation.go:77-79`). The internal helper `availableQuantity` stays ungated on purpose (comment at :74-76): the buyer of a request is entitled to see a candidate supplier's stock, and that buyer reads it through `GET /api/v1/matches/requests/{requestID}/prioritized`, which calls `RankOffers` with `strictNotFound = false` (:110) instead of the public read's `true` (:81). Two consequences: a supplier with no inventory row gets `404` on the public route but is ranked with `available_quantity: 0` on the buyer's route.
+- [ ] **A buyer's offer list no longer shows passed offers.** `GET /api/v1/supply-offers/requests/{request_id}` — the buyer's view of the offers on one of their own requests — filters out `status: 2` (rejected), because re-surfacing a declined supplier would let the buyer pick the same one again on a request they already passed (`use-cases/supply_offer.go:179-184`). A **matched** offer is deliberately still listed, since the buyer must keep seeing the offer they committed to. Note the path: offers hang off `/supply-offers/requests/{request_id}`, **not** off `/supply-requests/{id}/offers`, which is not a registered route.
+- [ ] **`Expire` refuses a request with an active match, exactly like `Cancel`.** `POST /api/v1/supply-requests/{id}/expire` returns `primary.ErrActiveMatch` when `ExistsActiveByRequest` is true (`use-cases/supply_request.go:253-259`), the same sentinel `Cancel` returns at :229-235. `handleSupplyError` maps it to **`409 {"error":"supply request already has an active match"}`** — the conflict list is shared, not per-handler. Both routes also return `409 invalid supply request status` when the request is not open.
+- [ ] **Money is `float64` in JSON, and that is not a defect.** Every amount, quantity and score on the supply-chain surface is an IEEE-754 double, not a fixed-point value. Two things consumers should know: `SupplyRequestDTO` carries both `total_amount` and `actual_amount`, where `actual_amount` is the **remaining un-reserved** amount (not a delivery total); and completion writes `actual_amount = 0` explicitly rather than leaving the residue of subtracting fractions one at a time, so a completed request reads an exact `0`.
+- [ ] **Availability is read-only over the API.** `SupplierInventoryRepositoryImpl` has full `Create`/`Update`/`Delete` (`repository/supplier_inventory.go:37,120,138`) but **no route is registered for any of them** — the only inventory surface is `GET /api/v1/recommendations/availability`. Availability figures therefore reflect whatever was seeded out of band, and there is no way to correct them from the API.
+- [ ] **`repository.ErrAmountConstraint` is unmapped.** The `ck_supply_requests_amounts` CHECK violation is a deliberate, diagnosable sentinel (`repository/supply_request.go:25`), but it appears in no handler conflict list and in no `httpx.StatusCode` case, so if it ever reaches the boundary it is logged and answered as `500 internal server error`. The same holds for `ErrInsufficientAmount` on the transaction routes, whose `409` set omits it (`handler/transaction.go:107-118`).
+- [ ] **Trailing slashes matter** for `POST /api/v1/offerings/create2/` (registered with a trailing slash). The collection routes (`/companies/`, `/offerings/`, `/reviews/`, `/inquiries/`, `/liquidations/`, `/reports/`, `/conversations/`, `/messages/`, `/supply-requests/`, `/supply-offers/`) also answer without the trailing slash thanks to chi's mount behavior.
+- [ ] **Ordering matters** where static and parameterized paths coexist: `GET /liquidations/open` wins over `GET /liquidations/{id}`, `GET /inquiries/company/{company_id}` wins over `GET /inquiries/{id}`, and `GET /supply-requests/available` wins over `GET /supply-requests/{id}` (chi matches static segments first). The supply-offer and match groups avoid the problem by arity: `/supply-offers/requests/{request_id}` and `/matches/requests/{requestID}` are two segments where `/{id}` is one.
 - [ ] **Images:** the stored/read filename comes from the multipart upload's original name and is joined onto `./uploads`; treat `GET /images/{filename}` as serving only single-segment names.
 
 ### Server facts
 
 | Item | Value |
 |---|---|
-| Port | `SERVER_PORT`, default `8080` (`server/cmd/api/main.go`) |
+| Port | `SERVER_PORT`, default `8080` (`server/cmd/api/main.go:81-84`) |
 | Required env | `JWT_SECRET` (fatal if missing), Postgres (`POSTGRES_*`, `DB_SSLMODE`), Redis (`REDIS_URL`/`REDIS_HOST`+`REDIS_PORT`), Elasticsearch (`ESCLIENT_*`) |
-| Timeouts | read 10 s, write 15 s, idle 60 s |
-| Migrations | run automatically at startup |
-| Image store | local directory `./uploads` |
+| Timeouts | read 10 s, write 15 s, idle 60 s (`main.go:183-185`) |
+| Migrations | run automatically at startup and **embedded in the binary** — `//go:embed migrations/*.sql` (`repository/migrations.go:19`) read through the `iofs` source driver (`database/migrate.go`, `NewMigrationSource`). No working directory and no on-disk migration path is involved, so the server boots from any directory. |
+| Image store | local directory `./uploads` (`main.go:148`) |
+| Transactions | registered outside `NewRouter` by `api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)` (`main.go:178`) |
