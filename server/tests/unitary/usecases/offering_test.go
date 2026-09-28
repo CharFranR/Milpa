@@ -259,8 +259,10 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 
 	tests := []struct {
 		name      string
+		ctx       context.Context
 		req       dto.UpdateOfferingRequest
 		repoErr   error
+		deleteErr error
 		wantErr   error
 		wantType  domain.OfferingType
 		wantName  string
@@ -268,9 +270,12 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 		wantPrice float64
 		wantImage string
 	}{
-		{name: "no fields", req: dto.UpdateOfferingRequest{}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "unauthenticated", ctx: context.Background(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantErr: auth.ErrUnauthenticated},
+		{name: "foreign user", ctx: principalCtxFor(testOtherID), req: dto.UpdateOfferingRequest{Name: strPtr("Hijacked")}, wantErr: domain.ErrForbidden},
+		{name: "no fields", ctx: principalCtx(), req: dto.UpdateOfferingRequest{}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
 		{
 			name:      "all fields",
+			ctx:       principalCtx(),
 			req:       dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService), Name: strPtr("Delivery"), Description: strPtr("Fast delivery"), Price: floatPtr(25.0), ImageURL: strPtr("http://img.milpa.com/delivery.png")},
 			wantType:  domain.OfferingService,
 			wantName:  "Delivery",
@@ -278,14 +283,15 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 			wantPrice: 25.0,
 			wantImage: "http://img.milpa.com/delivery.png",
 		},
-		{name: "type only", req: dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService)}, wantType: domain.OfferingService, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "name only", req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantType: domain.OfferingProduct, wantName: "Delivery", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "description only", req: dto.UpdateOfferingRequest{Description: strPtr("Fast delivery")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fast delivery", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "price only", req: dto.UpdateOfferingRequest{Price: floatPtr(25.0)}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 25.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "image only", req: dto.UpdateOfferingRequest{ImageURL: strPtr("http://img.milpa.com/delivery.png")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://img.milpa.com/delivery.png"},
-		{name: "invalid price", req: dto.UpdateOfferingRequest{Price: floatPtr(0)}, wantErr: domain.ErrInvalidPrice},
-		{name: "repo error", req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: errFake, wantErr: errFake},
-		{name: "not found", req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "type only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService)}, wantType: domain.OfferingService, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "name only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantType: domain.OfferingProduct, wantName: "Delivery", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "description only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Description: strPtr("Fast delivery")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fast delivery", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "price only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(25.0)}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 25.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "image only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{ImageURL: strPtr("http://img.milpa.com/delivery.png")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://img.milpa.com/delivery.png"},
+		{name: "admin may update any offering", ctx: reportAdminCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Moderated")}, wantType: domain.OfferingProduct, wantName: "Moderated", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "invalid price", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(0)}, wantErr: domain.ErrInvalidPrice},
+		{name: "repo error", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: errFake, wantErr: errFake},
+		{name: "not found", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
 	}
 
 	for _, tt := range tests {
@@ -300,7 +306,12 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 			}
 			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			err := uc.UpdateOffering(context.Background(), testOfferingID, tt.req)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = principalCtx()
+			}
+
+			err := uc.UpdateOffering(ctx, testOfferingID, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {

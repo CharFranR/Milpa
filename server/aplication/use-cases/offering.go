@@ -105,8 +105,20 @@ func (uc *OfferingUseCaseImpl) GetByUserID(ctx context.Context, UserID uuid.UUID
 }
 
 func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID, req dto.UpdateOfferingRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
 	offering, err := uc.offeringRepo.FindByID(ctx, id)
 	if err != nil {
+		return err
+	}
+
+	// Authentication alone is not authorisation: behind this route any valid
+	// token reaches the handler, so without the ownership check one farmer could
+	// rewrite another's product.
+	if err := requireOfferingOwner(principal, offering); err != nil {
 		return err
 	}
 
@@ -151,8 +163,24 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 }
 
 func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
 
-	err := uc.offeringRepo.Delete(ctx, id)
+	// The offering has to be loaded to know who owns it. Doing so also turns a
+	// delete of an id that does not exist into ErrNotFound instead of a silent
+	// success, which is the error the moderation caller already handles.
+	offering, err := uc.offeringRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := requireOfferingOwner(principal, offering); err != nil {
+		return err
+	}
+
+	err = uc.offeringRepo.Delete(ctx, id)
 
 	if err != nil {
 		return fmt.Errorf("Offering Delete error: %w", err)
@@ -166,6 +194,18 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 
 	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
+	return nil
+}
+
+// requireOfferingOwner refuses a caller that does not own the offering.
+//
+// An admin is allowed through because the moderation endpoint
+// (DELETE /api/v1/admin/offerings/{id}) delegates here; without that carve-out
+// the admin delete would start failing the moment ownership was checked.
+func requireOfferingOwner(principal auth.Principal, offering *domain.Offering) error {
+	if offering.UserID != principal.UserID && principal.Role != domain.RoleAdmin {
+		return domain.ErrForbidden
+	}
 	return nil
 }
 
