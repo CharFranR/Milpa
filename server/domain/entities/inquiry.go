@@ -39,7 +39,7 @@ func NewInquiry(userID, offeringID uuid.UUID, message string, now time.Time) (*I
 		OfferingID: offeringID,
 		Message:    message,
 		Status:     InquiryPending,
-		CreatedAt: now,
+		CreatedAt:  now,
 	}, nil
 }
 

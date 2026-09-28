@@ -136,12 +136,22 @@ func (f *fakeMatchSupplyRequestRepo) Reserve(ctx context.Context, id uuid.UUID, 
 	return f.update(ctx, &current)
 }
 
+// Release mirrors the bare SQL addition and refuses an over-release the way
+// ck_supply_requests_amounts refuses it. The error stays local to this package
+// on purpose: nothing in the use case layer branches on it, and importing the
+// postgres adapter just to name it would pull infrastructure into a unit test
+// that is built on fakes precisely to stay free of it.
 func (f *fakeMatchSupplyRequestRepo) Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
 	current, err := f.getByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	current.ActualAmount = min(current.ActualAmount+amount, current.TotalAmount)
+	released := current.ActualAmount + amount
+	if released > current.TotalAmount || released < 0 {
+		return fmt.Errorf("fakeMatchSupplyRequestRepo.Release: releasing %v from %v over total %v",
+			amount, current.ActualAmount, current.TotalAmount)
+	}
+	current.ActualAmount = released
 	current.UpdatedAt = at
 	return f.update(ctx, &current)
 }
@@ -152,6 +162,17 @@ func (f *fakeMatchSupplyRequestRepo) UpdateStatus(ctx context.Context, id uuid.U
 		return err
 	}
 	current.Status = status
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeMatchSupplyRequestRepo) UpdateCompletion(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	current, err := f.getByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	current.Status = status
+	current.ActualAmount = 0
 	current.UpdatedAt = at
 	return f.update(ctx, &current)
 }

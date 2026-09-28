@@ -17,12 +17,12 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		ctx     context.Context
-		req     dto.CreateOfferingRequest
-		userErr error
-		saveErr error
-		wantErr error
+		name      string
+		ctx       context.Context
+		req       dto.CreateOfferingRequest
+		userErr   error
+		saveErr   error
+		wantErr   error
 		wantPrice float64
 	}{
 		{

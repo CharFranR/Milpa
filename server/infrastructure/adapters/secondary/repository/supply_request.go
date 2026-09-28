@@ -8,10 +8,28 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	domain "milpa/domain/entities"
 	port "milpa/domain/port/secondary"
 )
+
+// ErrAmountConstraint reports that PostgreSQL refused a write because it would
+// have violated ck_supply_requests_amounts
+// (total_amount >= 0 AND actual_amount >= 0 AND actual_amount <= total_amount).
+//
+// It exists so a caller can tell "the database rejected this arithmetic" apart
+// from an opaque driver failure with errors.Is, while the wrapped *pgconn.PgError
+// stays in the chain for anyone who needs the constraint name PostgreSQL
+// reported.
+var ErrAmountConstraint = errors.New("supply request amount constraint violated")
+
+// isCheckViolation mirrors isUniqueViolation for SQLSTATE 23514 (check_violation),
+// the class of failure the amount CHECK constraint raises.
+func isCheckViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23514"
+}
 
 // SupplyRequestRepositoryImpl keeps a DB and not a Querier: Create and Update
 // both touch addresses and supply_requests, so each of them opens its own
@@ -291,16 +309,29 @@ func (r *SupplyRequestRepositoryImpl) Reserve(ctx context.Context, id uuid.UUID,
 	return nil
 }
 
-// Release gives amount back to actual_amount, clamped to total_amount so a
-// double release can never inflate the request beyond what was asked for.
+// Release gives amount back to actual_amount.
+//
+// It is a plain addition on purpose. The statement used to clamp with
+// LEAST(actual_amount + $1, total_amount), which meant a double release was an
+// invisible no-op: the write succeeded, no error surfaced anywhere, and the only
+// symptom was an actual_amount that quietly disagreed with the transaction log.
+// Once ck_supply_requests_amounts exists, the clamp is redundant for every
+// legitimate path (Reserve is guarded by actual_amount >= amount and the request
+// row is locked for the whole unit of work) and actively harmful for the
+// illegitimate one, so the addition is left bare and the CHECK constraint is
+// allowed to reject an over-release as the corruption it is.
 func (r *SupplyRequestRepositoryImpl) Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
 	query := `
 		UPDATE supply_requests
-		SET actual_amount = LEAST(actual_amount + $1, total_amount), updated_at = $2
+		SET actual_amount = actual_amount + $1, updated_at = $2
 		WHERE id = $3
 	`
 
 	if _, err := r.pool.Exec(ctx, query, amount, at, id); err != nil {
+		if isCheckViolation(err) {
+			return fmt.Errorf("supplyRequest.Release: releasing %v would push actual_amount past total_amount: %w: %w",
+				amount, ErrAmountConstraint, err)
+		}
 		return fmt.Errorf("supplyRequest.Release: %w", err)
 	}
 
@@ -320,6 +351,35 @@ func (r *SupplyRequestRepositoryImpl) UpdateStatus(ctx context.Context, id uuid.
 
 	if _, err := r.pool.Exec(ctx, query, status, at, id); err != nil {
 		return fmt.Errorf("supplyRequest.UpdateStatus: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateCompletion closes out a fulfilled request by writing status, zeroing
+// actual_amount and stamping updated_at in a single statement.
+//
+// It stays narrow on purpose, naming the three columns it owns. A full-row
+// write here would reintroduce the lost update this refactor exists to remove:
+// the caller is inside a unit of work that read actual_amount at the start of
+// its transaction, and pushing that snapshot back over the row would discard
+// any concurrent change. Status plus the zeroing is all completion requires.
+//
+// The zeroing is a real semantic statement, not cosmetics. Accumulating
+// fractional reservations in a DOUBLE PRECISION column leaves an IEEE-754
+// residue, so actual_amount drifts to 2.220446049250313e-16 for a 2.7 request
+// filled by three 0.9 deliveries and can never land on an exact zero by
+// subtraction. A completed request has nothing left to fulfil, so the column
+// is set rather than approximated.
+func (r *SupplyRequestRepositoryImpl) UpdateCompletion(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	query := `
+		UPDATE supply_requests
+		SET status = $1, actual_amount = 0, updated_at = $2
+		WHERE id = $3
+	`
+
+	if _, err := r.pool.Exec(ctx, query, status, at, id); err != nil {
+		return fmt.Errorf("supplyRequest.UpdateCompletion: %w", err)
 	}
 
 	return nil

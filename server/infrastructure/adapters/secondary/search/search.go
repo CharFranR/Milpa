@@ -89,8 +89,8 @@ func (E *ElasticSearchImpl) buildQuery(query *dto.SearchQuery) map[string]interf
 	if query.Term != "" {
 		mustClauses = append(mustClauses, map[string]interface{}{
 			"multi_match": map[string]interface{}{
-				"query":    query.Term,
-				"fields":   []string{"name^3", "description", "farmer_name"},
+				"query":     query.Term,
+				"fields":    []string{"name^3", "description", "farmer_name"},
 				"fuzziness": "AUTO",
 			},
 		})
@@ -160,10 +160,10 @@ func (E *ElasticSearchImpl) buildQuery(query *dto.SearchQuery) map[string]interf
 		queryBody = map[string]interface{}{
 			"query": map[string]interface{}{
 				"function_score": map[string]interface{}{
-					"query":       map[string]interface{}{"bool": boolQuery},
-					"functions":   functions,
-					"score_mode":  "sum",
-					"boost_mode":  "multiply",
+					"query":      map[string]interface{}{"bool": boolQuery},
+					"functions":  functions,
+					"score_mode": "sum",
+					"boost_mode": "multiply",
 				},
 			},
 		}

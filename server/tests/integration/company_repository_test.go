@@ -222,16 +222,16 @@ func TestCompanyFindByOwner(t *testing.T) {
 	}
 
 	tests := []struct {
-		Name         string
-		OwnerID      uuid.UUID
-		ExpectedLen  int
-		ExpectedErr  error
+		Name          string
+		OwnerID       uuid.UUID
+		ExpectedLen   int
+		ExpectedErr   error
 		ExpectedNames []string
 	}{
 		{
-			Name:         "Owner with companies",
-			OwnerID:      testOwnerID,
-			ExpectedLen:  2,
+			Name:          "Owner with companies",
+			OwnerID:       testOwnerID,
+			ExpectedLen:   2,
 			ExpectedNames: []string{"Empresa Uno", "Empresa Dos"},
 		},
 		{

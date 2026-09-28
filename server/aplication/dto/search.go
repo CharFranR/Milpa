@@ -74,9 +74,9 @@ type SearchPagination struct {
 // ScoreRule — relevance decision owned by the application layer.
 // The adapter translates this into ES function_score without interpreting it.
 type ScoreRule struct {
-	Field  string  // document field to match (e.g. "farmer_verified")
-	Value  any     // value to match (e.g. true)
-	Boost  float64 // score multiplier (e.g. 1.5)
+	Field string  // document field to match (e.g. "farmer_verified")
+	Value any     // value to match (e.g. true)
+	Boost float64 // score multiplier (e.g. 1.5)
 }
 
 // paginated response

@@ -25,12 +25,30 @@ type RequestReservationStore interface {
 	// at least that much. It returns domain.ErrInsufficientAmount when the
 	// statement affects no row.
 	Reserve(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error
-	// Release adds amount back to actual_amount, clamped to total_amount.
+	// Release adds amount back to actual_amount as a plain addition. The
+	// ck_supply_requests_amounts CHECK constraint is what rejects an
+	// over-release, so the statement must not hide one by clamping.
 	Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error
 	// UpdateStatus writes only status and updated_at. A full-row rewrite would
 	// overwrite concurrent actual_amount changes with the value this unit of
 	// work happened to read, so the auto-close path must not use it.
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error
+	// UpdateCompletion writes status, zeroes actual_amount and stamps updated_at
+	// in one statement, for the moment a request is fully fulfilled.
+	//
+	// It is deliberately narrow for the same reason UpdateStatus is: it names
+	// the three columns it owns and touches nothing else. A full-row write here
+	// would reintroduce the lost update the whole unit-of-work refactor exists
+	// to remove, because the caller is holding a snapshot of actual_amount read
+	// at the start of its transaction.
+	//
+	// Zeroing actual_amount is the point of the extra column rather than a
+	// cosmetic tidy-up. A completed request has nothing left to fulfil, but
+	// subtracting N fractional amounts from a DOUBLE PRECISION column leaves an
+	// IEEE-754 residue (2.7 - 0.9 - 0.9 - 0.9 is 2.220446049250313e-16, not 0),
+	// so the value can never reach an exact zero on its own and any exact
+	// comparison against it would be permanently flaky.
+	UpdateCompletion(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error
 }
 
 // TxOfferRepository, TxMatchRepository and TxTransactionRepository widen the

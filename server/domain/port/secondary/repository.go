@@ -133,7 +133,6 @@ type TransactionRepository interface {
 	Create(ctx context.Context, transaction *domain.Transaction) error
 	List(ctx context.Context, matchID uuid.UUID) ([]domain.Transaction, error)
 	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Transaction, error)
-	ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Transaction, error)
 	GetByMatch(ctx context.Context, matchID uuid.UUID) (domain.Transaction, error)
 	GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
 	Update(ctx context.Context, transaction *domain.Transaction) error
