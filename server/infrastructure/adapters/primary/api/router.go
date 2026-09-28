@@ -27,6 +27,10 @@ func NewRouter(
 	conversation *handler.ConversationHandler,
 	message *handler.MessageHandler,
 	chat *ws.Handler,
+	supplyRequest *handler.SupplyRequestHandler,
+	supplyOffer *handler.SupplyOfferHandler,
+	match *handler.MatchHandler,
+	recommendation *handler.RecommendationHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -114,6 +118,39 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", message.Delete)
 		})
 
+		r.Route("/supply-requests", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", supplyRequest.List)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", supplyRequest.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/available", supplyRequest.ListAvailable)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyRequest.GetByID)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyRequest.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/amounts", supplyRequest.UpdateAmounts)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/deadlines", supplyRequest.UpdateDeadlines)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/cancel", supplyRequest.Cancel)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/expire", supplyRequest.Expire)
+		})
+
+		r.Route("/supply-offers", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", supplyOffer.ListBySupplier)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", supplyOffer.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{request_id}", supplyOffer.ListByRequest)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyOffer.GetByID)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyOffer.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{id}/withdraw", supplyOffer.Withdraw)
+		})
+
+		r.Route("/matches", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/like/{offerID}", match.Like)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/pass/{offerID}", match.Pass)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}", match.ListByRequest)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}/prioritized", match.ListPrioritized)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{matchID}", match.GetByID)
+		})
+
+		r.Route("/recommendations", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/availability", recommendation.Availability)
+		})
+
 		r.Route("/ws", func(r chi.Router) {
 			r.With(authMW.AuthenticateWebSocket, suspensionMW.CheckSuspension).Get("/{conversationID}", chat.WSHandler)
 		})
@@ -126,4 +163,19 @@ func NewRouter(
 	})
 
 	return r
+}
+
+func RegisterTransactionRoutes(
+	r chi.Router,
+	transaction *handler.TransactionHandler,
+	authMW *middleware.AuthMiddleware,
+	suspensionMW *middleware.SuspensionMiddleware,
+) {
+	r.Route("/api/v1/transactions", func(r chi.Router) {
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/matches/{match_id}", transaction.GetByMatch)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{request_id}", transaction.ListByRequest)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/confirm-start", transaction.ConfirmStart)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/confirm-delivery", transaction.ConfirmDelivery)
+		r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/{transaction_id}/cancel", transaction.Cancel)
+	})
 }

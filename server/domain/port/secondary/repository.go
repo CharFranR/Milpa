@@ -98,16 +98,19 @@ type MessageRepository interface {
 }
 
 type SupplyOfferRepository interface {
-	Create(ctx context.Context, SupplyOffer *domain.SupplyOffer) error
+	Create(ctx context.Context, supplyOffer *domain.SupplyOffer) error
 	List(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplyOffer, error)
-	GetByID(ctx context.Context, SupplyOfferId uuid.UUID) (domain.SupplyOffer, error)
-	Update(ctx context.Context, SuplyOffer *domain.SupplyOffer) error
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.SupplyOffer, error)
+	FindBySupplierAndRequest(ctx context.Context, supplierID, supplyRequestID uuid.UUID) (domain.SupplyOffer, error)
+	GetByID(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error)
+	Update(ctx context.Context, supplyOffer *domain.SupplyOffer) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type SupplyRequestRepository interface {
 	Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error
 	List(ctx context.Context, buyerID uuid.UUID) ([]domain.SupplyRequest, error)
+	ListOpen(ctx context.Context) ([]domain.SupplyRequest, error)
 	GetByID(ctx context.Context, supplyRequest uuid.UUID) (domain.SupplyRequest, error)
 	Update(ctx context.Context, suplyRequest *domain.SupplyRequest) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -117,6 +120,10 @@ type MatchRepository interface {
 	Create(ctx context.Context, match *domain.Match) error
 	ListByOffer(ctx context.Context, supplyOfferID uuid.UUID) ([]domain.Match, error)
 	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
+	ListActiveByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
+	ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error)
+	ExistsActiveByRequest(ctx context.Context, supplyRequestID uuid.UUID) (bool, error)
+	ExistsActiveByOffer(ctx context.Context, supplyOfferID uuid.UUID) (bool, error)
 	GetByID(ctx context.Context, matchID uuid.UUID) (*domain.Match, error)
 	Update(ctx context.Context, match *domain.Match) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -125,7 +132,19 @@ type MatchRepository interface {
 type TransactionRepository interface {
 	Create(ctx context.Context, transaction *domain.Transaction) error
 	List(ctx context.Context, matchID uuid.UUID) ([]domain.Transaction, error)
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Transaction, error)
+	ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Transaction, error)
+	GetByMatch(ctx context.Context, matchID uuid.UUID) (domain.Transaction, error)
 	GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
 	Update(ctx context.Context, transaction *domain.Transaction) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type SupplierInventoryRepository interface {
+	Create(ctx context.Context, inventory *domain.SupplierInventory) error
+	ListBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplierInventory, error)
+	FindBySupplierAndProduct(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error)
+	GetByID(ctx context.Context, id uuid.UUID) (domain.SupplierInventory, error)
+	Update(ctx context.Context, inventory *domain.SupplierInventory) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }

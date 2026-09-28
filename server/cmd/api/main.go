@@ -98,6 +98,12 @@ func main() {
 	auditLogRepo := repo.NewAuditLogRepository(pool)
 	conversationRepo := repo.NewConverationImpl(pool)
 	messageRepo := repo.NewMessageRepositoryImpl(pool)
+	supplyRequestRepo := repo.NewSupplyRequestRepository(pool)
+	supplyOfferRepo := repo.NewSupplyOfferRepository(pool)
+	matchRepo := repo.NewMatchRepository(pool)
+	transactionRepo := repo.NewTransactionRepository(pool)
+	supplierInventoryRepo := repo.NewSupplierInventoryRepository(pool)
+	unitOfWork := repo.NewUnitOfWork(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -122,6 +128,13 @@ func main() {
 
 	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
 	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
+	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
+
+	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
+	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
+
+	var recommendationUC primary.RecommendationUseCase = usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors())
+	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
@@ -147,6 +160,11 @@ func main() {
 	moderationHandler := handler.NewModerationHandler(moderationUC)
 	conversationHandler := handler.NewConversationHandler(conversationUC)
 	messageHandler := handler.NewMessageHandler(messageUC)
+	supplyRequestHandler := handler.NewSupplyRequestHandler(supplyRequestUC)
+	supplyOfferHandler := handler.NewSupplyOfferHandler(supplyOfferUC)
+	matchHandler := handler.NewMatchHandler(matchUC)
+	recommendationHandler := handler.NewRecommendationHandler(recommendationUC)
+	transactionHandler := handler.NewTransactionHandler(transactionUC)
 
 	hub := ws.NewHub()
 	go hub.Run()
@@ -156,7 +174,8 @@ func main() {
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, matchHandler, recommendationHandler)
+	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,

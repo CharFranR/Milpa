@@ -6,12 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
-type MatchStatusOptions int
+type MatchStatus int
 
 const (
-	Pending MatchStatusOptions = iota
-	Active
-	Cancelled
+	MatchActive MatchStatus = iota
+	MatchCancelled
 )
 
 type Match struct {
@@ -19,22 +18,48 @@ type Match struct {
 	SupplyOffer   uuid.UUID
 	SupplyRequest uuid.UUID
 
-	Status MatchStatusOptions
+	Status MatchStatus
 
-	MatchedAmount float32
+	MatchedAmount float64
 	AmountUnit    MeasurementOptions
 
-	Created_at time.Time
-	Updated_at time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
-func NewMatch(id uuid.UUID, supplyOffer uuid.UUID, supplyRequest uuid.UUID, status MatchStatusOptions) *Match {
+func NewMatch(supplyOffer uuid.UUID, supplyRequest uuid.UUID, matchedAmount float64, unit MeasurementOptions) *Match {
 	return &Match{
-		ID:            id,
+		ID:            uuid.New(),
 		SupplyOffer:   supplyOffer,
 		SupplyRequest: supplyRequest,
-		Status:        status,
-		Created_at:    time.Now(),
-		Updated_at:    time.Now(),
+		Status:        MatchActive,
+		MatchedAmount: matchedAmount,
+		AmountUnit:    unit,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+}
+
+func (m Match) IsActive() bool {
+	return m.Status == MatchActive
+}
+
+func (m *Match) Cancel() error {
+	if m.Status != MatchActive {
+		return ErrInvalidMatchStatus
+	}
+	m.Status = MatchCancelled
+	m.UpdatedAt = time.Now()
+	return nil
+}
+
+func (m MatchStatus) String() string {
+	switch m {
+	case MatchActive:
+		return "active"
+	case MatchCancelled:
+		return "cancelled"
+	default:
+		return "unknown"
 	}
 }
