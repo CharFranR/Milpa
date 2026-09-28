@@ -27,7 +27,7 @@ type SupplyOffer struct {
 	ID            uuid.UUID
 	SupplierID    uuid.UUID
 	SupplyRequest uuid.UUID
-	TotalAmount   float32
+	TotalAmount   float64
 	AmountUnit    MeasurementOptions
 
 	ProposedDeliveryDay time.Time
@@ -39,7 +39,7 @@ type SupplyOffer struct {
 }
 
 func NewSupplyOffer(
-	SupplierID uuid.UUID, SupplyRequest uuid.UUID, TotalAmount float32, AmountUnit MeasurementOptions, ProposedDeliveryDay time.Time, DeliveryAvailable bool,
+	SupplierID uuid.UUID, SupplyRequest uuid.UUID, TotalAmount float64, AmountUnit MeasurementOptions, ProposedDeliveryDay time.Time, DeliveryAvailable bool,
 ) *SupplyOffer {
 	return &SupplyOffer{
 		ID:                  uuid.New(),

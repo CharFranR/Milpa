@@ -10,14 +10,14 @@ type SupplierInventory struct {
 	ID          uuid.UUID
 	SupplierID  uuid.UUID
 	ProductName string
-	Quantity    float32
+	Quantity    float64
 	AmountUnit  MeasurementOptions
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func NewSupplierInventory(supplierID uuid.UUID, productName string, quantity float32, unit MeasurementOptions) *SupplierInventory {
+func NewSupplierInventory(supplierID uuid.UUID, productName string, quantity float64, unit MeasurementOptions) *SupplierInventory {
 	return &SupplierInventory{
 		ID:          uuid.New(),
 		SupplierID:  supplierID,
@@ -29,7 +29,7 @@ func NewSupplierInventory(supplierID uuid.UUID, productName string, quantity flo
 	}
 }
 
-func (s *SupplierInventory) SetQuantity(quantity float32) error {
+func (s *SupplierInventory) SetQuantity(quantity float64) error {
 	if quantity < 0 {
 		return ErrInvalidQuantity
 	}

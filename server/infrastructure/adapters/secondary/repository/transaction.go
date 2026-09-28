@@ -13,11 +13,11 @@ import (
 )
 
 type TransactionRepositoryImpl struct {
-	pool DB
+	db Querier
 }
 
 func NewTransactionRepository(pool DB) *TransactionRepositoryImpl {
-	return &TransactionRepositoryImpl{pool: pool}
+	return &TransactionRepositoryImpl{db: pool}
 }
 
 func scanTransaction(scan func(dest ...any) error) (domain.Transaction, error) {
@@ -42,7 +42,7 @@ func (r *TransactionRepositoryImpl) Create(ctx context.Context, transaction *dom
 			buyer_delivery_confirmed_at, supplier_delivery_confirmed_at, cancelled_by, cancel_reason, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		transaction.ID, transaction.MatchID, transaction.Status,
 		transaction.BuyerStartConfirmedAt, transaction.SupplierStartConfirmedAt,
 		transaction.BuyerDeliveryConfirmedAt, transaction.SupplierDeliveryConfirmedAt,
@@ -65,7 +65,7 @@ func (r *TransactionRepositoryImpl) List(ctx context.Context, matchID uuid.UUID)
 		WHERE match_id = $1
 	`
 
-	rows, err := r.pool.Query(ctx, query, matchID)
+	rows, err := r.db.Query(ctx, query, matchID)
 	if err != nil {
 		return nil, fmt.Errorf("transaction.List: %w", err)
 	}
@@ -97,7 +97,7 @@ func (r *TransactionRepositoryImpl) ListByRequest(ctx context.Context, supplyReq
 		WHERE m.supply_request_id = $1
 	`
 
-	rows, err := r.pool.Query(ctx, query, supplyRequestID)
+	rows, err := r.db.Query(ctx, query, supplyRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("transaction.ListByRequest: %w", err)
 	}
@@ -130,7 +130,7 @@ func (r *TransactionRepositoryImpl) ListActiveBySupplier(ctx context.Context, su
 		WHERE o.supplier_id = $1 AND t.status IN ($2, $3)
 	`
 
-	rows, err := r.pool.Query(ctx, query, supplierID, domain.TransactionMatched, domain.TransactionInProgress)
+	rows, err := r.db.Query(ctx, query, supplierID, domain.TransactionMatched, domain.TransactionInProgress)
 	if err != nil {
 		return nil, fmt.Errorf("transaction.ListActiveBySupplier: %w", err)
 	}
@@ -160,7 +160,7 @@ func (r *TransactionRepositoryImpl) GetByMatch(ctx context.Context, matchID uuid
 		WHERE match_id = $1
 	`
 
-	transaction, err := scanTransaction(r.pool.QueryRow(ctx, query, matchID).Scan)
+	transaction, err := scanTransaction(r.db.QueryRow(ctx, query, matchID).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Transaction{}, fmt.Errorf("transaction.GetByMatch: %w", domain.ErrNotFound)
@@ -179,12 +179,35 @@ func (r *TransactionRepositoryImpl) GetByID(ctx context.Context, transactionID u
 		WHERE id = $1
 	`
 
-	transaction, err := scanTransaction(r.pool.QueryRow(ctx, query, transactionID).Scan)
+	transaction, err := scanTransaction(r.db.QueryRow(ctx, query, transactionID).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Transaction{}, fmt.Errorf("transaction.GetByID: %w", domain.ErrNotFound)
 		}
 		return domain.Transaction{}, fmt.Errorf("transaction.GetByID: %w", err)
+	}
+
+	return transaction, nil
+}
+
+// LockByIDForUpdate reads the transaction and holds a row lock on it until the
+// enclosing transaction ends. It is the last lock of the global order:
+// SupplyRequest -> SupplyOffer -> Match -> Transaction.
+func (r *TransactionRepositoryImpl) LockByIDForUpdate(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
+	query := `
+		SELECT id, match_id, status, buyer_start_confirmed_at, supplier_start_confirmed_at,
+		       buyer_delivery_confirmed_at, supplier_delivery_confirmed_at, cancelled_by, cancel_reason, created_at, updated_at
+		FROM transactions
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	transaction, err := scanTransaction(r.db.QueryRow(ctx, query, transactionID).Scan)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Transaction{}, fmt.Errorf("transaction.LockByIDForUpdate: %w", domain.ErrNotFound)
+		}
+		return domain.Transaction{}, fmt.Errorf("transaction.LockByIDForUpdate: %w", err)
 	}
 
 	return transaction, nil
@@ -198,7 +221,7 @@ func (r *TransactionRepositoryImpl) Update(ctx context.Context, transaction *dom
 		    cancel_reason = $7, updated_at = $8
 		WHERE id = $9
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		transaction.Status, transaction.BuyerStartConfirmedAt, transaction.SupplierStartConfirmedAt,
 		transaction.BuyerDeliveryConfirmedAt, transaction.SupplierDeliveryConfirmedAt, transaction.CancelledBy,
 		transaction.CancelReason, transaction.UpdatedAt, transaction.ID,
@@ -210,11 +233,14 @@ func (r *TransactionRepositoryImpl) Update(ctx context.Context, transaction *dom
 }
 
 func (r *TransactionRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.pool.Exec(ctx, "DELETE FROM transactions WHERE id = $1", id)
+	_, err := r.db.Exec(ctx, "DELETE FROM transactions WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("transaction.Delete: %w", err)
 	}
 	return nil
 }
 
-var _ port.TransactionRepository = (*TransactionRepositoryImpl)(nil)
+var (
+	_ port.TransactionRepository   = (*TransactionRepositoryImpl)(nil)
+	_ port.TxTransactionRepository = (*TransactionRepositoryImpl)(nil)
+)

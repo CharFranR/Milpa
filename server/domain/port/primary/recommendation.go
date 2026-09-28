@@ -12,7 +12,7 @@ import (
 type OfferScoreInput struct {
 	Offer             domain.SupplyOffer
 	Request           domain.SupplyRequest
-	AvailableQuantity float32
+	AvailableQuantity float64
 }
 
 type ScoreFactor interface {
@@ -22,5 +22,5 @@ type ScoreFactor interface {
 
 type RecommendationUseCase interface {
 	RankOffers(ctx context.Context, supplyRequestID uuid.UUID) ([]*dto.PrioritizedOfferDTO, error)
-	AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float32, error)
+	AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float64, error)
 }

@@ -103,6 +103,7 @@ func main() {
 	matchRepo := repo.NewMatchRepository(pool)
 	transactionRepo := repo.NewTransactionRepository(pool)
 	supplierInventoryRepo := repo.NewSupplierInventoryRepository(pool)
+	unitOfWork := repo.NewUnitOfWork(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, ClientData.Index)
 
@@ -127,13 +128,13 @@ func main() {
 
 	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
 	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
-	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock)
+	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
 
-	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, matchRepo, clock)
+	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
 	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
 
 	var recommendationUC primary.RecommendationUseCase = usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors())
-	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC)
+	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)

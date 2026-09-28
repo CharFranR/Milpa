@@ -68,7 +68,7 @@ func (s *stubMatchUC) ListPrioritized(ctx context.Context, supplyRequestID uuid.
 
 type stubRecommendationUC struct {
 	err         error
-	quantity    float32
+	quantity    float64
 	gotSupplier uuid.UUID
 	gotProduct  string
 }
@@ -77,7 +77,7 @@ func (s *stubRecommendationUC) RankOffers(ctx context.Context, supplyRequestID u
 	return nil, s.err
 }
 
-func (s *stubRecommendationUC) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float32, error) {
+func (s *stubRecommendationUC) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float64, error) {
 	s.gotSupplier = supplierID
 	s.gotProduct = productName
 	return s.quantity, s.err
@@ -361,7 +361,7 @@ func TestAvailabilityRoute(t *testing.T) {
 
 	var body struct {
 		Data struct {
-			AvailableQuantity float32 `json:"available_quantity"`
+			AvailableQuantity float64 `json:"available_quantity"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {

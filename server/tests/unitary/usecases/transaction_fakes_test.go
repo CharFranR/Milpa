@@ -2,6 +2,8 @@ package usecases_test
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -127,6 +129,10 @@ func (f *fakeTxTransactionRepo) Delete(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
+func (f *fakeTxTransactionRepo) LockByIDForUpdate(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
+	return f.getByID(ctx, transactionID)
+}
+
 type fakeTxMatchRepo struct {
 	getByID       func(ctx context.Context, matchID uuid.UUID) (*domain.Match, error)
 	listByRequest func(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
@@ -192,6 +198,10 @@ func (f *fakeTxMatchRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (f *fakeTxMatchRepo) LockByIDForUpdate(ctx context.Context, matchID uuid.UUID) (*domain.Match, error) {
+	return f.getByID(ctx, matchID)
+}
+
 type fakeTxRequestRepo struct {
 	getByID func(ctx context.Context, supplyRequestID uuid.UUID) (domain.SupplyRequest, error)
 	update  func(ctx context.Context, supplyRequest *domain.SupplyRequest) error
@@ -220,6 +230,10 @@ func (f *fakeTxRequestRepo) List(ctx context.Context, buyerID uuid.UUID) ([]doma
 	return nil, nil
 }
 
+func (f *fakeTxRequestRepo) ListOpen(ctx context.Context) ([]domain.SupplyRequest, error) {
+	return nil, nil
+}
+
 func (f *fakeTxRequestRepo) GetByID(ctx context.Context, supplyRequestID uuid.UUID) (domain.SupplyRequest, error) {
 	return f.getByID(ctx, supplyRequestID)
 }
@@ -230,6 +244,48 @@ func (f *fakeTxRequestRepo) Update(ctx context.Context, supplyRequest *domain.Su
 
 func (f *fakeTxRequestRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
+}
+
+// LockForUpdate delegates to the same swappable read as GetByID: the fake has
+// no rows to lock, and a test that swaps getByID expects the locked read to
+// observe the same value.
+func (f *fakeTxRequestRepo) LockForUpdate(ctx context.Context, supplyRequestID uuid.UUID) (domain.SupplyRequest, error) {
+	return f.getByID(ctx, supplyRequestID)
+}
+
+// Reserve mirrors the SQL predicate (actual_amount >= amount) and then reports
+// through the same swappable write as Update.
+func (f *fakeTxRequestRepo) Reserve(ctx context.Context, supplyRequestID uuid.UUID, amount float64, at time.Time) error {
+	current, err := f.getByID(ctx, supplyRequestID)
+	if err != nil {
+		return err
+	}
+	if current.ActualAmount < amount {
+		return fmt.Errorf("fakeTxRequestRepo.Reserve: %w", domain.ErrInsufficientAmount)
+	}
+	current.ActualAmount -= amount
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeTxRequestRepo) Release(ctx context.Context, supplyRequestID uuid.UUID, amount float64, at time.Time) error {
+	current, err := f.getByID(ctx, supplyRequestID)
+	if err != nil {
+		return err
+	}
+	current.ActualAmount = min(current.ActualAmount+amount, current.TotalAmount)
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeTxRequestRepo) UpdateStatus(ctx context.Context, supplyRequestID uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	current, err := f.getByID(ctx, supplyRequestID)
+	if err != nil {
+		return err
+	}
+	current.Status = status
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
 }
 
 type fakeTxOfferRepo struct {
@@ -280,9 +336,29 @@ func (f *fakeTxOfferRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (f *fakeTxOfferRepo) LockByIDForUpdate(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error) {
+	return f.getByID(ctx, supplyOfferID)
+}
+
+// newTxScope wires the four fakes of the transaction fixture into the scope the
+// use case receives. The fakes themselves already satisfy the widened
+// tx-scoped ports, so no adapter type is needed.
+func (f *txFixture) newTxScope() port.TxScope {
+	return port.TxScope{
+		Requests:     f.requestRepo,
+		Offers:       f.offerRepo,
+		Matches:      f.matchRepo,
+		Transactions: f.transactionRepo,
+	}
+}
+
 var (
 	_ port.TransactionRepository   = (*fakeTxTransactionRepo)(nil)
 	_ port.MatchRepository         = (*fakeTxMatchRepo)(nil)
 	_ port.SupplyRequestRepository = (*fakeTxRequestRepo)(nil)
 	_ port.SupplyOfferRepository   = (*fakeTxOfferRepo)(nil)
+	_ port.RequestReservationStore = (*fakeTxRequestRepo)(nil)
+	_ port.TxTransactionRepository = (*fakeTxTransactionRepo)(nil)
+	_ port.TxMatchRepository       = (*fakeTxMatchRepo)(nil)
+	_ port.TxOfferRepository       = (*fakeTxOfferRepo)(nil)
 )

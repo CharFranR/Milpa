@@ -63,12 +63,12 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		name    string
 		ctx     context.Context
 		setup   func(f *recommendationFixture)
-		want    float32
+		want    float64
 		wantErr error
 	}{
 		{
 			name: "inventory minus active matches",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					active := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Kg)
@@ -79,7 +79,7 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "no active matches returns full inventory",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					return nil, nil
@@ -89,7 +89,7 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "cancelled matches are not subtracted",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					cancelled := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Kg)
@@ -100,8 +100,57 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 			want: 100,
 		},
 		{
+			name: "active match on another product is not subtracted",
+			ctx:  principalCtxFor(matchTestSupplierID),
+			setup: func(f *recommendationFixture) {
+				otherProductRequest := domain.NewSupplyRequest(
+					testUserID, "Beans", 100, domain.Kg, 1, 100, domain.Kg,
+					domain.Address{}, fixedTime, fixedTime.Add(72*time.Hour), "", true,
+				)
+				f.requests.store[otherProductRequest.ID] = *otherProductRequest
+				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+					active := domain.NewMatch(matchTestOfferID, otherProductRequest.ID, 80, domain.Kg)
+					return []domain.Match{*active}, nil
+				}
+			},
+			want: 100,
+		},
+		{
+			name: "active match in another unit is not subtracted",
+			ctx:  principalCtxFor(matchTestSupplierID),
+			setup: func(f *recommendationFixture) {
+				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+					active := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Lb)
+					return []domain.Match{*active}, nil
+				}
+			},
+			want: 100,
+		},
+		{
+			name: "active match on same product and unit is subtracted",
+			ctx:  principalCtxFor(matchTestSupplierID),
+			setup: func(f *recommendationFixture) {
+				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+					active := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Kg)
+					return []domain.Match{*active}, nil
+				}
+			},
+			want: 20,
+		},
+		{
+			name: "active match on missing supply request is skipped",
+			ctx:  principalCtxFor(matchTestSupplierID),
+			setup: func(f *recommendationFixture) {
+				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+					active := domain.NewMatch(matchTestOfferID, uuid.New(), 80, domain.Kg)
+					return []domain.Match{*active}, nil
+				}
+			},
+			want: 100,
+		},
+		{
 			name: "multiple active matches are summed",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					first := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Kg)
@@ -113,7 +162,7 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "reserved amount above inventory clamps to zero",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					first := domain.NewMatch(matchTestOfferID, matchTestRequestID, 80, domain.Kg)
@@ -125,7 +174,7 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "inventory not found",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.inventory.findBySupplierAndProduct = func(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error) {
 					return domain.SupplierInventory{}, domain.ErrNotFound
@@ -135,7 +184,7 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "inventory repository error",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.inventory.findBySupplierAndProduct = func(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error) {
 					return domain.SupplierInventory{}, errFake
@@ -145,13 +194,18 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 		},
 		{
 			name: "match repository error",
-			ctx:  principalCtx(),
+			ctx:  principalCtxFor(matchTestSupplierID),
 			setup: func(f *recommendationFixture) {
 				f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
 					return nil, errFake
 				}
 			},
 			wantErr: errFake,
+		},
+		{
+			name:    "another supplier's availability is forbidden",
+			ctx:     principalCtx(),
+			wantErr: domain.ErrForbidden,
 		},
 		{
 			name:    "unauthenticated",
@@ -188,13 +242,89 @@ func TestRecommendationAvailableQuantity(t *testing.T) {
 	}
 }
 
+// A supplier reads their own availability.
+func TestRecommendationAvailableQuantityAllowsOwnSupplier(t *testing.T) {
+	t.Parallel()
+
+	f := newRecommendationFixture()
+	f.inventory.findBySupplierAndProduct = func(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error) {
+		return matchTestInventory(100), nil
+	}
+	f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+		return nil, nil
+	}
+	uc := f.useCase(nil)
+
+	got, err := uc.AvailableQuantity(principalCtxFor(matchTestSupplierID), matchTestSupplierID, matchTestProduct)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 100 {
+		t.Errorf("available = %v, want 100", got)
+	}
+}
+
+// A caller that is not the supplier is refused BEFORE any repository is read, so
+// availability cannot be used as a side channel to probe another supplier's
+// stock.
+func TestRecommendationAvailableQuantityForbiddenWithoutRepositoryRead(t *testing.T) {
+	t.Parallel()
+
+	f := newRecommendationFixture()
+	uc := f.useCase(nil)
+
+	got, err := uc.AvailableQuantity(principalCtx(), matchTestSupplierID, matchTestProduct)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("error = %v, want %v", err, domain.ErrForbidden)
+	}
+	if got != 0 {
+		t.Errorf("available = %v, want 0", got)
+	}
+	if len(f.inventory.findCalls) != 0 {
+		t.Errorf("inventory lookups = %d, want 0", len(f.inventory.findCalls))
+	}
+}
+
+// The ownership gate belongs to the PUBLIC read only. RankOffers resolves
+// availability on behalf of the BUYER of a request, who is entitled to see a
+// candidate supplier's stock. Gating the shared helper would break
+// recommendation; this test pins that it still works.
+func TestRecommendationRankOffersStillReadsOtherSuppliersAvailability(t *testing.T) {
+	t.Parallel()
+
+	f := newRecommendationFixture()
+	f.seedOffer(matchTestOfferID, matchTestSupplierID, domain.OfferActive, fixedTime)
+	f.inventory.findBySupplierAndProduct = func(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error) {
+		if supplierID != matchTestSupplierID {
+			t.Errorf("inventory resolved for %v, want %v", supplierID, matchTestSupplierID)
+		}
+		return matchTestInventory(100), nil
+	}
+	f.matches.listActiveBySupplier = func(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
+		return nil, nil
+	}
+	uc := f.useCase(nil)
+
+	// The principal here is the BUYER, not matchTestSupplierID.
+	got, err := uc.RankOffers(principalCtx(), matchTestRequestID)
+	if err != nil {
+		t.Fatalf("buyer ranking another supplier's offer must not be forbidden: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("offers = %d, want 1", len(got))
+	}
+	if got[0].AvailableQuantity != 100 {
+		t.Errorf("available = %v, want 100", got[0].AvailableQuantity)
+	}
+}
+
 func TestRecommendationAvailableQuantityLooksUpInventory(t *testing.T) {
 	t.Parallel()
 
 	f := newRecommendationFixture()
 	uc := f.useCase(nil)
 
-	if _, err := uc.AvailableQuantity(principalCtx(), matchTestSupplierID, matchTestProduct); err != nil {
+	if _, err := uc.AvailableQuantity(principalCtxFor(matchTestSupplierID), matchTestSupplierID, matchTestProduct); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

@@ -10,14 +10,15 @@ import (
 )
 
 type supplyFakeRequestRepo struct {
-	requests  map[uuid.UUID]domain.SupplyRequest
-	created   []*domain.SupplyRequest
-	updated   []*domain.SupplyRequest
-	listBuyer uuid.UUID
-	listErr   error
-	getErr    error
-	createErr error
-	updateErr error
+	requests    map[uuid.UUID]domain.SupplyRequest
+	created     []*domain.SupplyRequest
+	updated     []*domain.SupplyRequest
+	listBuyer   uuid.UUID
+	listErr     error
+	listOpenErr error
+	getErr      error
+	createErr   error
+	updateErr   error
 }
 
 func newSupplyFakeRequestRepo() *supplyFakeRequestRepo {
@@ -41,6 +42,19 @@ func (f *supplyFakeRequestRepo) List(ctx context.Context, buyerID uuid.UUID) ([]
 	var result []domain.SupplyRequest
 	for _, supplyRequest := range f.requests {
 		if supplyRequest.BuyerID == buyerID {
+			result = append(result, supplyRequest)
+		}
+	}
+	return result, nil
+}
+
+func (f *supplyFakeRequestRepo) ListOpen(ctx context.Context) ([]domain.SupplyRequest, error) {
+	if f.listOpenErr != nil {
+		return nil, f.listOpenErr
+	}
+	var result []domain.SupplyRequest
+	for _, supplyRequest := range f.requests {
+		if supplyRequest.Status == domain.SupplyRequestOpen {
 			result = append(result, supplyRequest)
 		}
 	}
@@ -158,8 +172,10 @@ func (f *supplyFakeOfferRepo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 type supplyFakeMatchRepo struct {
-	existsActive bool
-	existsErr    error
+	existsActive           bool
+	existsErr              error
+	activeByRequest        []domain.Match
+	listActiveByRequestErr error
 }
 
 func newSupplyFakeMatchRepo() *supplyFakeMatchRepo {
@@ -179,7 +195,10 @@ func (f *supplyFakeMatchRepo) ListByRequest(ctx context.Context, supplyRequestID
 }
 
 func (f *supplyFakeMatchRepo) ListActiveByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error) {
-	return nil, nil
+	if f.listActiveByRequestErr != nil {
+		return nil, f.listActiveByRequestErr
+	}
+	return f.activeByRequest, nil
 }
 
 func (f *supplyFakeMatchRepo) ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error) {
@@ -222,4 +241,11 @@ func supplyTestOffer(supplierID, supplyRequestID uuid.UUID) domain.SupplyOffer {
 		supplierID, supplyRequestID, 20, domain.Kg,
 		fixedTime.Add(48*time.Hour), true,
 	)
+}
+
+func supplyMatchedMatches(supplyRequestID uuid.UUID, matched float64) []domain.Match {
+	if matched <= 0 {
+		return nil
+	}
+	return []domain.Match{*domain.NewMatch(uuid.New(), supplyRequestID, matched, domain.Kg)}
 }

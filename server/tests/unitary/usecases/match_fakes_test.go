@@ -2,12 +2,14 @@ package usecases_test
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 
 	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
+	port "milpa/domain/port/secondary"
 )
 
 var (
@@ -42,8 +44,20 @@ func matchTestOffer() *domain.SupplyOffer {
 	return offer
 }
 
-func matchTestInventory(quantity float32) domain.SupplierInventory {
+func matchTestInventory(quantity float64) domain.SupplierInventory {
 	return *domain.NewSupplierInventory(matchTestSupplierID, matchTestProduct, quantity, domain.Kg)
+}
+
+// newMatchTxScope wires the four fakes of the match fixture into the scope the
+// use case receives. The fakes themselves already satisfy the widened
+// tx-scoped ports, so no adapter type is needed.
+func (f *matchFixture) newTxScope() port.TxScope {
+	return port.TxScope{
+		Requests:     f.requests,
+		Offers:       f.offers,
+		Matches:      f.matches,
+		Transactions: f.txs,
+	}
 }
 
 type fakeMatchSupplyRequestRepo struct {
@@ -82,6 +96,10 @@ func (f *fakeMatchSupplyRequestRepo) List(ctx context.Context, buyerID uuid.UUID
 	return nil, nil
 }
 
+func (f *fakeMatchSupplyRequestRepo) ListOpen(ctx context.Context) ([]domain.SupplyRequest, error) {
+	return nil, nil
+}
+
 func (f *fakeMatchSupplyRequestRepo) GetByID(ctx context.Context, id uuid.UUID) (domain.SupplyRequest, error) {
 	return f.getByID(ctx, id)
 }
@@ -93,6 +111,49 @@ func (f *fakeMatchSupplyRequestRepo) Update(ctx context.Context, request *domain
 func (f *fakeMatchSupplyRequestRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	delete(f.store, id)
 	return nil
+}
+
+// LockForUpdate delegates to the same swappable read as GetByID: the fake has
+// no rows to lock, and a test that swaps getByID expects the locked read to
+// observe the same value.
+func (f *fakeMatchSupplyRequestRepo) LockForUpdate(ctx context.Context, id uuid.UUID) (domain.SupplyRequest, error) {
+	return f.getByID(ctx, id)
+}
+
+// Reserve mirrors the SQL predicate (actual_amount >= amount) and then reports
+// through the same swappable write as Update, so a test that injects a write
+// failure does so through the one place it would inject it in production.
+func (f *fakeMatchSupplyRequestRepo) Reserve(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
+	current, err := f.getByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current.ActualAmount < amount {
+		return fmt.Errorf("fakeMatchSupplyRequestRepo.Reserve: %w", domain.ErrInsufficientAmount)
+	}
+	current.ActualAmount -= amount
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeMatchSupplyRequestRepo) Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
+	current, err := f.getByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	current.ActualAmount = min(current.ActualAmount+amount, current.TotalAmount)
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
+}
+
+func (f *fakeMatchSupplyRequestRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	current, err := f.getByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	current.Status = status
+	current.UpdatedAt = at
+	return f.update(ctx, &current)
 }
 
 type fakeMatchSupplyOfferRepo struct {
@@ -171,6 +232,10 @@ func (f *fakeMatchSupplyOfferRepo) Update(ctx context.Context, offer *domain.Sup
 func (f *fakeMatchSupplyOfferRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	delete(f.store, id)
 	return nil
+}
+
+func (f *fakeMatchSupplyOfferRepo) LockByIDForUpdate(ctx context.Context, id uuid.UUID) (domain.SupplyOffer, error) {
+	return f.getByID(ctx, id)
 }
 
 type fakeMatchRepository struct {
@@ -264,10 +329,15 @@ func (f *fakeMatchRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return f.delete(ctx, id)
 }
 
+func (f *fakeMatchRepository) LockByIDForUpdate(ctx context.Context, matchID uuid.UUID) (*domain.Match, error) {
+	return f.getByID(ctx, matchID)
+}
+
 type fakeMatchTransactionRepo struct {
-	create func(ctx context.Context, transaction *domain.Transaction) error
-	update func(ctx context.Context, transaction *domain.Transaction) error
-	delete func(ctx context.Context, id uuid.UUID) error
+	create  func(ctx context.Context, transaction *domain.Transaction) error
+	update  func(ctx context.Context, transaction *domain.Transaction) error
+	delete  func(ctx context.Context, id uuid.UUID) error
+	getByID func(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
 
 	created []*domain.Transaction
 	deleted []uuid.UUID
@@ -275,6 +345,9 @@ type fakeMatchTransactionRepo struct {
 
 func newFakeMatchTransactionRepo() *fakeMatchTransactionRepo {
 	f := &fakeMatchTransactionRepo{}
+	f.getByID = func(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
+		return domain.Transaction{}, domain.ErrNotFound
+	}
 	f.create = func(ctx context.Context, transaction *domain.Transaction) error {
 		f.created = append(f.created, transaction)
 		return nil
@@ -310,7 +383,7 @@ func (f *fakeMatchTransactionRepo) GetByMatch(ctx context.Context, matchID uuid.
 }
 
 func (f *fakeMatchTransactionRepo) GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
-	return domain.Transaction{}, domain.ErrNotFound
+	return f.getByID(ctx, transactionID)
 }
 
 func (f *fakeMatchTransactionRepo) Update(ctx context.Context, transaction *domain.Transaction) error {
@@ -319,6 +392,10 @@ func (f *fakeMatchTransactionRepo) Update(ctx context.Context, transaction *doma
 
 func (f *fakeMatchTransactionRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return f.delete(ctx, id)
+}
+
+func (f *fakeMatchTransactionRepo) LockByIDForUpdate(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
+	return f.getByID(ctx, transactionID)
 }
 
 type fakeMatchInventoryRepo struct {
@@ -365,7 +442,7 @@ type stubMatchRecommendationUC struct {
 	err            error
 	gotRequestID   uuid.UUID
 	gotContext     context.Context
-	availableQty   float32
+	availableQty   float64
 	availableErr   error
 	gotSupplierID  uuid.UUID
 	gotProductName string
@@ -377,7 +454,7 @@ func (s *stubMatchRecommendationUC) RankOffers(ctx context.Context, supplyReques
 	return s.ranked, s.err
 }
 
-func (s *stubMatchRecommendationUC) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float32, error) {
+func (s *stubMatchRecommendationUC) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float64, error) {
 	s.gotSupplierID = supplierID
 	s.gotProductName = productName
 	return s.availableQty, s.availableErr

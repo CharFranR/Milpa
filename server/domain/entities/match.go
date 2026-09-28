@@ -20,14 +20,14 @@ type Match struct {
 
 	Status MatchStatus
 
-	MatchedAmount float32
+	MatchedAmount float64
 	AmountUnit    MeasurementOptions
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-func NewMatch(supplyOffer uuid.UUID, supplyRequest uuid.UUID, matchedAmount float32, unit MeasurementOptions) *Match {
+func NewMatch(supplyOffer uuid.UUID, supplyRequest uuid.UUID, matchedAmount float64, unit MeasurementOptions) *Match {
 	return &Match{
 		ID:            uuid.New(),
 		SupplyOffer:   supplyOffer,

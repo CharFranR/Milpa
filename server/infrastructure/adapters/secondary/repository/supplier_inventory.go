@@ -13,11 +13,11 @@ import (
 )
 
 type SupplierInventoryRepositoryImpl struct {
-	pool DB
+	db Querier
 }
 
 func NewSupplierInventoryRepository(pool DB) *SupplierInventoryRepositoryImpl {
-	return &SupplierInventoryRepositoryImpl{pool: pool}
+	return &SupplierInventoryRepositoryImpl{db: pool}
 }
 
 func scanSupplierInventory(scan func(dest ...any) error) (domain.SupplierInventory, error) {
@@ -39,7 +39,7 @@ func (r *SupplierInventoryRepositoryImpl) Create(ctx context.Context, inventory 
 		INSERT INTO supplier_inventory (id, supplier_id, product_name, quantity, amount_unit, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		inventory.ID, inventory.SupplierID, inventory.ProductName, inventory.Quantity, inventory.AmountUnit,
 		inventory.CreatedAt, inventory.UpdatedAt,
 	)
@@ -59,7 +59,7 @@ func (r *SupplierInventoryRepositoryImpl) ListBySupplier(ctx context.Context, su
 		WHERE supplier_id = $1
 	`
 
-	rows, err := r.pool.Query(ctx, query, supplierID)
+	rows, err := r.db.Query(ctx, query, supplierID)
 	if err != nil {
 		return nil, fmt.Errorf("supplierInventory.ListBySupplier: %w", err)
 	}
@@ -88,7 +88,7 @@ func (r *SupplierInventoryRepositoryImpl) FindBySupplierAndProduct(ctx context.C
 		WHERE supplier_id = $1 AND product_name = $2
 	`
 
-	inventory, err := scanSupplierInventory(r.pool.QueryRow(ctx, query, supplierID, productName).Scan)
+	inventory, err := scanSupplierInventory(r.db.QueryRow(ctx, query, supplierID, productName).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.SupplierInventory{}, fmt.Errorf("supplierInventory.FindBySupplierAndProduct: %w", domain.ErrNotFound)
@@ -106,7 +106,7 @@ func (r *SupplierInventoryRepositoryImpl) GetByID(ctx context.Context, id uuid.U
 		WHERE id = $1
 	`
 
-	inventory, err := scanSupplierInventory(r.pool.QueryRow(ctx, query, id).Scan)
+	inventory, err := scanSupplierInventory(r.db.QueryRow(ctx, query, id).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.SupplierInventory{}, fmt.Errorf("supplierInventory.GetByID: %w", domain.ErrNotFound)
@@ -123,7 +123,7 @@ func (r *SupplierInventoryRepositoryImpl) Update(ctx context.Context, inventory 
 		SET product_name = $1, quantity = $2, amount_unit = $3, updated_at = $4
 		WHERE id = $5
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		inventory.ProductName, inventory.Quantity, inventory.AmountUnit, inventory.UpdatedAt, inventory.ID,
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *SupplierInventoryRepositoryImpl) Update(ctx context.Context, inventory 
 }
 
 func (r *SupplierInventoryRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.pool.Exec(ctx, "DELETE FROM supplier_inventory WHERE id = $1", id)
+	_, err := r.db.Exec(ctx, "DELETE FROM supplier_inventory WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("supplierInventory.Delete: %w", err)
 	}

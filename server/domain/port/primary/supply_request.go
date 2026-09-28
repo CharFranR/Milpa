@@ -20,4 +20,5 @@ type SupplyRequestUseCase interface {
 	Expire(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*dto.SupplyRequestDTO, error)
 	List(ctx context.Context) ([]*dto.SupplyRequestDTO, error)
+	ListAvailable(ctx context.Context, supplierID uuid.UUID) ([]*dto.SupplyRequestDTO, error)
 }

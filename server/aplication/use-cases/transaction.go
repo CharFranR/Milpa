@@ -29,6 +29,7 @@ type TransactionUseCaseImpl struct {
 	requestRepo     port.SupplyRequestRepository
 	offerRepo       port.SupplyOfferRepository
 	timer           port.TimeProvider
+	tx              port.UnitOfWork
 }
 
 func NewTransactionUseCase(
@@ -37,6 +38,7 @@ func NewTransactionUseCase(
 	requestRepo port.SupplyRequestRepository,
 	offerRepo port.SupplyOfferRepository,
 	timer port.TimeProvider,
+	tx port.UnitOfWork,
 ) *TransactionUseCaseImpl {
 	return &TransactionUseCaseImpl{
 		transactionRepo: transactionRepo,
@@ -44,6 +46,7 @@ func NewTransactionUseCase(
 		requestRepo:     requestRepo,
 		offerRepo:       offerRepo,
 		timer:           timer,
+		tx:              tx,
 	}
 }
 
@@ -147,68 +150,153 @@ func (uc *TransactionUseCaseImpl) ConfirmStart(ctx context.Context, transactionI
 	return uc.transactionRepo.Update(ctx, &session.transaction)
 }
 
+// ConfirmDelivery confirms one side of a delivery as ONE unit of work. When the
+// confirmation completes the transaction and the request is already covered by
+// completed transactions, the request is closed inside the same transaction: the
+// request row is locked for the whole unit of work, so a concurrent completion
+// cannot read a snapshot that excludes the transaction this one just finished.
+//
+// Lock order: SupplyRequest -> SupplyOffer -> Match -> Transaction.
 func (uc *TransactionUseCaseImpl) ConfirmDelivery(ctx context.Context, transactionID uuid.UUID) error {
-	session, err := uc.authorizeByID(ctx, transactionID)
+	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := session.transaction.ConfirmDelivery(session.participant, uc.timer.Now()); err != nil {
-		return err
-	}
-
-	if err := uc.transactionRepo.Update(ctx, &session.transaction); err != nil {
-		return err
-	}
-
-	if session.transaction.Status != domain.TransactionCompleted {
-		return nil
-	}
-
-	return uc.autoCloseRequest(ctx, session)
-}
-
-func (uc *TransactionUseCaseImpl) Cancel(ctx context.Context, transactionID uuid.UUID, reason string) error {
-	session, err := uc.authorizeByID(ctx, transactionID)
-	if err != nil {
-		return err
-	}
-
-	now := uc.timer.Now()
-
-	if err := session.transaction.Cancel(session.principal.UserID, reason, now); err != nil {
-		return err
-	}
-	if err := session.match.Cancel(); err != nil {
-		return err
-	}
-	if err := session.request.ReleaseAmount(session.match.MatchedAmount); err != nil {
-		return err
-	}
-
-	offerReactivated := false
-	if session.offer.Status == domain.OfferMatched {
-		session.offer.Status = domain.OfferActive
-		session.offer.UpdatedAt = now
-		offerReactivated = true
-	}
-
-	if err := uc.transactionRepo.Update(ctx, &session.transaction); err != nil {
-		return err
-	}
-	if err := uc.matchRepo.Update(ctx, session.match); err != nil {
-		return err
-	}
-	if err := uc.requestRepo.Update(ctx, &session.request); err != nil {
-		return err
-	}
-	if offerReactivated {
-		if err := uc.offerRepo.Update(ctx, &session.offer); err != nil {
+	return uc.tx.WithinTx(ctx, func(scope port.TxScope) error {
+		session, err := uc.lockSession(ctx, principal, scope, transactionID)
+		if err != nil {
 			return err
 		}
+
+		if err := session.transaction.ConfirmDelivery(session.participant, uc.timer.Now()); err != nil {
+			return err
+		}
+
+		if err := scope.Transactions.Update(ctx, &session.transaction); err != nil {
+			return err
+		}
+
+		if session.transaction.Status != domain.TransactionCompleted {
+			return nil
+		}
+
+		return uc.autoCloseRequest(ctx, scope, session)
+	})
+}
+
+// Cancel cascades the cancellation as ONE unit of work. Every goroutine that
+// cancels the same transaction either commits the whole cascade or none of it,
+// so a cancellation can no longer release the request amount without releasing
+// the match, or vice versa.
+//
+// Lock order: SupplyRequest -> SupplyOffer -> Match -> Transaction.
+func (uc *TransactionUseCaseImpl) Cancel(ctx context.Context, transactionID uuid.UUID, reason string) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return uc.tx.WithinTx(ctx, func(scope port.TxScope) error {
+		session, err := uc.lockSession(ctx, principal, scope, transactionID)
+		if err != nil {
+			return err
+		}
+
+		now := uc.timer.Now()
+
+		if err := session.transaction.Cancel(session.principal.UserID, reason, now); err != nil {
+			return err
+		}
+		if err := session.match.Cancel(); err != nil {
+			return err
+		}
+		if err := session.request.ReleaseAmount(session.match.MatchedAmount); err != nil {
+			return err
+		}
+
+		offerReactivated := false
+		if session.offer.Status == domain.OfferMatched {
+			session.offer.Status = domain.OfferActive
+			session.offer.UpdatedAt = now
+			offerReactivated = true
+		}
+
+		if err := scope.Transactions.Update(ctx, &session.transaction); err != nil {
+			return err
+		}
+		if err := scope.Matches.Update(ctx, session.match); err != nil {
+			return err
+		}
+		if err := scope.Requests.Release(ctx, session.request.ID, session.match.MatchedAmount, now); err != nil {
+			return err
+		}
+		if offerReactivated {
+			if err := scope.Offers.Update(ctx, &session.offer); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// lockSession resolves the transaction graph inside an already open transaction,
+// takes the four row locks in the global order, re-reads every row through the
+// locked getters and rebuilds the session from those locked rows.
+//
+// The unlocked reads exist only to learn the ids to lock: supply_request_id and
+// supply_offer_id are only reachable through the match row. Every decision the
+// caller makes afterwards is made on the locked rows, never on the reads.
+func (uc *TransactionUseCaseImpl) lockSession(
+	ctx context.Context,
+	principal auth.Principal,
+	scope port.TxScope,
+	transactionID uuid.UUID,
+) (*transactionSession, error) {
+	transaction, err := scope.Transactions.GetByID(ctx, transactionID)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	match, err := scope.Matches.GetByID(ctx, transaction.MatchID)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	request, err := scope.Requests.LockForUpdate(ctx, match.SupplyRequest)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	offer, err := scope.Offers.LockByIDForUpdate(ctx, match.SupplyOffer)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	lockedMatch, err := scope.Matches.LockByIDForUpdate(ctx, match.ID)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	lockedTransaction, err := scope.Transactions.LockByIDForUpdate(ctx, transaction.ID)
+	if err != nil {
+		return nil, mapTransactionNotFound(err)
+	}
+
+	participant, err := participantFor(principal, &request, &offer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &transactionSession{
+		principal:   principal,
+		transaction: lockedTransaction,
+		match:       lockedMatch,
+		request:     request,
+		offer:       offer,
+		participant: participant,
+	}, nil
 }
 
 func (uc *TransactionUseCaseImpl) authorizeByID(ctx context.Context, transactionID uuid.UUID) (*transactionSession, error) {
@@ -261,26 +349,31 @@ func (uc *TransactionUseCaseImpl) parties(ctx context.Context, match *domain.Mat
 	return request, offer, nil
 }
 
-func (uc *TransactionUseCaseImpl) autoCloseRequest(ctx context.Context, session *transactionSession) error {
+// autoCloseRequest completes the request once its completed transactions cover
+// its total amount. It must run inside the same unit of work as the completion
+// that triggered it: the request row is already locked by lockSession, so the
+// sum read here includes the transaction this unit of work just completed, and a
+// concurrent completion reads this one instead of a snapshot that excludes it.
+func (uc *TransactionUseCaseImpl) autoCloseRequest(ctx context.Context, scope port.TxScope, session *transactionSession) error {
 	if !session.request.IsOpen() {
 		return nil
 	}
 
-	transactions, err := uc.transactionRepo.ListByRequest(ctx, session.match.SupplyRequest)
+	transactions, err := scope.Transactions.ListByRequest(ctx, session.match.SupplyRequest)
 	if err != nil {
 		return err
 	}
 
-	matches, err := uc.matchRepo.ListByRequest(ctx, session.match.SupplyRequest)
+	matches, err := scope.Matches.ListByRequest(ctx, session.match.SupplyRequest)
 	if err != nil {
 		return err
 	}
-	matchedAmounts := make(map[uuid.UUID]float32, len(matches))
+	matchedAmounts := make(map[uuid.UUID]float64, len(matches))
 	for _, match := range matches {
 		matchedAmounts[match.ID] = match.MatchedAmount
 	}
 
-	var completedAmount float32
+	var completedAmount float64
 	for _, transaction := range transactions {
 		if transaction.Status == domain.TransactionCompleted {
 			completedAmount += matchedAmounts[transaction.MatchID]
@@ -295,7 +388,9 @@ func (uc *TransactionUseCaseImpl) autoCloseRequest(ctx context.Context, session 
 		return err
 	}
 
-	return uc.requestRepo.Update(ctx, &session.request)
+	// Only the status is written: the request row is locked, so a full-row
+	// rewrite would only be able to push a stale snapshot back over the row.
+	return scope.Requests.UpdateStatus(ctx, session.request.ID, session.request.Status, session.request.UpdatedAt)
 }
 
 func participantFor(principal auth.Principal, request *domain.SupplyRequest, offer *domain.SupplyOffer) (domain.TransactionParticipant, error) {

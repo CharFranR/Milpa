@@ -12,7 +12,7 @@ type MatchDTO struct {
 	SupplyOffer   uuid.UUID                 `json:"supply_offer"`
 	SupplyRequest uuid.UUID                 `json:"supply_request"`
 	Status        domain.MatchStatus        `json:"status"`
-	MatchedAmount float32                   `json:"matched_amount"`
+	MatchedAmount float64                   `json:"matched_amount"`
 	AmountUnit    domain.MeasurementOptions `json:"amount_unit"`
 	CreatedAt     time.Time                 `json:"created_at"`
 	UpdatedAt     time.Time                 `json:"updated_at"`
@@ -21,7 +21,7 @@ type MatchDTO struct {
 type MatchUpdateDTO struct {
 	ID            uuid.UUID                 `json:"id"`
 	Status        domain.MatchStatus        `json:"status"`
-	MatchedAmount float32                   `json:"matched_amount"`
+	MatchedAmount float64                   `json:"matched_amount"`
 	AmountUnit    domain.MeasurementOptions `json:"amount_unit"`
 }
 
@@ -40,5 +40,5 @@ type ScoreContributionDTO struct {
 type AvailabilityDTO struct {
 	SupplierID        uuid.UUID `json:"supplier_id"`
 	ProductName       string    `json:"product_name"`
-	AvailableQuantity float32   `json:"available_quantity"`
+	AvailableQuantity float64   `json:"available_quantity"`
 }

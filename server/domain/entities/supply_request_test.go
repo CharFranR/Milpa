@@ -193,11 +193,11 @@ func TestSupplyRequestReserveAmount(t *testing.T) {
 	tests := []struct {
 		name         string
 		status       SupplyRequestStatus
-		totalAmount  float32
-		actualAmount float32
-		amount       float32
+		totalAmount  float64
+		actualAmount float64
+		amount       float64
 		wantErr      error
-		wantActual   float32
+		wantActual   float64
 	}{
 		{
 			name:         "reserve partial from open",
@@ -290,11 +290,11 @@ func TestSupplyRequestReleaseAmount(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		totalAmount  float32
-		actualAmount float32
-		amount       float32
+		totalAmount  float64
+		actualAmount float64
+		amount       float64
 		wantErr      error
-		wantActual   float32
+		wantActual   float64
 	}{
 		{
 			name:         "release adds back",

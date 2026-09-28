@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,6 +13,13 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
+// SupplyRequestRepositoryImpl keeps a DB and not a Querier: Create and Update
+// both touch addresses and supply_requests, so each of them opens its own
+// top-level transaction.
+//
+// The narrow reservation methods below (LockForUpdate, Reserve, Release,
+// UpdateStatus) are the only members a TxScope is allowed to use, and a
+// tx-bound instance is built by newTxScope.
 type SupplyRequestRepositoryImpl struct {
 	pool DB
 }
@@ -39,6 +47,8 @@ func scanSupplyRequest(scan func(dest ...any) error) (domain.SupplyRequest, erro
 	return supplyRequest, nil
 }
 
+// Create is TOP-LEVEL ONLY: it opens its own transaction and must NOT be called
+// from inside a TxScope, where a nested Begin would only emit a SAVEPOINT.
 func (r *SupplyRequestRepositoryImpl) Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -116,6 +126,41 @@ func (r *SupplyRequestRepositoryImpl) List(ctx context.Context, buyerID uuid.UUI
 	return supplyRequests, nil
 }
 
+func (r *SupplyRequestRepositoryImpl) ListOpen(ctx context.Context) ([]domain.SupplyRequest, error) {
+	query := `
+		SELECT s.id, s.buyer_id, s.product_name, s.total_amount, s.actual_amount, s.amount_unit, s.number_of_units,
+		       s.amount_per_unit, s.unit_of_measure, s.request_deadline, s.delivery_deadline, s.description,
+		       s.multiple_providers, s.min_amount_per_provider, s.status, s.created_at, s.updated_at,
+		       COALESCE(a.id, '00000000-0000-0000-0000-000000000000'), COALESCE(a.department, ''), COALESCE(a.municipality, ''),
+		       COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
+		FROM supply_requests s
+		LEFT JOIN addresses a ON s.address_id = a.id
+		WHERE s.status = $1
+		ORDER BY s.created_at DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query, domain.SupplyRequestOpen)
+	if err != nil {
+		return nil, fmt.Errorf("supplyRequest.ListOpen: %w", err)
+	}
+	defer rows.Close()
+
+	var supplyRequests []domain.SupplyRequest
+	for rows.Next() {
+		supplyRequest, err := scanSupplyRequest(rows.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("supplyRequest.ListOpen: %w", err)
+		}
+		supplyRequests = append(supplyRequests, supplyRequest)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("supplyRequest.ListOpen: %w", err)
+	}
+
+	return supplyRequests, nil
+}
+
 func (r *SupplyRequestRepositoryImpl) GetByID(ctx context.Context, supplyRequestID uuid.UUID) (domain.SupplyRequest, error) {
 	query := `
 		SELECT s.id, s.buyer_id, s.product_name, s.total_amount, s.actual_amount, s.amount_unit, s.number_of_units,
@@ -139,6 +184,10 @@ func (r *SupplyRequestRepositoryImpl) GetByID(ctx context.Context, supplyRequest
 	return supplyRequest, nil
 }
 
+// Update is TOP-LEVEL ONLY: it opens its own transaction and must NOT be called
+// from inside a TxScope. It rewrites the whole row, so a concurrent reservation
+// released or taken between this read and this write would be lost; the
+// reservation path uses Reserve/Release/UpdateStatus instead.
 func (r *SupplyRequestRepositoryImpl) Update(ctx context.Context, supplyRequest *domain.SupplyRequest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -190,4 +239,93 @@ func (r *SupplyRequestRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
-var _ port.SupplyRequestRepository = (*SupplyRequestRepositoryImpl)(nil)
+// LockForUpdate reads the request and holds a row lock on it for the rest of the
+// transaction. It is the first lock taken by every unit of work, so no other
+// transaction can observe or change this request while the unit of work runs.
+//
+// The lock is restricted to `s` with FOR UPDATE OF: PostgreSQL refuses
+// FOR UPDATE on the nullable side of the LEFT JOIN with addresses.
+func (r *SupplyRequestRepositoryImpl) LockForUpdate(ctx context.Context, id uuid.UUID) (domain.SupplyRequest, error) {
+	query := `
+		SELECT s.id, s.buyer_id, s.product_name, s.total_amount, s.actual_amount, s.amount_unit, s.number_of_units,
+		       s.amount_per_unit, s.unit_of_measure, s.request_deadline, s.delivery_deadline, s.description,
+		       s.multiple_providers, s.min_amount_per_provider, s.status, s.created_at, s.updated_at,
+		       COALESCE(a.id, '00000000-0000-0000-0000-000000000000'), COALESCE(a.department, ''), COALESCE(a.municipality, ''),
+		       COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
+		FROM supply_requests s
+		LEFT JOIN addresses a ON s.address_id = a.id
+		WHERE s.id = $1
+		FOR UPDATE OF s
+	`
+
+	supplyRequest, err := scanSupplyRequest(r.pool.QueryRow(ctx, query, id).Scan)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.SupplyRequest{}, fmt.Errorf("supplyRequest.LockForUpdate: %w", domain.ErrNotFound)
+		}
+		return domain.SupplyRequest{}, fmt.Errorf("supplyRequest.LockForUpdate: %w", err)
+	}
+
+	return supplyRequest, nil
+}
+
+// Reserve takes amount out of actual_amount only if the row still holds it. The
+// predicate is the storage-level safety net: over-assignment is impossible even
+// if the lock discipline is broken later, and RowsAffected == 0 is reported as
+// the same domain error the state machine would have raised.
+func (r *SupplyRequestRepositoryImpl) Reserve(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
+	query := `
+		UPDATE supply_requests
+		SET actual_amount = actual_amount - $1, updated_at = $2
+		WHERE id = $3 AND actual_amount >= $1
+	`
+
+	tag, err := r.pool.Exec(ctx, query, amount, at, id)
+	if err != nil {
+		return fmt.Errorf("supplyRequest.Reserve: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("supplyRequest.Reserve: %w", domain.ErrInsufficientAmount)
+	}
+
+	return nil
+}
+
+// Release gives amount back to actual_amount, clamped to total_amount so a
+// double release can never inflate the request beyond what was asked for.
+func (r *SupplyRequestRepositoryImpl) Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
+	query := `
+		UPDATE supply_requests
+		SET actual_amount = LEAST(actual_amount + $1, total_amount), updated_at = $2
+		WHERE id = $3
+	`
+
+	if _, err := r.pool.Exec(ctx, query, amount, at, id); err != nil {
+		return fmt.Errorf("supplyRequest.Release: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateStatus writes only status and updated_at. Writing the whole row here
+// would reintroduce the lost update this refactor removes: the unit of work
+// holds a snapshot of actual_amount from the start of its transaction, and a
+// full-row write would push that snapshot back over any concurrent change.
+func (r *SupplyRequestRepositoryImpl) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
+	query := `
+		UPDATE supply_requests
+		SET status = $1, updated_at = $2
+		WHERE id = $3
+	`
+
+	if _, err := r.pool.Exec(ctx, query, status, at, id); err != nil {
+		return fmt.Errorf("supplyRequest.UpdateStatus: %w", err)
+	}
+
+	return nil
+}
+
+var (
+	_ port.SupplyRequestRepository = (*SupplyRequestRepositoryImpl)(nil)
+	_ port.RequestReservationStore = (*SupplyRequestRepositoryImpl)(nil)
+)

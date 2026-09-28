@@ -19,6 +19,7 @@ type matchFixture struct {
 	matches  *fakeMatchRepository
 	txs      *fakeMatchTransactionRepo
 	recs     *stubMatchRecommendationUC
+	uow      *fakeUnitOfWork
 	uc       *usecases.MatchUseCaseImpl
 }
 
@@ -30,7 +31,8 @@ func newMatchFixture() *matchFixture {
 		txs:      newFakeMatchTransactionRepo(),
 		recs:     &stubMatchRecommendationUC{},
 	}
-	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs)
+	f.uow = newFakeUnitOfWork(f.newTxScope())
+	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow)
 	return f
 }
 
@@ -322,154 +324,6 @@ func TestMatchUseCaseLikeSingleProviderRejectsOtherActiveOffers(t *testing.T) {
 	}
 	if len(f.matches.created) != 1 || len(f.txs.created) != 1 {
 		t.Errorf("created match/tx = %d/%d, want 1/1", len(f.matches.created), len(f.txs.created))
-	}
-}
-
-func TestMatchUseCaseLikeCompensatesWhenTransactionCreationFails(t *testing.T) {
-	t.Parallel()
-
-	f := newMatchFixture()
-	f.txs.create = func(ctx context.Context, transaction *domain.Transaction) error {
-		return errFake
-	}
-
-	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
-	if !errors.Is(err, errFake) {
-		t.Fatalf("error = %v, want %v", err, errFake)
-	}
-
-	if len(f.matches.deleted) != 1 {
-		t.Errorf("matches deleted = %d, want 1", len(f.matches.deleted))
-	}
-	if got := f.storedRequest().ActualAmount; got != 100 {
-		t.Errorf("actual amount after compensation = %v, want 100", got)
-	}
-	if got := f.offers.store[matchTestOfferID].Status; got != domain.OfferActive {
-		t.Errorf("offer status = %v, want active", got)
-	}
-}
-
-func TestMatchUseCaseLikeCompensatesWhenMatchCreationFails(t *testing.T) {
-	t.Parallel()
-
-	f := newMatchFixture()
-	f.matches.create = func(ctx context.Context, match *domain.Match) error {
-		return errFake
-	}
-
-	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
-	if !errors.Is(err, errFake) {
-		t.Fatalf("error = %v, want %v", err, errFake)
-	}
-
-	if len(f.txs.created) != 0 {
-		t.Errorf("transactions created = %d, want 0", len(f.txs.created))
-	}
-	if got := f.storedRequest().ActualAmount; got != 100 {
-		t.Errorf("actual amount after compensation = %v, want 100", got)
-	}
-}
-
-func TestMatchUseCaseLikeCompensatesWhenOfferUpdateFails(t *testing.T) {
-	t.Parallel()
-
-	f := newMatchFixture()
-	f.offers.update = func(ctx context.Context, offer *domain.SupplyOffer) error {
-		return errFake
-	}
-
-	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
-	if !errors.Is(err, errFake) {
-		t.Fatalf("error = %v, want %v", err, errFake)
-	}
-
-	if len(f.txs.deleted) != 1 {
-		t.Errorf("transactions deleted = %d, want 1", len(f.txs.deleted))
-	}
-	if len(f.matches.deleted) != 1 {
-		t.Errorf("matches deleted = %d, want 1", len(f.matches.deleted))
-	}
-	if got := f.storedRequest().ActualAmount; got != 100 {
-		t.Errorf("actual amount after compensation = %v, want 100", got)
-	}
-}
-
-func TestMatchUseCaseLikeCompensatesWhenRejectingOtherOffersFails(t *testing.T) {
-	t.Parallel()
-
-	f := newMatchFixture()
-	f.requests.store[matchTestRequestID] = *matchTestSingleProviderRequest()
-
-	other := matchTestOffer()
-	other.ID = matchTestOtherOfferID
-	f.offers.seed(*other)
-
-	updateCalls := 0
-	f.offers.update = func(ctx context.Context, offer *domain.SupplyOffer) error {
-		updateCalls++
-		if updateCalls == 1 {
-			if offer.ID != matchTestOfferID || offer.Status != domain.OfferMatched {
-				t.Errorf("first update = %v/%v, want liked offer matched", offer.ID, offer.Status)
-			}
-			f.offers.store[offer.ID] = *offer
-			f.offers.updated = append(f.offers.updated, *offer)
-			return nil
-		}
-		if offer.ID == matchTestOtherOfferID && offer.Status == domain.OfferRejected {
-			return errFake
-		}
-		f.offers.store[offer.ID] = *offer
-		f.offers.updated = append(f.offers.updated, *offer)
-		return nil
-	}
-
-	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
-	if !errors.Is(err, errFake) {
-		t.Fatalf("error = %v, want %v", err, errFake)
-	}
-
-	if len(f.txs.deleted) != 1 {
-		t.Errorf("transactions deleted = %d, want 1", len(f.txs.deleted))
-	}
-	if len(f.matches.deleted) != 1 {
-		t.Errorf("matches deleted = %d, want 1", len(f.matches.deleted))
-	}
-	if got := f.storedRequest().ActualAmount; got != 100 {
-		t.Errorf("actual amount after compensation = %v, want 100", got)
-	}
-	if got := f.offers.store[matchTestOfferID].Status; got != domain.OfferActive {
-		t.Errorf("liked offer status after compensation = %v, want active", got)
-	}
-	if got := f.offers.store[matchTestOtherOfferID].Status; got != domain.OfferActive {
-		t.Errorf("other offer status after compensation = %v, want active", got)
-	}
-}
-
-func TestMatchUseCaseLikeJoinsCompensationErrors(t *testing.T) {
-	t.Parallel()
-
-	f := newMatchFixture()
-	f.matches.create = func(ctx context.Context, match *domain.Match) error {
-		return errFake
-	}
-	releaseErr := errors.New("release failed")
-	updateCalls := 0
-	f.requests.update = func(ctx context.Context, request *domain.SupplyRequest) error {
-		updateCalls++
-		if updateCalls == 1 {
-			f.requests.store[request.ID] = *request
-			f.requests.updated = append(f.requests.updated, *request)
-			return nil
-		}
-		return releaseErr
-	}
-
-	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
-	if !errors.Is(err, errFake) {
-		t.Errorf("error = %v, want it to wrap %v", err, errFake)
-	}
-	if !errors.Is(err, releaseErr) {
-		t.Errorf("error = %v, want it to wrap %v", err, releaseErr)
 	}
 }
 

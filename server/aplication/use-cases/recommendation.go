@@ -26,7 +26,7 @@ func (availabilityScoreFactor) Name() string {
 }
 
 func (availabilityScoreFactor) Score(_ context.Context, input primary.OfferScoreInput) (float64, error) {
-	return float64(input.AvailableQuantity), nil
+	return input.AvailableQuantity, nil
 }
 
 func AvailabilityScoreFactor() primary.ScoreFactor {
@@ -66,9 +66,16 @@ func NewRecommendationUseCase(
 	}
 }
 
-func (uc *RecommendationUseCaseImpl) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float32, error) {
-	if _, err := auth.RequirePrincipal(ctx); err != nil {
+func (uc *RecommendationUseCaseImpl) AvailableQuantity(ctx context.Context, supplierID uuid.UUID, productName string) (float64, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
 		return 0, err
+	}
+	// Only the public read is gated. The internal helper stays ungated because
+	// RankOffers resolves it on behalf of the BUYER of a request, who is
+	// entitled to see a candidate supplier's stock.
+	if supplierID != principal.UserID {
+		return 0, domain.ErrForbidden
 	}
 
 	return uc.availableQuantity(ctx, supplierID, productName, true)
@@ -149,7 +156,7 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 	return ranked, nil
 }
 
-func (uc *RecommendationUseCaseImpl) availableQuantity(ctx context.Context, supplierID uuid.UUID, productName string, strictNotFound bool) (float32, error) {
+func (uc *RecommendationUseCaseImpl) availableQuantity(ctx context.Context, supplierID uuid.UUID, productName string, strictNotFound bool) (float64, error) {
 	inventory, err := uc.inventoryRepo.FindBySupplierAndProduct(ctx, supplierID, productName)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) && !strictNotFound {
@@ -163,11 +170,32 @@ func (uc *RecommendationUseCaseImpl) availableQuantity(ctx context.Context, supp
 		return 0, err
 	}
 
-	var reserved float32
+	requests := make(map[uuid.UUID]domain.SupplyRequest)
+	var reserved float64
 	for i := range activeMatches {
-		if activeMatches[i].IsActive() {
-			reserved += activeMatches[i].MatchedAmount
+		if !activeMatches[i].IsActive() {
+			continue
 		}
+		if activeMatches[i].AmountUnit != inventory.AmountUnit {
+			continue
+		}
+
+		request, ok := requests[activeMatches[i].SupplyRequest]
+		if !ok {
+			request, err = uc.requestRepo.GetByID(ctx, activeMatches[i].SupplyRequest)
+			if err != nil {
+				if errors.Is(err, domain.ErrNotFound) {
+					continue
+				}
+				return 0, err
+			}
+			requests[activeMatches[i].SupplyRequest] = request
+		}
+		if request.ProductName != inventory.ProductName {
+			continue
+		}
+
+		reserved += activeMatches[i].MatchedAmount
 	}
 
 	available := inventory.Quantity - reserved

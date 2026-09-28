@@ -2,7 +2,7 @@ package usecases
 
 import (
 	"context"
-	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -19,6 +19,7 @@ type MatchUseCaseImpl struct {
 	matchRepo       port.MatchRepository
 	transactionRepo port.TransactionRepository
 	recommendations primary.RecommendationUseCase
+	tx              port.UnitOfWork
 }
 
 func NewMatchUseCase(
@@ -27,6 +28,7 @@ func NewMatchUseCase(
 	matchRepo port.MatchRepository,
 	transactionRepo port.TransactionRepository,
 	recommendations primary.RecommendationUseCase,
+	tx port.UnitOfWork,
 ) *MatchUseCaseImpl {
 	return &MatchUseCaseImpl{
 		requestRepo:     requestRepo,
@@ -34,143 +36,134 @@ func NewMatchUseCase(
 		matchRepo:       matchRepo,
 		transactionRepo: transactionRepo,
 		recommendations: recommendations,
+		tx:              tx,
 	}
 }
 
+// Like matches an offer with its request as ONE unit of work: the reservation,
+// the match row, the transaction row and the offer status either all become
+// visible or none of them do. The ROLLBACK is the compensation; there is no
+// manual compensation ladder to get wrong under a partial failure.
+//
+// Lock order inside the transaction: SupplyRequest -> SupplyOffer. Matches and
+// transactions are created rather than locked, so they take no row lock.
 func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (*dto.MatchDTO, *dto.TransactionDTO, error) {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	offer, err := uc.offerRepo.GetByID(ctx, supplyOfferID)
-	if err != nil {
-		return nil, nil, err
-	}
+	var (
+		createdMatch       *domain.Match
+		createdTransaction *domain.Transaction
+	)
 
-	if !offer.IsActionable() {
-		return nil, nil, domain.ErrInvalidOfferStatus
-	}
-
-	request, err := uc.requestRepo.GetByID(ctx, offer.SupplyRequest)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !request.IsOpen() {
-		return nil, nil, domain.ErrInvalidRequestStatus
-	}
-
-	if request.BuyerID != principal.UserID {
-		return nil, nil, domain.ErrForbidden
-	}
-
-	existsByOffer, err := uc.matchRepo.ExistsActiveByOffer(ctx, offer.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if existsByOffer {
-		return nil, nil, domain.ErrInvalidMatchStatus
-	}
-
-	if !request.MultipleProviders {
-		existsByRequest, err := uc.matchRepo.ExistsActiveByRequest(ctx, request.ID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if existsByRequest {
-			return nil, nil, domain.ErrInvalidMatchStatus
-		}
-	}
-
-	createdMatch := domain.NewMatch(offer.ID, request.ID, offer.TotalAmount, offer.AmountUnit)
-
-	if err := request.ReserveAmount(offer.TotalAmount); err != nil {
-		return nil, nil, err
-	}
-
-	var rollbacks []func(context.Context) error
-	compensate := func(cause error) error {
-		for i := len(rollbacks) - 1; i >= 0; i-- {
-			if rbErr := rollbacks[i](ctx); rbErr != nil {
-				cause = errors.Join(cause, rbErr)
-			}
-		}
-		return cause
-	}
-
-	releaseReservation := func(ctx context.Context) error {
-		current, err := uc.requestRepo.GetByID(ctx, request.ID)
+	err = uc.tx.WithinTx(ctx, func(scope port.TxScope) error {
+		// Two unlocked PK reads, only to resolve the lock keys. The request id
+		// is only reachable through the offer row, so the offer is read first.
+		offer, err := scope.Offers.GetByID(ctx, supplyOfferID)
 		if err != nil {
 			return err
 		}
-		if err := current.ReleaseAmount(offer.TotalAmount); err != nil {
+
+		// FIRST LOCK: the request, per the global order.
+		request, err := scope.Requests.LockForUpdate(ctx, offer.SupplyRequest)
+		if err != nil {
 			return err
 		}
-		return uc.requestRepo.Update(ctx, &current)
-	}
 
-	if err := uc.requestRepo.Update(ctx, &request); err != nil {
-		return nil, nil, err
-	}
-	rollbacks = append(rollbacks, releaseReservation)
+		// Re-validate against the FRESH locked rows, not the unlocked reads.
+		if !offer.IsActionable() {
+			return domain.ErrInvalidOfferStatus
+		}
+		if !request.IsOpen() {
+			return domain.ErrInvalidRequestStatus
+		}
+		if request.BuyerID != principal.UserID {
+			return domain.ErrForbidden
+		}
 
-	rollbacks = append(rollbacks, func(ctx context.Context) error {
-		return uc.matchRepo.Delete(ctx, createdMatch.ID)
-	})
-	if err := uc.matchRepo.Create(ctx, createdMatch); err != nil {
-		return nil, nil, compensate(err)
-	}
-
-	createdTransaction := domain.NewTransaction(createdMatch.ID)
-	rollbacks = append(rollbacks, func(ctx context.Context) error {
-		return uc.transactionRepo.Delete(ctx, createdTransaction.ID)
-	})
-	if err := uc.transactionRepo.Create(ctx, createdTransaction); err != nil {
-		return nil, nil, compensate(err)
-	}
-
-	previousOfferStatus := offer.Status
-	previousOfferUpdatedAt := offer.UpdatedAt
-	rollbacks = append(rollbacks, func(ctx context.Context) error {
-		offer.Status = previousOfferStatus
-		offer.UpdatedAt = previousOfferUpdatedAt
-		return uc.offerRepo.Update(ctx, &offer)
-	})
-	if err := offer.MarkMatched(); err != nil {
-		return nil, nil, compensate(err)
-	}
-	if err := uc.offerRepo.Update(ctx, &offer); err != nil {
-		return nil, nil, compensate(err)
-	}
-
-	if !request.MultipleProviders {
-		otherOffers, err := uc.offerRepo.ListByRequest(ctx, request.ID)
+		// SECOND LOCK: the offer, now that the request is held.
+		offer, err = scope.Offers.LockByIDForUpdate(ctx, supplyOfferID)
 		if err != nil {
-			return nil, nil, compensate(err)
+			return err
+		}
+		if !offer.IsActionable() {
+			return domain.ErrInvalidOfferStatus
 		}
 
-		for i := range otherOffers {
-			other := otherOffers[i]
-			if other.ID == offer.ID || !other.IsActionable() {
-				continue
+		// Both gates are evaluated under the request lock, so two concurrent
+		// likes on the same request serialize and the second one sees the first
+		// one's committed match.
+		if !request.MultipleProviders {
+			existsByRequest, err := scope.Matches.ExistsActiveByRequest(ctx, request.ID)
+			if err != nil {
+				return err
 			}
-
-			previousStatus := other.Status
-			previousUpdatedAt := other.UpdatedAt
-			rollbacks = append(rollbacks, func(ctx context.Context) error {
-				other.Status = previousStatus
-				other.UpdatedAt = previousUpdatedAt
-				return uc.offerRepo.Update(ctx, &other)
-			})
-
-			if err := other.Reject(); err != nil {
-				return nil, nil, compensate(err)
-			}
-			if err := uc.offerRepo.Update(ctx, &other); err != nil {
-				return nil, nil, compensate(err)
+			if existsByRequest {
+				return domain.ErrInvalidMatchStatus
 			}
 		}
+
+		existsByOffer, err := scope.Matches.ExistsActiveByOffer(ctx, offer.ID)
+		if err != nil {
+			return err
+		}
+		if existsByOffer {
+			return domain.ErrInvalidMatchStatus
+		}
+
+		// Go decides: the state machine rejects the over-assignment.
+		if err := request.ReserveAmount(offer.TotalAmount); err != nil {
+			return err
+		}
+
+		createdMatch = domain.NewMatch(offer.ID, request.ID, offer.TotalAmount, offer.AmountUnit)
+		createdTransaction = domain.NewTransaction(createdMatch.ID)
+
+		// SQL enforces: actual_amount >= $1 makes over-assignment impossible
+		// even if the lock discipline above is broken later.
+		if err := scope.Requests.Reserve(ctx, request.ID, offer.TotalAmount, time.Now()); err != nil {
+			return err
+		}
+		if err := scope.Matches.Create(ctx, createdMatch); err != nil {
+			return err
+		}
+		if err := scope.Transactions.Create(ctx, createdTransaction); err != nil {
+			return err
+		}
+		if err := offer.MarkMatched(); err != nil {
+			return err
+		}
+		if err := scope.Offers.Update(ctx, &offer); err != nil {
+			return err
+		}
+
+		if !request.MultipleProviders {
+			otherOffers, err := scope.Offers.ListByRequest(ctx, request.ID)
+			if err != nil {
+				return err
+			}
+
+			for i := range otherOffers {
+				other := otherOffers[i]
+				if other.ID == offer.ID || !other.IsActionable() {
+					continue
+				}
+
+				if err := other.Reject(); err != nil {
+					return err
+				}
+				if err := scope.Offers.Update(ctx, &other); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
 	return matchToDTO(createdMatch), matchTransactionToDTO(createdTransaction), nil

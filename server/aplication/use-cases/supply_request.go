@@ -16,13 +16,15 @@ import (
 
 type SupplyRequestUseCaseImpl struct {
 	supplyRequestRepo port.SupplyRequestRepository
+	offerRepo         port.SupplyOfferRepository
 	matchRepo         port.MatchRepository
 	timer             port.TimeProvider
 }
 
-func NewSupplyRequestUseCase(supplyRequestRepo port.SupplyRequestRepository, matchRepo port.MatchRepository, timer port.TimeProvider) *SupplyRequestUseCaseImpl {
+func NewSupplyRequestUseCase(supplyRequestRepo port.SupplyRequestRepository, offerRepo port.SupplyOfferRepository, matchRepo port.MatchRepository, timer port.TimeProvider) *SupplyRequestUseCaseImpl {
 	return &SupplyRequestUseCaseImpl{
 		supplyRequestRepo: supplyRequestRepo,
+		offerRepo:         offerRepo,
 		matchRepo:         matchRepo,
 		timer:             timer,
 	}
@@ -74,6 +76,46 @@ func (uc *SupplyRequestUseCaseImpl) List(ctx context.Context) ([]*dto.SupplyRequ
 	return dtos, nil
 }
 
+func (uc *SupplyRequestUseCaseImpl) ListAvailable(ctx context.Context, supplierID uuid.UUID) ([]*dto.SupplyRequestDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if supplierID != principal.UserID {
+		return nil, domain.ErrForbidden
+	}
+
+	supplyRequests, err := uc.supplyRequestRepo.ListOpen(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	offers, err := uc.offerRepo.List(ctx, supplierID)
+	if err != nil {
+		return nil, err
+	}
+	offeredRequests := make(map[uuid.UUID]struct{}, len(offers))
+	for i := range offers {
+		offeredRequests[offers[i].SupplyRequest] = struct{}{}
+	}
+
+	dtos := make([]*dto.SupplyRequestDTO, 0, len(supplyRequests))
+	for i := range supplyRequests {
+		if supplyRequests[i].BuyerID == supplierID {
+			continue
+		}
+		if supplyRequests[i].ActualAmount <= 0 {
+			continue
+		}
+		if _, ok := offeredRequests[supplyRequests[i].ID]; ok {
+			continue
+		}
+		dtos = append(dtos, supplyRequestToDTO(&supplyRequests[i]))
+	}
+
+	return dtos, nil
+}
+
 func (uc *SupplyRequestUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.SupplyRequestDTO, error) {
 	if _, err := auth.RequirePrincipal(ctx); err != nil {
 		return nil, err
@@ -107,6 +149,9 @@ func (uc *SupplyRequestUseCaseImpl) Update(ctx context.Context, id uuid.UUID, re
 	if err := validateSupplyRequestDeadlines(req.RequestDeadline, req.DeliveryDeadline); err != nil {
 		return err
 	}
+	if err := uc.validateAgainstMatchedAmount(ctx, id, req.TotalAmount, req.ActualAmount); err != nil {
+		return err
+	}
 
 	supplyRequest.ProductName = req.ProductName
 	supplyRequest.TotalAmount = req.TotalAmount
@@ -135,6 +180,9 @@ func (uc *SupplyRequestUseCaseImpl) UpdateAmounts(ctx context.Context, id uuid.U
 		return domain.ErrInvalidRequestStatus
 	}
 	if err := validateSupplyAmounts(req.TotalAmount, req.ActualAmount); err != nil {
+		return err
+	}
+	if err := uc.validateAgainstMatchedAmount(ctx, id, req.TotalAmount, req.ActualAmount); err != nil {
 		return err
 	}
 
@@ -202,6 +250,14 @@ func (uc *SupplyRequestUseCaseImpl) Expire(ctx context.Context, id uuid.UUID) er
 		return domain.ErrInvalidRequestStatus
 	}
 
+	hasActiveMatch, err := uc.matchRepo.ExistsActiveByRequest(ctx, id)
+	if err != nil {
+		return err
+	}
+	if hasActiveMatch {
+		return primary.ErrActiveMatch
+	}
+
 	if err := supplyRequest.Expire(); err != nil {
 		return err
 	}
@@ -229,9 +285,30 @@ func (uc *SupplyRequestUseCaseImpl) getOwnedSupplyRequest(ctx context.Context, i
 	return &supplyRequest, nil
 }
 
+func (uc *SupplyRequestUseCaseImpl) validateAgainstMatchedAmount(ctx context.Context, id uuid.UUID, totalAmount, actualAmount float64) error {
+	matches, err := uc.matchRepo.ListActiveByRequest(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	var matched float64
+	for i := range matches {
+		matched += matches[i].MatchedAmount
+	}
+
+	if totalAmount < matched {
+		return fmt.Errorf("%w: total amount cannot be lower than the already matched amount", domain.ErrInsufficientAmount)
+	}
+	if actualAmount > totalAmount-matched {
+		return fmt.Errorf("%w: actual amount cannot include already matched quantity", domain.ErrInsufficientAmount)
+	}
+
+	return nil
+}
+
 var _ primary.SupplyRequestUseCase = (*SupplyRequestUseCaseImpl)(nil)
 
-func validateSupplyRequestContent(productName string, totalAmount float32) error {
+func validateSupplyRequestContent(productName string, totalAmount float64) error {
 	if productName == "" {
 		return fmt.Errorf("%w: product name is required", domain.ErrInvalidInput)
 	}
@@ -241,7 +318,7 @@ func validateSupplyRequestContent(productName string, totalAmount float32) error
 	return nil
 }
 
-func validateSupplyAmounts(totalAmount, actualAmount float32) error {
+func validateSupplyAmounts(totalAmount, actualAmount float64) error {
 	if totalAmount <= 0 {
 		return fmt.Errorf("%w: total amount must be greater than zero", domain.ErrInvalidInput)
 	}

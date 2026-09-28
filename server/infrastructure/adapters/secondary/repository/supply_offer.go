@@ -14,11 +14,11 @@ import (
 )
 
 type SupplyOfferRepositoryImpl struct {
-	pool DB
+	db Querier
 }
 
 func NewSupplyOfferRepository(pool DB) *SupplyOfferRepositoryImpl {
-	return &SupplyOfferRepositoryImpl{pool: pool}
+	return &SupplyOfferRepositoryImpl{db: pool}
 }
 
 func isUniqueViolation(err error) bool {
@@ -47,7 +47,7 @@ func (r *SupplyOfferRepositoryImpl) Create(ctx context.Context, supplyOffer *dom
 			proposed_delivery_day, delivery_available, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		supplyOffer.ID, supplyOffer.SupplierID, supplyOffer.SupplyRequest, supplyOffer.TotalAmount, supplyOffer.AmountUnit,
 		supplyOffer.ProposedDeliveryDay, supplyOffer.DeliveryAvailable, supplyOffer.Status,
 		supplyOffer.CreatedAt, supplyOffer.UpdatedAt,
@@ -69,7 +69,7 @@ func (r *SupplyOfferRepositoryImpl) List(ctx context.Context, supplierID uuid.UU
 		WHERE supplier_id = $1
 	`
 
-	rows, err := r.pool.Query(ctx, query, supplierID)
+	rows, err := r.db.Query(ctx, query, supplierID)
 	if err != nil {
 		return nil, fmt.Errorf("supplyOffer.List: %w", err)
 	}
@@ -99,7 +99,7 @@ func (r *SupplyOfferRepositoryImpl) ListByRequest(ctx context.Context, supplyReq
 		WHERE supply_request_id = $1
 	`
 
-	rows, err := r.pool.Query(ctx, query, supplyRequestID)
+	rows, err := r.db.Query(ctx, query, supplyRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("supplyOffer.ListByRequest: %w", err)
 	}
@@ -129,7 +129,7 @@ func (r *SupplyOfferRepositoryImpl) FindBySupplierAndRequest(ctx context.Context
 		WHERE supplier_id = $1 AND supply_request_id = $2
 	`
 
-	supplyOffer, err := scanSupplyOffer(r.pool.QueryRow(ctx, query, supplierID, supplyRequestID).Scan)
+	supplyOffer, err := scanSupplyOffer(r.db.QueryRow(ctx, query, supplierID, supplyRequestID).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.SupplyOffer{}, fmt.Errorf("supplyOffer.FindBySupplierAndRequest: %w", domain.ErrNotFound)
@@ -148,12 +148,35 @@ func (r *SupplyOfferRepositoryImpl) GetByID(ctx context.Context, supplyOfferID u
 		WHERE id = $1
 	`
 
-	supplyOffer, err := scanSupplyOffer(r.pool.QueryRow(ctx, query, supplyOfferID).Scan)
+	supplyOffer, err := scanSupplyOffer(r.db.QueryRow(ctx, query, supplyOfferID).Scan)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.SupplyOffer{}, fmt.Errorf("supplyOffer.GetByID: %w", domain.ErrNotFound)
 		}
 		return domain.SupplyOffer{}, fmt.Errorf("supplyOffer.GetByID: %w", err)
+	}
+
+	return supplyOffer, nil
+}
+
+// LockByIDForUpdate reads the offer and holds a row lock on it until the
+// enclosing transaction ends. It is the second lock of the global order:
+// SupplyRequest -> SupplyOffer.
+func (r *SupplyOfferRepositoryImpl) LockByIDForUpdate(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error) {
+	query := `
+		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
+		       status, created_at, updated_at
+		FROM supply_offers
+		WHERE id = $1
+		FOR UPDATE
+	`
+
+	supplyOffer, err := scanSupplyOffer(r.db.QueryRow(ctx, query, supplyOfferID).Scan)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.SupplyOffer{}, fmt.Errorf("supplyOffer.LockByIDForUpdate: %w", domain.ErrNotFound)
+		}
+		return domain.SupplyOffer{}, fmt.Errorf("supplyOffer.LockByIDForUpdate: %w", err)
 	}
 
 	return supplyOffer, nil
@@ -166,7 +189,7 @@ func (r *SupplyOfferRepositoryImpl) Update(ctx context.Context, supplyOffer *dom
 		    updated_at = $6
 		WHERE id = $7
 	`
-	_, err := r.pool.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, query,
 		supplyOffer.TotalAmount, supplyOffer.AmountUnit, supplyOffer.ProposedDeliveryDay, supplyOffer.DeliveryAvailable,
 		supplyOffer.Status, supplyOffer.UpdatedAt, supplyOffer.ID,
 	)
@@ -177,11 +200,14 @@ func (r *SupplyOfferRepositoryImpl) Update(ctx context.Context, supplyOffer *dom
 }
 
 func (r *SupplyOfferRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.pool.Exec(ctx, "DELETE FROM supply_offers WHERE id = $1", id)
+	_, err := r.db.Exec(ctx, "DELETE FROM supply_offers WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("supplyOffer.Delete: %w", err)
 	}
 	return nil
 }
 
-var _ port.SupplyOfferRepository = (*SupplyOfferRepositoryImpl)(nil)
+var (
+	_ port.SupplyOfferRepository = (*SupplyOfferRepositoryImpl)(nil)
+	_ port.TxOfferRepository     = (*SupplyOfferRepositoryImpl)(nil)
+)

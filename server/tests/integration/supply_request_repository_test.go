@@ -17,6 +17,9 @@ var testSupplyRequestOtherBuyerID uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1
 var testSupplyRequestID uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a111")
 var testSupplyRequestID2 uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a112")
 var testSupplyRequestID3 uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a113")
+var testSupplyRequestID4 uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a114")
+var testSupplyRequestID5 uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a115")
+var testSupplyRequestID6 uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a116")
 var testSupplyRequestNotFoundID uuid.UUID = uuid.MustParse("a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a199")
 
 func newSupplyRequestFixture(id, buyerID uuid.UUID, productName string, createdAt time.Time) *domain.SupplyRequest {
@@ -288,6 +291,83 @@ func TestSupplyRequestList(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSupplyRequestListOpen(t *testing.T) {
+	setupSupplyRequestTestData(t)
+	db := repository.NewSupplyRequestRepository(TestPool)
+
+	openFirst := newSupplyRequestFixture(testSupplyRequestID, testSupplyRequestBuyerID, "Maize", fixedTime)
+	openSecond := newSupplyRequestFixture(testSupplyRequestID2, testSupplyRequestOtherBuyerID, "Beans", fixedTime.Add(time.Minute))
+	openThird := newSupplyRequestFixture(testSupplyRequestID3, testSupplyRequestOtherBuyerID, "Rice", fixedTime.Add(2*time.Minute))
+	cancelled := newSupplyRequestFixture(testSupplyRequestID4, testSupplyRequestBuyerID, "Sorghum", fixedTime.Add(3*time.Minute))
+	expired := newSupplyRequestFixture(testSupplyRequestID5, testSupplyRequestOtherBuyerID, "Coffee", fixedTime.Add(4*time.Minute))
+	completed := newSupplyRequestFixture(testSupplyRequestID6, testSupplyRequestBuyerID, "Cocoa", fixedTime.Add(5*time.Minute))
+
+	for _, supplyRequest := range []*domain.SupplyRequest{openFirst, openSecond, openThird, cancelled, expired, completed} {
+		if err := db.Create(context.Background(), supplyRequest); err != nil {
+			t.Fatalf("Create() supply request %s: %v", supplyRequest.ID, err)
+		}
+	}
+
+	toUpdate, err := db.GetByID(context.Background(), testSupplyRequestID4)
+	if err != nil {
+		t.Fatalf("GetByID() error: %v", err)
+	}
+	if err := toUpdate.Cancel(); err != nil {
+		t.Fatalf("Cancel() error: %v", err)
+	}
+	if err := db.Update(context.Background(), &toUpdate); err != nil {
+		t.Fatalf("Update() cancelled error: %v", err)
+	}
+
+	toUpdate, err = db.GetByID(context.Background(), testSupplyRequestID5)
+	if err != nil {
+		t.Fatalf("GetByID() error: %v", err)
+	}
+	if err := toUpdate.Expire(); err != nil {
+		t.Fatalf("Expire() error: %v", err)
+	}
+	if err := db.Update(context.Background(), &toUpdate); err != nil {
+		t.Fatalf("Update() expired error: %v", err)
+	}
+
+	toUpdate, err = db.GetByID(context.Background(), testSupplyRequestID6)
+	if err != nil {
+		t.Fatalf("GetByID() error: %v", err)
+	}
+	if err := toUpdate.Complete(); err != nil {
+		t.Fatalf("Complete() error: %v", err)
+	}
+	if err := db.Update(context.Background(), &toUpdate); err != nil {
+		t.Fatalf("Update() completed error: %v", err)
+	}
+
+	got, err := db.ListOpen(context.Background())
+	if err != nil {
+		t.Fatalf("ListOpen() unexpected error: %v", err)
+	}
+
+	wantIDs := []uuid.UUID{testSupplyRequestID3, testSupplyRequestID2, testSupplyRequestID}
+	if len(got) != len(wantIDs) {
+		t.Fatalf("ListOpen() got %d supply requests, want %d", len(got), len(wantIDs))
+	}
+	for i, wantID := range wantIDs {
+		if got[i].ID != wantID {
+			t.Errorf("ListOpen()[%d].ID = %v, want %v (ordered by created_at DESC)", i, got[i].ID, wantID)
+		}
+		if got[i].Status != domain.SupplyRequestOpen {
+			t.Errorf("ListOpen()[%d].Status = %v, want open", i, got[i].Status)
+		}
+	}
+
+	buyers := make(map[uuid.UUID]bool)
+	for _, supplyRequest := range got {
+		buyers[supplyRequest.BuyerID] = true
+	}
+	if !buyers[testSupplyRequestBuyerID] || !buyers[testSupplyRequestOtherBuyerID] {
+		t.Errorf("ListOpen() buyers = %v, want requests from both %v and %v", buyers, testSupplyRequestBuyerID, testSupplyRequestOtherBuyerID)
 	}
 }
 

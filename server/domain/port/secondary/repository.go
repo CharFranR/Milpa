@@ -110,6 +110,7 @@ type SupplyOfferRepository interface {
 type SupplyRequestRepository interface {
 	Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error
 	List(ctx context.Context, buyerID uuid.UUID) ([]domain.SupplyRequest, error)
+	ListOpen(ctx context.Context) ([]domain.SupplyRequest, error)
 	GetByID(ctx context.Context, supplyRequest uuid.UUID) (domain.SupplyRequest, error)
 	Update(ctx context.Context, suplyRequest *domain.SupplyRequest) error
 	Delete(ctx context.Context, id uuid.UUID) error

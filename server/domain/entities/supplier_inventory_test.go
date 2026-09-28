@@ -42,9 +42,9 @@ func TestSupplierInventorySetQuantity(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		quantity    float32
+		quantity    float64
 		wantErr     error
-		wantOutcome float32
+		wantOutcome float64
 	}{
 		{name: "set positive quantity", quantity: 250, wantErr: nil, wantOutcome: 250},
 		{name: "set zero quantity", quantity: 0, wantErr: nil, wantOutcome: 0},

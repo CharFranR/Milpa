@@ -20,7 +20,7 @@ var testInventoryID2 uuid.UUID = uuid.MustParse("e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e
 var testInventoryID3 uuid.UUID = uuid.MustParse("e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e513")
 var testInventoryNotFoundID uuid.UUID = uuid.MustParse("e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e519")
 
-func newSupplierInventoryFixture(id, supplierID uuid.UUID, productName string, quantity float32, createdAt time.Time) *domain.SupplierInventory {
+func newSupplierInventoryFixture(id, supplierID uuid.UUID, productName string, quantity float64, createdAt time.Time) *domain.SupplierInventory {
 	return &domain.SupplierInventory{
 		ID:          id,
 		SupplierID:  supplierID,

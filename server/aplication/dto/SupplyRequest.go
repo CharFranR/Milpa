@@ -11,11 +11,11 @@ type SupplyRequestDTO struct {
 	ID                   *uuid.UUID                 `json:"id"`
 	BuyerID              *uuid.UUID                 `json:"buyer_id"`
 	ProductName          string                     `json:"product_name"`
-	TotalAmount          float32                    `json:"total_amount"`
-	ActualAmount         float32                    `json:"actual_amount"`
+	TotalAmount          float64                    `json:"total_amount"`
+	ActualAmount         float64                    `json:"actual_amount"`
 	AmountUnit           domain.MeasurementOptions  `json:"amount_measure"`
-	NumberOfUnits        float32                    `json:"numer_units"`
-	AmountPerUnit        float32                    `json:"amount_unit"`
+	NumberOfUnits        float64                    `json:"numer_units"`
+	AmountPerUnit        float64                    `json:"amount_unit"`
 	UnitOfMeasure        domain.MeasurementOptions  `json:"unit_measure"`
 	Address              domain.Address             `json:"Addrres"`
 	RequestDeadline      time.Time                  `json:"request_deadline"`
@@ -30,10 +30,10 @@ type SupplyRequestDTO struct {
 
 type SupplyUpdateAmountsDTO struct {
 	ID                   *uuid.UUID                `json:"id"`
-	TotalAmount          float32                   `json:"total_amount"`
-	ActualAmount         float32                   `json:"actual_amount"`
+	TotalAmount          float64                   `json:"total_amount"`
+	ActualAmount         float64                   `json:"actual_amount"`
 	AmountUnit           domain.MeasurementOptions `json:"amount_measure"`
-	AmountPerUnit        float32                   `json:"amount_unit"`
+	AmountPerUnit        float64                   `json:"amount_unit"`
 	UnitOfMeasure        domain.MeasurementOptions `json:"unit_measure"`
 	MultipleProviders    bool                      `json:"multiple_providers"`
 	MinAmountPerProvider float64                   `json:"min_amount_provider"`
@@ -48,11 +48,11 @@ type SupplyUpdateTimeDTO struct {
 type SupplyGeneralUpdateDTO struct {
 	ID                   *uuid.UUID                `json:"id"`
 	ProductName          string                    `json:"product_name"`
-	TotalAmount          float32                   `json:"total_amount"`
-	ActualAmount         float32                   `json:"actual_amount"`
+	TotalAmount          float64                   `json:"total_amount"`
+	ActualAmount         float64                   `json:"actual_amount"`
 	AmountUnit           domain.MeasurementOptions `json:"amount_measure"`
-	NumberOfUnits        float32                   `json:"numer_units"`
-	AmountPerUnit        float32                   `json:"amount_unit"`
+	NumberOfUnits        float64                   `json:"numer_units"`
+	AmountPerUnit        float64                   `json:"amount_unit"`
 	UnitOfMeasure        domain.MeasurementOptions `json:"unit_measure"`
 	Address              domain.Address            `json:"Addrres"`
 	RequestDeadline      time.Time                 `json:"request_deadline"`

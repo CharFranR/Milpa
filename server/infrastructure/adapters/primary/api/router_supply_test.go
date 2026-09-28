@@ -19,11 +19,12 @@ import (
 )
 
 type stubSupplyRequestUC struct {
-	createErr error
-	updateErr error
-	cancelErr error
-	list      []*dto.SupplyRequestDTO
-	gotID     uuid.UUID
+	createErr     error
+	updateErr     error
+	cancelErr     error
+	list          []*dto.SupplyRequestDTO
+	gotID         uuid.UUID
+	gotSupplierID uuid.UUID
 }
 
 func (s *stubSupplyRequestUC) Create(ctx context.Context, req dto.SupplyRequestDTO) (*dto.SupplyRequestDTO, error) {
@@ -64,6 +65,11 @@ func (s *stubSupplyRequestUC) GetByID(ctx context.Context, id uuid.UUID) (*dto.S
 }
 
 func (s *stubSupplyRequestUC) List(ctx context.Context) ([]*dto.SupplyRequestDTO, error) {
+	return s.list, nil
+}
+
+func (s *stubSupplyRequestUC) ListAvailable(ctx context.Context, supplierID uuid.UUID) ([]*dto.SupplyRequestDTO, error) {
+	s.gotSupplierID = supplierID
 	return s.list, nil
 }
 
@@ -149,6 +155,7 @@ func TestSupplyRoutesRequireAuthentication(t *testing.T) {
 	}{
 		{name: "list supply requests", method: http.MethodGet, path: "/api/v1/supply-requests/"},
 		{name: "create supply request", method: http.MethodPost, path: "/api/v1/supply-requests/"},
+		{name: "list available supply requests", method: http.MethodGet, path: "/api/v1/supply-requests/available"},
 		{name: "get supply request", method: http.MethodGet, path: "/api/v1/supply-requests/" + uuid.NewString()},
 		{name: "update supply request", method: http.MethodPatch, path: "/api/v1/supply-requests/" + uuid.NewString()},
 		{name: "update supply request amounts", method: http.MethodPatch, path: "/api/v1/supply-requests/" + uuid.NewString() + "/amounts"},
@@ -189,6 +196,24 @@ func TestSupplyRequestCreateReturnsCreated(t *testing.T) {
 
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201; body = %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestSupplyRequestListAvailableUsesPrincipal(t *testing.T) {
+	t.Parallel()
+
+	uc := &stubSupplyRequestUC{}
+	router := newSupplyTestRouter(t, uc, &stubSupplyOfferUC{})
+	req := supplyAuthenticatedRequest(t, http.MethodGet, "/api/v1/supply-requests/available", "")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if uc.gotSupplierID == uuid.Nil {
+		t.Fatal("expected the authenticated principal as supplier id, got nil UUID")
 	}
 }
 

@@ -18,15 +18,16 @@ import (
 func TestSupplyOfferUseCaseCreate(t *testing.T) {
 	t.Parallel()
 
-	baseRequest := supplyTestRequest(testUserID)
-	closedRequest := supplyTestRequest(testUserID)
+	baseRequest := supplyTestRequest(testOtherID)
+	closedRequest := supplyTestRequest(testOtherID)
 	closedRequest.Status = domain.SupplyRequestCancelled
-	singleProviderRequest := supplyTestRequest(testUserID)
+	singleProviderRequest := supplyTestRequest(testOtherID)
 	singleProviderRequest.MultipleProviders = false
-	lowRemainingRequest := supplyTestRequest(testUserID)
+	lowRemainingRequest := supplyTestRequest(testOtherID)
 	lowRemainingRequest.ActualAmount = 10
-	duplicateRequest := supplyTestRequest(testUserID)
+	duplicateRequest := supplyTestRequest(testOtherID)
 	duplicateOffer := supplyTestOffer(testUserID, duplicateRequest.ID)
+	ownRequest := supplyTestRequest(testUserID)
 
 	validReq := func(request *domain.SupplyRequest) dto.SupplyOfferDTO {
 		return dto.SupplyOfferDTO{
@@ -55,6 +56,13 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 		{name: "zero amount", ctx: principalCtx(), req: dto.SupplyOfferDTO{SupplyRequest: &baseRequest.ID}, wantErr: domain.ErrInvalidInput},
 		{name: "request not found", ctx: principalCtx(), req: validReq(&baseRequest), wantErr: domain.ErrNotFound},
 		{name: "request not open", ctx: principalCtx(), req: validReq(&closedRequest), seedRequest: &closedRequest, wantErr: domain.ErrInvalidRequestStatus},
+		{
+			name:        "buyer cannot offer on own request",
+			ctx:         principalCtx(),
+			req:         validReq(&ownRequest),
+			seedRequest: &ownRequest,
+			wantErr:     domain.ErrForbidden,
+		},
 		{
 			name:        "one offer per supplier per request",
 			ctx:         principalCtx(),
@@ -129,6 +137,9 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 				}
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(offerRepo.created) != 0 {
+					t.Fatalf("repo creates = %d, want 0", len(offerRepo.created))
 				}
 				return
 			}
@@ -454,6 +465,123 @@ func TestSupplyOfferUseCaseListByRequest(t *testing.T) {
 				t.Fatalf("listed offers = %d, want %d", len(got), tt.wantLen)
 			}
 		})
+	}
+}
+
+// A passed offer must not come back in the buyer's own listing: Pass rejects it,
+// and re-surfacing the same supplier on the same request would let the buyer
+// re-pick a candidate they already declined.
+func TestSupplyOfferUseCaseListByRequestHidesPassedOffer(t *testing.T) {
+	t.Parallel()
+
+	request := supplyTestRequest(testUserID)
+	passedOffer := supplyTestOffer(testCompanyID, request.ID)
+	keptOffer := supplyTestOffer(testOtherID, request.ID)
+
+	requestRepo := newSupplyFakeRequestRepo()
+	requestRepo.requests[request.ID] = request
+	offerRepo := newSupplyFakeOfferRepo()
+	offerRepo.offers[passedOffer.ID] = passedOffer
+	offerRepo.offers[keptOffer.ID] = keptOffer
+
+	// The buyer passes on one supplier.
+	matchUC := usecases.NewMatchUseCase(
+		requestRepo, offerRepo, newSupplyFakeMatchRepo(), newFakeMatchTransactionRepo(), nil, nil,
+	)
+	if err := matchUC.Pass(principalCtx(), passedOffer.ID); err != nil {
+		t.Fatalf("pass: %v", err)
+	}
+	if offerRepo.offers[passedOffer.ID].Status != domain.OfferRejected {
+		t.Fatalf("passed offer status = %v, want rejected", offerRepo.offers[passedOffer.ID].Status)
+	}
+
+	offerUC := usecases.NewSupplyOfferUseCase(offerRepo, requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+	got, err := offerUC.ListByRequest(principalCtx(), request.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, d := range got {
+		if d.ID != nil && *d.ID == passedOffer.ID {
+			t.Fatalf("passed offer is still listed for the buyer")
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("listed offers = %d, want 1 (only the offer that was not passed)", len(got))
+	}
+	if got[0].ID == nil || *got[0].ID != keptOffer.ID {
+		t.Errorf("listed offer = %v, want %v", got[0].ID, keptOffer.ID)
+	}
+}
+
+// The buyer must keep seeing the offer they matched: exclusion applies to
+// OfferRejected ONLY, never to OfferMatched.
+func TestSupplyOfferUseCaseListByRequestKeepsMatchedOffer(t *testing.T) {
+	t.Parallel()
+
+	request := supplyTestRequest(testUserID)
+	rejectedOffer := supplyTestOffer(testCompanyID, request.ID)
+	matchedOffer := supplyTestOffer(testOtherID, request.ID)
+	withdrawnOffer := supplyTestOffer(testUserID, request.ID)
+	matchedOffer.Status = domain.OfferMatched
+	rejectedOffer.Status = domain.OfferRejected
+	withdrawnOffer.Status = domain.OfferWithdrawn
+
+	requestRepo := newSupplyFakeRequestRepo()
+	requestRepo.requests[request.ID] = request
+	offerRepo := newSupplyFakeOfferRepo()
+	offerRepo.offers[rejectedOffer.ID] = rejectedOffer
+	offerRepo.offers[matchedOffer.ID] = matchedOffer
+	offerRepo.offers[withdrawnOffer.ID] = withdrawnOffer
+
+	uc := usecases.NewSupplyOfferUseCase(offerRepo, requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+	got, err := uc.ListByRequest(principalCtx(), request.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("listed offers = %d, want 2 (matched and withdrawn survive)", len(got))
+	}
+	statuses := map[uuid.UUID]domain.OfferStatus{}
+	for _, d := range got {
+		if d.ID == nil {
+			t.Fatal("listed offer has nil id")
+		}
+		statuses[*d.ID] = d.Status
+	}
+	if _, ok := statuses[rejectedOffer.ID]; ok {
+		t.Errorf("rejected offer is still listed")
+	}
+	if statuses[matchedOffer.ID] != domain.OfferMatched {
+		t.Errorf("matched offer status = %v, want matched", statuses[matchedOffer.ID])
+	}
+	if statuses[withdrawnOffer.ID] != domain.OfferWithdrawn {
+		t.Errorf("withdrawn offer status = %v, want withdrawn", statuses[withdrawnOffer.ID])
+	}
+}
+
+// The supplier keeps full visibility of their own rejected offer: a different
+// audience with a different information need. Only the buyer's read hides it.
+func TestSupplyOfferUseCaseListBySupplierStillShowsRejectedOffer(t *testing.T) {
+	t.Parallel()
+
+	rejected := supplyTestOffer(testUserID, uuid.New())
+	rejected.Status = domain.OfferRejected
+
+	offerRepo := newSupplyFakeOfferRepo()
+	offerRepo.offers[rejected.ID] = rejected
+
+	uc := usecases.NewSupplyOfferUseCase(offerRepo, newSupplyFakeRequestRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
+	got, err := uc.ListBySupplier(principalCtx(), testUserID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("listed offers = %d, want 1", len(got))
+	}
+	if got[0].Status != domain.OfferRejected {
+		t.Errorf("status = %v, want rejected", got[0].Status)
 	}
 }
 

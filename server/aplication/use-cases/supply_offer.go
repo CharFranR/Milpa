@@ -51,6 +51,9 @@ func (uc *SupplyOfferUseCaseImpl) Create(ctx context.Context, req dto.SupplyOffe
 	if !supplyRequest.IsOpen() {
 		return nil, domain.ErrInvalidRequestStatus
 	}
+	if supplyRequest.BuyerID == principal.UserID {
+		return nil, fmt.Errorf("%w: cannot create an offer on your own supply request", domain.ErrForbidden)
+	}
 
 	if _, err := uc.supplyOfferRepo.FindBySupplierAndRequest(ctx, principal.UserID, supplyRequestID); err == nil {
 		return nil, domain.ErrDuplicate
@@ -171,9 +174,15 @@ func (uc *SupplyOfferUseCaseImpl) ListByRequest(ctx context.Context, supplyReque
 		return nil, err
 	}
 
-	dtos := make([]*dto.SupplyOfferDTO, len(supplyOffers))
+	dtos := make([]*dto.SupplyOfferDTO, 0, len(supplyOffers))
 	for i := range supplyOffers {
-		dtos[i] = supplyOfferToDTO(&supplyOffers[i])
+		// A rejected offer was already passed on. Re-surfacing it would let the
+		// buyer pick the same supplier again on a request they already declined.
+		// Matched offers stay: the buyer must keep seeing the offer they committed to.
+		if supplyOffers[i].Status == domain.OfferRejected {
+			continue
+		}
+		dtos = append(dtos, supplyOfferToDTO(&supplyOffers[i]))
 	}
 
 	return dtos, nil
@@ -193,9 +202,9 @@ func (uc *SupplyOfferUseCaseImpl) ListBySupplier(ctx context.Context, supplierID
 		return nil, err
 	}
 
-	dtos := make([]*dto.SupplyOfferDTO, len(supplyOffers))
+	dtos := make([]*dto.SupplyOfferDTO, 0, len(supplyOffers))
 	for i := range supplyOffers {
-		dtos[i] = supplyOfferToDTO(&supplyOffers[i])
+		dtos = append(dtos, supplyOfferToDTO(&supplyOffers[i]))
 	}
 
 	return dtos, nil
@@ -226,8 +235,8 @@ func (uc *SupplyOfferUseCaseImpl) getOwnedActionableOffer(ctx context.Context, i
 
 var _ primary.SupplyOfferUseCase = (*SupplyOfferUseCaseImpl)(nil)
 
-func validateOfferAgainstRequest(supplyRequest domain.SupplyRequest, totalAmount float32) error {
-	if supplyRequest.MultipleProviders && float64(totalAmount) < supplyRequest.MinAmountPerProvider {
+func validateOfferAgainstRequest(supplyRequest domain.SupplyRequest, totalAmount float64) error {
+	if supplyRequest.MultipleProviders && totalAmount < supplyRequest.MinAmountPerProvider {
 		return fmt.Errorf("%w: offer total amount is below the minimum amount per provider", domain.ErrInvalidInput)
 	}
 	if totalAmount > supplyRequest.RemainingAmount() {

@@ -64,7 +64,7 @@ func TestSupplyRequestUseCaseCreate(t *testing.T) {
 
 			requestRepo := newSupplyFakeRequestRepo()
 			requestRepo.createErr = tt.createErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			got, err := uc.Create(tt.ctx, tt.req)
 
@@ -136,7 +136,7 @@ func TestSupplyRequestUseCaseList(t *testing.T) {
 				requestRepo.requests[supplyRequest.ID] = supplyRequest
 			}
 			requestRepo.listErr = tt.listErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			got, err := uc.List(tt.ctx)
 
@@ -158,6 +158,92 @@ func TestSupplyRequestUseCaseList(t *testing.T) {
 			}
 			if requestRepo.listBuyer != testUserID {
 				t.Errorf("list buyer id = %v, want principal %v", requestRepo.listBuyer, testUserID)
+			}
+		})
+	}
+}
+
+func TestSupplyRequestUseCaseListAvailable(t *testing.T) {
+	t.Parallel()
+
+	ownRequest := supplyTestRequest(testUserID)
+	otherBuyerRequest := supplyTestRequest(testOtherID)
+	zeroAmountRequest := supplyTestRequest(testOtherID)
+	zeroAmountRequest.ActualAmount = 0
+	offeredRequest := supplyTestRequest(testOtherID)
+	competitorOfferedRequest := supplyTestRequest(testOtherID)
+
+	tests := []struct {
+		name        string
+		ctx         context.Context
+		supplierID  uuid.UUID
+		seed        []domain.SupplyRequest
+		seedOffers  []domain.SupplyOffer
+		listOpenErr error
+		listErr     error
+		wantLen     int
+		wantErr     error
+	}{
+		{
+			name:       "returns other buyers open requests",
+			ctx:        principalCtx(),
+			supplierID: testUserID,
+			seed:       []domain.SupplyRequest{ownRequest, otherBuyerRequest, competitorOfferedRequest},
+			seedOffers: []domain.SupplyOffer{supplyTestOffer(testCompanyID, competitorOfferedRequest.ID)},
+			wantLen:    2,
+		},
+		{name: "own requests excluded", ctx: principalCtx(), supplierID: testUserID, seed: []domain.SupplyRequest{ownRequest}, wantLen: 0},
+		{name: "zero actual amount excluded", ctx: principalCtx(), supplierID: testUserID, seed: []domain.SupplyRequest{zeroAmountRequest}, wantLen: 0},
+		{
+			name:       "requests already offered by supplier excluded",
+			ctx:        principalCtx(),
+			supplierID: testUserID,
+			seed:       []domain.SupplyRequest{offeredRequest},
+			seedOffers: []domain.SupplyOffer{supplyTestOffer(testUserID, offeredRequest.ID)},
+			wantLen:    0,
+		},
+		{name: "supplier mismatch", ctx: principalCtx(), supplierID: testOtherID, wantErr: domain.ErrForbidden},
+		{name: "unauthenticated", ctx: context.Background(), supplierID: testUserID, wantErr: auth.ErrUnauthenticated},
+		{name: "list open repo error", ctx: principalCtx(), supplierID: testUserID, listOpenErr: errFake, wantErr: errFake},
+		{name: "offer list repo error", ctx: principalCtx(), supplierID: testUserID, listErr: errFake, wantErr: errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			requestRepo := newSupplyFakeRequestRepo()
+			for _, supplyRequest := range tt.seed {
+				requestRepo.requests[supplyRequest.ID] = supplyRequest
+			}
+			requestRepo.listOpenErr = tt.listOpenErr
+			offerRepo := newSupplyFakeOfferRepo()
+			for _, supplyOffer := range tt.seedOffers {
+				offerRepo.offers[supplyOffer.ID] = supplyOffer
+			}
+			offerRepo.listErr = tt.listErr
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, offerRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+
+			got, err := uc.ListAvailable(tt.ctx, tt.supplierID)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got == nil {
+				t.Fatal("result slice is nil, want non-nil slice")
+			}
+			if len(got) != tt.wantLen {
+				t.Fatalf("available supply requests = %d, want %d", len(got), tt.wantLen)
 			}
 		})
 	}
@@ -194,7 +280,7 @@ func TestSupplyRequestUseCaseGetByID(t *testing.T) {
 				requestRepo.requests[tt.seed.ID] = *tt.seed
 			}
 			requestRepo.getErr = tt.getErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			got, err := uc.GetByID(tt.ctx, tt.id)
 
@@ -285,7 +371,7 @@ func TestSupplyRequestUseCaseUpdate(t *testing.T) {
 				requestRepo.requests[tt.seed.ID] = *tt.seed
 			}
 			requestRepo.updateErr = tt.updateErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			err := uc.Update(tt.ctx, tt.id, tt.req)
 
@@ -373,7 +459,7 @@ func TestSupplyRequestUseCaseUpdateAmounts(t *testing.T) {
 				requestRepo.requests[tt.seed.ID] = *tt.seed
 			}
 			requestRepo.updateErr = tt.updateErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			err := uc.UpdateAmounts(tt.ctx, tt.id, tt.req)
 
@@ -405,6 +491,148 @@ func TestSupplyRequestUseCaseUpdateAmounts(t *testing.T) {
 			}
 			if !saved.UpdatedAt.Equal(fixedTime) {
 				t.Errorf("updated at = %v, want %v", saved.UpdatedAt, fixedTime)
+			}
+		})
+	}
+}
+
+func TestSupplyRequestUseCaseUpdateRespectsMatchedAmount(t *testing.T) {
+	t.Parallel()
+
+	ownedRequest := supplyTestRequest(testUserID)
+
+	baseReq := func(totalAmount, actualAmount float64) dto.SupplyGeneralUpdateDTO {
+		return dto.SupplyGeneralUpdateDTO{
+			ProductName:      "Rice",
+			TotalAmount:      totalAmount,
+			ActualAmount:     actualAmount,
+			RequestDeadline:  fixedTime.Add(24 * time.Hour),
+			DeliveryDeadline: fixedTime.Add(72 * time.Hour),
+		}
+	}
+
+	tests := []struct {
+		name          string
+		req           dto.SupplyGeneralUpdateDTO
+		matched       float64
+		listActiveErr error
+		wantErr       error
+		wantTotal     float64
+		wantActual    float64
+	}{
+		{name: "total below matched amount", req: baseReq(30, 0), matched: 40, wantErr: domain.ErrInsufficientAmount},
+		{name: "total equal to matched amount", req: baseReq(40, 0), matched: 40, wantTotal: 40, wantActual: 0},
+		{name: "actual above total minus matched", req: baseReq(100, 70), matched: 40, wantErr: domain.ErrInsufficientAmount},
+		{name: "no active matches keeps behaviour", req: baseReq(100, 60), wantTotal: 100, wantActual: 60},
+		{name: "match repo error", req: baseReq(100, 60), wantErr: errFake, listActiveErr: errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			requestRepo := newSupplyFakeRequestRepo()
+			requestRepo.requests[ownedRequest.ID] = ownedRequest
+			matchRepo := newSupplyFakeMatchRepo()
+			matchRepo.activeByRequest = supplyMatchedMatches(ownedRequest.ID, tt.matched)
+			matchRepo.listActiveByRequestErr = tt.listActiveErr
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+			err := uc.Update(principalCtx(), ownedRequest.ID, tt.req)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(requestRepo.updated) != 0 {
+					t.Fatalf("repo updates = %d, want 0", len(requestRepo.updated))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(requestRepo.updated) != 1 {
+				t.Fatalf("repo updates = %d, want 1", len(requestRepo.updated))
+			}
+			saved := requestRepo.requests[ownedRequest.ID]
+			if saved.TotalAmount != tt.wantTotal || saved.ActualAmount != tt.wantActual {
+				t.Errorf("amounts = %v / %v, want %v / %v", saved.TotalAmount, saved.ActualAmount, tt.wantTotal, tt.wantActual)
+			}
+		})
+	}
+}
+
+func TestSupplyRequestUseCaseUpdateAmountsRespectsMatchedAmount(t *testing.T) {
+	t.Parallel()
+
+	ownedRequest := supplyTestRequest(testUserID)
+
+	baseReq := func(totalAmount, actualAmount float64) dto.SupplyUpdateAmountsDTO {
+		return dto.SupplyUpdateAmountsDTO{
+			TotalAmount:   totalAmount,
+			ActualAmount:  actualAmount,
+			AmountUnit:    domain.Kg,
+			AmountPerUnit: 10,
+			UnitOfMeasure: domain.Kg,
+		}
+	}
+
+	tests := []struct {
+		name          string
+		req           dto.SupplyUpdateAmountsDTO
+		matched       float64
+		listActiveErr error
+		wantErr       error
+		wantTotal     float64
+		wantActual    float64
+	}{
+		{name: "total below matched amount", req: baseReq(30, 0), matched: 40, wantErr: domain.ErrInsufficientAmount},
+		{name: "total equal to matched amount", req: baseReq(40, 0), matched: 40, wantTotal: 40, wantActual: 0},
+		{name: "actual above total minus matched", req: baseReq(100, 70), matched: 40, wantErr: domain.ErrInsufficientAmount},
+		{name: "no active matches keeps behaviour", req: baseReq(100, 60), wantTotal: 100, wantActual: 60},
+		{name: "match repo error", req: baseReq(100, 60), listActiveErr: errFake, wantErr: errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			requestRepo := newSupplyFakeRequestRepo()
+			requestRepo.requests[ownedRequest.ID] = ownedRequest
+			matchRepo := newSupplyFakeMatchRepo()
+			matchRepo.activeByRequest = supplyMatchedMatches(ownedRequest.ID, tt.matched)
+			matchRepo.listActiveByRequestErr = tt.listActiveErr
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+			err := uc.UpdateAmounts(principalCtx(), ownedRequest.ID, tt.req)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(requestRepo.updated) != 0 {
+					t.Fatalf("repo updates = %d, want 0", len(requestRepo.updated))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(requestRepo.updated) != 1 {
+				t.Fatalf("repo updates = %d, want 1", len(requestRepo.updated))
+			}
+			saved := requestRepo.requests[ownedRequest.ID]
+			if saved.TotalAmount != tt.wantTotal || saved.ActualAmount != tt.wantActual {
+				t.Errorf("amounts = %v / %v, want %v / %v", saved.TotalAmount, saved.ActualAmount, tt.wantTotal, tt.wantActual)
 			}
 		})
 	}
@@ -459,7 +687,7 @@ func TestSupplyRequestUseCaseUpdateDeadlines(t *testing.T) {
 				requestRepo.requests[tt.seed.ID] = *tt.seed
 			}
 			requestRepo.updateErr = tt.updateErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
 			err := uc.UpdateDeadlines(tt.ctx, tt.id, tt.req)
 
@@ -531,7 +759,7 @@ func TestSupplyRequestUseCaseCancel(t *testing.T) {
 			matchRepo := newSupplyFakeMatchRepo()
 			matchRepo.existsActive = tt.existsActive
 			matchRepo.existsErr = tt.existsErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, matchRepo, newFakeTimer())
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
 			err := uc.Cancel(tt.ctx, tt.id)
 
@@ -568,18 +796,22 @@ func TestSupplyRequestUseCaseExpire(t *testing.T) {
 	cancelledRequest.Status = domain.SupplyRequestCancelled
 
 	tests := []struct {
-		name      string
-		ctx       context.Context
-		id        uuid.UUID
-		seed      *domain.SupplyRequest
-		updateErr error
-		wantErr   error
+		name         string
+		ctx          context.Context
+		id           uuid.UUID
+		seed         *domain.SupplyRequest
+		existsActive bool
+		existsErr    error
+		updateErr    error
+		wantErr      error
 	}{
 		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, wantErr: auth.ErrUnauthenticated},
 		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, wantErr: domain.ErrForbidden},
 		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, wantErr: domain.ErrInvalidRequestStatus},
 		{name: "not found", ctx: principalCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
+		{name: "active match blocks expire", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsActive: true, wantErr: primary.ErrActiveMatch},
+		{name: "match repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsErr: errFake, wantErr: errFake},
 		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, updateErr: errFake, wantErr: errFake},
 	}
 
@@ -592,7 +824,10 @@ func TestSupplyRequestUseCaseExpire(t *testing.T) {
 				requestRepo.requests[tt.seed.ID] = *tt.seed
 			}
 			requestRepo.updateErr = tt.updateErr
-			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeMatchRepo(), newFakeTimer())
+			matchRepo := newSupplyFakeMatchRepo()
+			matchRepo.existsActive = tt.existsActive
+			matchRepo.existsErr = tt.existsErr
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
 			err := uc.Expire(tt.ctx, tt.id)
 
@@ -617,5 +852,34 @@ func TestSupplyRequestUseCaseExpire(t *testing.T) {
 				t.Errorf("status = %v, want expired", saved.Status)
 			}
 		})
+	}
+}
+
+// Expiring a request that still has an active match would strand the
+// reservation taken by that match: the request leaves the open set while the
+// matched amount stays deducted from actual_amount forever. Expire must refuse
+// exactly like Cancel does, and the request must remain Open.
+func TestSupplyRequestUseCaseExpireRefusesWhileActiveMatchStrandsReservation(t *testing.T) {
+	t.Parallel()
+
+	ownedRequest := supplyTestRequest(testUserID)
+
+	requestRepo := newSupplyFakeRequestRepo()
+	requestRepo.requests[ownedRequest.ID] = ownedRequest
+	matchRepo := newSupplyFakeMatchRepo()
+	matchRepo.existsActive = true
+	uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+	err := uc.Expire(principalCtx(), ownedRequest.ID)
+	if !errors.Is(err, primary.ErrActiveMatch) {
+		t.Fatalf("error = %v, want %v", err, primary.ErrActiveMatch)
+	}
+
+	saved := requestRepo.requests[ownedRequest.ID]
+	if saved.Status != domain.SupplyRequestOpen {
+		t.Errorf("status = %v, want open", saved.Status)
+	}
+	if len(requestRepo.updated) != 0 {
+		t.Errorf("repo updates = %d, want 0", len(requestRepo.updated))
 	}
 }

@@ -19,11 +19,11 @@ type SupplyRequest struct {
 	ID                   uuid.UUID
 	BuyerID              uuid.UUID
 	ProductName          string
-	TotalAmount          float32
-	ActualAmount         float32
+	TotalAmount          float64
+	ActualAmount         float64
 	AmountUnit           MeasurementOptions
-	NumberOfUnits        float32
-	AmountPerUnit        float32
+	NumberOfUnits        float64
+	AmountPerUnit        float64
 	UnitOfMeasure        MeasurementOptions
 	Address              Address
 	RequestDeadline      time.Time
@@ -38,8 +38,8 @@ type SupplyRequest struct {
 }
 
 func NewSupplyRequest(
-	BuyerID uuid.UUID, ProductName string, TotalAmount float32, AmountUnit MeasurementOptions, NumberOfUnits float32,
-	AmountPerUnit float32, UnitOfMeasure MeasurementOptions,
+	BuyerID uuid.UUID, ProductName string, TotalAmount float64, AmountUnit MeasurementOptions, NumberOfUnits float64,
+	AmountPerUnit float64, UnitOfMeasure MeasurementOptions,
 	Address Address, RequestDeadline time.Time, DeliveryDeadline time.Time, Description string, MultipleProviders bool,
 ) *SupplyRequest {
 
@@ -69,7 +69,7 @@ func (s SupplyRequest) IsOpen() bool {
 	return s.Status == SupplyRequestOpen
 }
 
-func (s SupplyRequest) RemainingAmount() float32 {
+func (s SupplyRequest) RemainingAmount() float64 {
 	return s.ActualAmount
 }
 
@@ -100,7 +100,7 @@ func (s *SupplyRequest) Expire() error {
 	return nil
 }
 
-func (s *SupplyRequest) ReserveAmount(amount float32) error {
+func (s *SupplyRequest) ReserveAmount(amount float64) error {
 	if s.Status != SupplyRequestOpen {
 		return ErrInvalidRequestStatus
 	}
@@ -115,7 +115,7 @@ func (s *SupplyRequest) ReserveAmount(amount float32) error {
 	return nil
 }
 
-func (s *SupplyRequest) ReleaseAmount(amount float32) error {
+func (s *SupplyRequest) ReleaseAmount(amount float64) error {
 	if amount <= 0 {
 		return ErrInvalidInput
 	}

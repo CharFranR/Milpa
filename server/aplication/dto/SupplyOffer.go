@@ -11,7 +11,7 @@ type SupplyOfferDTO struct {
 	ID                  *uuid.UUID                `json:"id"`
 	SupplierID          *uuid.UUID                `json:"supplier_id"`
 	SupplyRequest       *uuid.UUID                `json:"supply_request_id"`
-	TotalAmount         float32                   `json:"total_amount"`
+	TotalAmount         float64                   `json:"total_amount"`
 	AmountUnit          domain.MeasurementOptions `json:"measurement"`
 	ProposedDeliveryDay time.Time                 `json:"delivery_day"`
 	DeliveryAvailable   bool                      `json:"delivery_available"`
@@ -21,7 +21,7 @@ type SupplyOfferDTO struct {
 }
 
 type SupplyOfferUpdateDTO struct {
-	TotalAmount         float32                   `json:"total_amount"`
+	TotalAmount         float64                   `json:"total_amount"`
 	AmountUnit          domain.MeasurementOptions `json:"measurement"`
 	ProposedDeliveryDay time.Time                 `json:"delivery_day"`
 	DeliveryAvailable   bool                      `json:"delivery_available"`
@@ -30,6 +30,6 @@ type SupplyOfferUpdateDTO struct {
 type PrioritizedOfferDTO struct {
 	Offer             SupplyOfferDTO         `json:"offer"`
 	Score             float64                `json:"score"`
-	AvailableQuantity float32                `json:"available_quantity"`
+	AvailableQuantity float64                `json:"available_quantity"`
 	Contributions     []ScoreContributionDTO `json:"contributions"`
 }

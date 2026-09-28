@@ -11,6 +11,7 @@ import (
 	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
+	"milpa/internal/auth"
 )
 
 type SupplyRequestHandler struct {
@@ -55,6 +56,22 @@ func (h *SupplyRequestHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *SupplyRequestHandler) List(w http.ResponseWriter, r *http.Request) {
 	result, err := h.uc.List(r.Context())
+	if err != nil {
+		handleSupplyError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}
+
+func (h *SupplyRequestHandler) ListAvailable(w http.ResponseWriter, r *http.Request) {
+	principal, err := auth.RequirePrincipal(r.Context())
+	if err != nil {
+		handleSupplyError(w, err)
+		return
+	}
+
+	result, err := h.uc.ListAvailable(r.Context(), principal.UserID)
 	if err != nil {
 		handleSupplyError(w, err)
 		return

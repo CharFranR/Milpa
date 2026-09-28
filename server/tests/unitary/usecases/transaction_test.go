@@ -18,6 +18,7 @@ type txFixture struct {
 	matchRepo       *fakeTxMatchRepo
 	requestRepo     *fakeTxRequestRepo
 	offerRepo       *fakeTxOfferRepo
+	uow             *fakeUnitOfWork
 	uc              *usecases.TransactionUseCaseImpl
 }
 
@@ -26,19 +27,22 @@ func newTxFixture() *txFixture {
 	matchRepo := newFakeTxMatchRepo()
 	requestRepo := newFakeTxRequestRepo()
 	offerRepo := newFakeTxOfferRepo()
-	return &txFixture{
+	f := &txFixture{
 		transactionRepo: transactionRepo,
 		matchRepo:       matchRepo,
 		requestRepo:     requestRepo,
 		offerRepo:       offerRepo,
-		uc: usecases.NewTransactionUseCase(
-			transactionRepo,
-			matchRepo,
-			requestRepo,
-			offerRepo,
-			newFakeTimer(),
-		),
 	}
+	f.uow = newFakeUnitOfWork(f.newTxScope())
+	f.uc = usecases.NewTransactionUseCase(
+		transactionRepo,
+		matchRepo,
+		requestRepo,
+		offerRepo,
+		newFakeTimer(),
+		f.uow,
+	)
+	return f
 }
 
 func txInProgressTransaction() domain.Transaction {
@@ -598,8 +602,8 @@ func TestTransactionUseCaseAutoCloseRequest(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		totalAmount      float32
-		actualAmount     float32
+		totalAmount      float64
+		actualAmount     float64
 		requestStatus    domain.SupplyRequestStatus
 		requestList      []domain.Transaction
 		matchList        []domain.Match

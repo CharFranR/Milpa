@@ -121,6 +121,7 @@ func NewRouter(
 		r.Route("/supply-requests", func(r chi.Router) {
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", supplyRequest.List)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", supplyRequest.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/available", supplyRequest.ListAvailable)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{id}", supplyRequest.GetByID)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", supplyRequest.Update)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/amounts", supplyRequest.UpdateAmounts)
