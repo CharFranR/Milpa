@@ -34,6 +34,8 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 			SupplyRequest:       &request.ID,
 			TotalAmount:         20,
 			AmountUnit:          domain.Kg,
+			PricePerUnit:        ptrFloat64(supplyTestPrice),
+			Comments:            "fresh harvest",
 			ProposedDeliveryDay: fixedTime.Add(48 * time.Hour),
 			DeliveryAvailable:   true,
 		}
@@ -54,6 +56,31 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 		{name: "unauthenticated", ctx: context.Background(), req: validReq(&baseRequest), seedRequest: &baseRequest, wantErr: auth.ErrUnauthenticated},
 		{name: "missing request id", ctx: principalCtx(), req: dto.SupplyOfferDTO{TotalAmount: 20}, wantErr: domain.ErrInvalidInput},
 		{name: "zero amount", ctx: principalCtx(), req: dto.SupplyOfferDTO{SupplyRequest: &baseRequest.ID}, wantErr: domain.ErrInvalidInput},
+		// RF-11 lists the price among the fields the offer must include, so these
+		// are business rejections: a supplier cannot publish an offer without
+		// quoting what it costs. The nullable column is about the rows that
+		// predate it, not about this path.
+		{
+			name:        "missing price",
+			ctx:         principalCtx(),
+			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = nil; return r }(),
+			seedRequest: &baseRequest,
+			wantErr:     domain.ErrInvalidPrice,
+		},
+		{
+			name:        "zero price",
+			ctx:         principalCtx(),
+			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = ptrFloat64(0); return r }(),
+			seedRequest: &baseRequest,
+			wantErr:     domain.ErrInvalidPrice,
+		},
+		{
+			name:        "negative price",
+			ctx:         principalCtx(),
+			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = ptrFloat64(-1); return r }(),
+			seedRequest: &baseRequest,
+			wantErr:     domain.ErrInvalidPrice,
+		},
 		{name: "request not found", ctx: principalCtx(), req: validReq(&baseRequest), wantErr: domain.ErrNotFound},
 		{name: "request not open", ctx: principalCtx(), req: validReq(&closedRequest), seedRequest: &closedRequest, wantErr: domain.ErrInvalidRequestStatus},
 		{
@@ -156,8 +183,23 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 			if got.Status != domain.OfferActive {
 				t.Errorf("status = %v, want active", got.Status)
 			}
+			// The price has to survive the round trip through the constructor and
+			// the DTO, in both directions. A price that validates and then is
+			// dropped on the way to storage is an offer that a buyer cannot compare.
+			if got.PricePerUnit == nil || *got.PricePerUnit != supplyTestPrice {
+				t.Errorf("price per unit = %v, want %v", got.PricePerUnit, supplyTestPrice)
+			}
+			if got.Comments != "fresh harvest" {
+				t.Errorf("comments = %q, want %q", got.Comments, "fresh harvest")
+			}
 			if len(offerRepo.created) != 1 {
 				t.Fatalf("saved offers = %d, want 1", len(offerRepo.created))
+			}
+			if persisted := offerRepo.created[0]; persisted.PricePerUnit == nil || *persisted.PricePerUnit != supplyTestPrice {
+				t.Errorf("persisted price per unit = %v, want %v", persisted.PricePerUnit, supplyTestPrice)
+			}
+			if persisted := offerRepo.created[0]; persisted.Comments != "fresh harvest" {
+				t.Errorf("persisted comments = %q, want %q", persisted.Comments, "fresh harvest")
 			}
 		})
 	}
@@ -181,6 +223,8 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 	validReq := dto.SupplyOfferUpdateDTO{
 		TotalAmount:         30,
 		AmountUnit:          domain.Lb,
+		PricePerUnit:        ptrFloat64(7.25),
+		Comments:            "bulk price",
 		ProposedDeliveryDay: fixedTime.Add(50 * time.Hour),
 		DeliveryAvailable:   false,
 	}
@@ -209,7 +253,7 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 			id:          lowMinOffer.ID,
 			seedRequest: &lowMinRequest,
 			seedOffer:   &lowMinOffer,
-			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 5},
+			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 5, PricePerUnit: ptrFloat64(supplyTestPrice)},
 			wantErr:     domain.ErrInvalidInput,
 		},
 		{
@@ -218,8 +262,26 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 			id:          lowRemainingOffer.ID,
 			seedRequest: &lowRemainingRequest,
 			seedOffer:   &lowRemainingOffer,
-			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 50},
+			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 50, PricePerUnit: ptrFloat64(supplyTestPrice)},
 			wantErr:     domain.ErrInsufficientAmount,
+		},
+		{
+			name:        "price dropped on update",
+			ctx:         principalCtx(),
+			id:          ownedOffer.ID,
+			seedRequest: &request,
+			seedOffer:   &ownedOffer,
+			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 30, PricePerUnit: nil},
+			wantErr:     domain.ErrInvalidPrice,
+		},
+		{
+			name:        "zero price on update",
+			ctx:         principalCtx(),
+			id:          ownedOffer.ID,
+			seedRequest: &request,
+			seedOffer:   &ownedOffer,
+			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 30, PricePerUnit: ptrFloat64(0)},
+			wantErr:     domain.ErrInvalidPrice,
 		},
 		{name: "repo error", ctx: principalCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq, updateErr: errFake, wantErr: errFake},
 	}
@@ -260,6 +322,12 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 			saved := offerRepo.offers[tt.id]
 			if saved.TotalAmount != 30 || saved.AmountUnit != domain.Lb {
 				t.Errorf("amounts = %v / %v, want 30 / Lb", saved.TotalAmount, saved.AmountUnit)
+			}
+			if saved.PricePerUnit == nil || *saved.PricePerUnit != 7.25 {
+				t.Errorf("price per unit = %v, want 7.25", saved.PricePerUnit)
+			}
+			if saved.Comments != "bulk price" {
+				t.Errorf("comments = %q, want %q", saved.Comments, "bulk price")
 			}
 			if saved.DeliveryAvailable {
 				t.Error("delivery available = true, want false")

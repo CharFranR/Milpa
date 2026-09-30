@@ -236,6 +236,17 @@ func supplyTestRequest(buyerID uuid.UUID) domain.SupplyRequest {
 	return *supplyRequest
 }
 
+// supplyTestPrice is the quoted unit price the supply-offer fixtures carry. It
+// is a named constant rather than a literal so the assertions that a price
+// survived the round trip and the fixture that set it cannot drift apart.
+const supplyTestPrice = 4.5
+
+func ptrFloat64(v float64) *float64 { return &v }
+
+// supplyTestOffer builds an offer with no price, which is the state of every
+// row that predates price_per_unit. The offer use case is the layer that
+// refuses a new unpriced offer; the fixtures that bypass it exist precisely so
+// that the legacy branch stays exercised.
 func supplyTestOffer(supplierID, supplyRequestID uuid.UUID) domain.SupplyOffer {
 	return *domain.NewSupplyOffer(
 		supplierID, supplyRequestID, 20, domain.Kg,
