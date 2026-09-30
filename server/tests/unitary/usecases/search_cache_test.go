@@ -223,8 +223,14 @@ type fakeCache struct {
 	calledDeleteByPrefix bool
 	deletedPrefix        string
 	deletedKey           string
-	getDest              any
-	getFound             bool
+	// deletedKeys records every eviction in order. A decorator that invalidates
+	// more than one key per write -- a review touches the author's list, the
+	// company's list and the average -- cannot be checked through deletedKey,
+	// which only remembers the last one.
+	deletedKeys []string
+	remembered  []string
+	getDest     any
+	getFound    bool
 }
 
 func newFakeCache() *fakeCache {
@@ -251,6 +257,7 @@ func (c *fakeCache) Set(ctx context.Context, key string, value any, ttl time.Dur
 func (c *fakeCache) Delete(ctx context.Context, key string) error {
 	c.calledDelete = true
 	c.deletedKey = key
+	c.deletedKeys = append(c.deletedKeys, key)
 	return nil
 }
 
@@ -261,6 +268,7 @@ func (c *fakeCache) DeleteByPrefix(ctx context.Context, prefix string) error {
 }
 
 func (c *fakeCache) Remember(ctx context.Context, key string, ttl time.Duration, dest any, loader func() error) (bool, error) {
+	c.remembered = append(c.remembered, key)
 	found, err := c.Get(ctx, key, dest)
 	if err != nil {
 		return false, err

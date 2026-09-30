@@ -341,8 +341,9 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid) | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
-| `POST /api/v1/reviews/` | Bearer | JSON: `company_id` (required), `rating` (1–5), `comment`. `user_id` = token user | `201` → `ReviewDTO` | `400` blank `company_id` / rating out of range |
+| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid). `user_id` lists reviews **authored by** that user | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
+| `GET /api/v1/reviews/average` | Public | query `target_type` (`company`\|`user`) and `target_id` (uuid) | `200` → `ReviewAverageDTO` | `400` unknown `target_type` / invalid `target_id` |
+| `POST /api/v1/reviews/` | Bearer | JSON: `rating` (1–5, required), `comment`, and **exactly one** of `company_id` (review a company) or `target_type` + `target_id` (review anyone). Author = token user | `201` → `ReviewDTO` | `400` neither form / both forms / unknown `target_type` / rating out of range / rating yourself |
 
 ### Inquiries
 
@@ -377,10 +378,10 @@ Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspe
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/supply-offers/` | Bearer | — (offers whose `supplier_id` is the token user, all statuses) | `200` → `[SupplyOfferDTO]` | `401`; `403` suspended |
-| `POST /api/v1/supply-offers/` | Bearer | JSON: `supply_request_id` (required, uuid), `total_amount` (required, > 0); optional `measurement`, `delivery_day`, `delivery_available`. Supplier = token user | `201` → `SupplyOfferDTO` | `400` missing request id / `total_amount <= 0` / below `min_amount_per_provider`; `401`; `403` offering on your own request; `404` unknown request; `409` request not open, duplicate offer from this supplier, active match on a single-provider request, or offer above the remaining amount |
+| `POST /api/v1/supply-offers/` | Bearer | JSON: `supply_request_id` (required, uuid), `total_amount` (required, > 0), `price_per_unit` (required, > 0 — RF-11); optional `measurement`, `comments`, `delivery_day`, `delivery_available`. Supplier = token user | `201` → `SupplyOfferDTO` | `400` missing request id / `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `401`; `403` offering on your own request; `404` unknown request; `409` request not open, duplicate offer from this supplier, active match on a single-provider request, or offer above the remaining amount |
 | `GET /api/v1/supply-offers/requests/{request_id}` | Bearer | path `request_id` (uuid) — **rejected offers are filtered out** | `200` → `[SupplyOfferDTO]` | `400` invalid uuid; `403` not the request's buyer; `404` |
 | `GET /api/v1/supply-offers/{id}` | Bearer | path `id` (uuid) — visible to the offer's supplier **or** the buyer of the underlying request | `200` → `SupplyOfferDTO` | `400` invalid uuid; `403` neither party; `404` |
-| `PATCH /api/v1/supply-offers/{id}` | Bearer | path `id`; JSON: `SupplyOfferUpdateDTO` — `total_amount` (required, > 0), `measurement`, `delivery_day`, `delivery_available` | `200` `{}` | `400` `total_amount <= 0` / below `min_amount_per_provider`; `403` not the supplier; `404`; `409` offer not active, or amount above the request's remaining amount |
+| `PATCH /api/v1/supply-offers/{id}` | Bearer | path `id`; JSON: `SupplyOfferUpdateDTO` — `total_amount` (required, > 0), `price_per_unit` (required, > 0), `measurement`, `comments`, `delivery_day`, `delivery_available` | `200` `{}` | `400` `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `403` not the supplier; `404`; `409` offer not active, or amount above the request's remaining amount |
 | `POST /api/v1/supply-offers/{id}/withdraw` | Bearer | path `id`; no body | `200` `{}` | `403` not the supplier; `404`; `409` offer not active |
 
 > One offer per supplier per request: a second `POST` on the same pair is `409 resource already exists`. The JSON keys here are the crossed ones — `measurement` (not `amount_unit`) and `delivery_day` (not `proposed_delivery_day`) — unlike the supply request DTOs, which were corrected. See the notes.
@@ -546,7 +547,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
 | `OfferingDTO` | `id`, `user_id`, `type`, `name`, `description`, `price`, `image_url`, `created_at`, `updated_at` |
-| `ReviewDTO` | `id`, `user_id`, `company_id`, `rating`, `comment`, `created_at` |
+| `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
+| `ReviewAverageDTO` (`GET /reviews/average`) | `target_type`, `target_id`, `average`, `count`. A target with no reviews is `average: 0, count: 0` |
 | `InquiryDTO` | `id`, `user_id`, `offering_id`, `offering_name`, `message`, `status`, `created_at` |
 | `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `created_at`, `updated_at` |
 | `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `visibility`, `created_at`, `updated_at` |
@@ -559,8 +561,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `SupplyGeneralUpdateDTO` (`PATCH /supply-requests/{id}`) | `id`, `product_name`, `total_amount`, `actual_amount`, `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider` |
 | `SupplyUpdateAmountsDTO` (`PATCH /supply-requests/{id}/amounts`) | `id`, `total_amount`, `actual_amount`, `amount_unit`, `amount_per_unit`, `unit_of_measure`, `multiple_providers`, `min_amount_per_provider` |
 | `SupplyUpdateTimeDTO` (`PATCH /supply-requests/{id}/deadlines`) | `id`, `request_deadline`, `delivery_deadline` |
-| `SupplyOfferDTO` | `id`, `supplier_id`, `supply_request_id`, `total_amount`, `measurement`, `delivery_day`, `delivery_available`, `status`, `created_at`, `updated_at` |
-| `SupplyOfferUpdateDTO` (`PATCH /supply-offers/{id}`) | `total_amount`, `measurement`, `delivery_day`, `delivery_available` |
+| `SupplyOfferDTO` | `id`, `supplier_id`, `supply_request_id`, `total_amount`, `measurement`, `price_per_unit`, `comments`, `delivery_day`, `delivery_available`, `status`, `created_at`, `updated_at` |
+| `SupplyOfferUpdateDTO` (`PATCH /supply-offers/{id}`) | `total_amount`, `measurement`, `price_per_unit`, `comments`, `delivery_day`, `delivery_available` |
 | `MatchDTO` | `id`, `supply_offer`, `supply_request`, `status`, `matched_amount`, `amount_unit`, `created_at`, `updated_at` |
 | `MatchCreatedDTO` (`POST /matches/like/{offerID}`) | `match` (`MatchDTO`), `transaction` (`TransactionDTO`, partial — see the Matches notes) |
 | `TransactionDTO` | `id`, `match_id`, `status`, `buyer_start_confirmed_at`, `supplier_start_confirmed_at`, `buyer_delivery_confirmed_at`, `supplier_delivery_confirmed_at`, `cancelled_by`, `cancel_reason`, `created_at`, `updated_at`, `history` |

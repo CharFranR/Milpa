@@ -5,11 +5,20 @@ import (
 	"time"
 
 	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
 	port "milpa/domain/port/secondary"
 
 	"github.com/google/uuid"
 )
+
+// averageKey is the aggregate's own cache key, keyed by target rather than by
+// company: a review of a user moves that user's average and no company's, so a
+// key that could not name a user would be served a company's average for a
+// farmer.
+func averageKey(targetType domain.ReviewTargetType, targetID uuid.UUID) string {
+	return "reviews:avg:" + string(targetType) + ":" + targetID.String()
+}
 
 type CachedReviewUseCase struct {
 	next  primary.ReviewUseCase
@@ -30,7 +39,12 @@ func (uc *CachedReviewUseCase) CreateReview(ctx context.Context, req dto.CreateR
 	}
 
 	_ = uc.cache.Delete(ctx, "reviews:byuser:"+result.UserID.String())
-	_ = uc.cache.Delete(ctx, "reviews:bycompany:"+result.CompanyID.String())
+	// Only a company review appears in a company's list, and only a company
+	// review has a company to mirror.
+	if result.TargetType == string(domain.ReviewTargetCompany) {
+		_ = uc.cache.Delete(ctx, "reviews:bycompany:"+result.CompanyID.String())
+	}
+	_ = uc.cache.Delete(ctx, averageKey(domain.ReviewTargetType(result.TargetType), result.TargetID))
 
 	return result, nil
 }
@@ -77,6 +91,33 @@ func (uc *CachedReviewUseCase) FindByCompany(ctx context.Context, companyID uuid
 	)
 
 	return reviews, err
+}
+
+// The aggregate is read through the decorator rather than around it, on the
+// same five-minute TTL as the lists beside it.
+func (uc *CachedReviewUseCase) GetAverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (*dto.ReviewAverageDTO, error) {
+	var average dto.ReviewAverageDTO
+
+	_, err := uc.cache.Remember(
+		ctx,
+		averageKey(targetType, targetID),
+		5*time.Minute,
+		&average,
+		func() error {
+			result, err := uc.next.GetAverageRating(ctx, targetType, targetID)
+			if err != nil {
+				return err
+			}
+
+			average = *result
+			return nil
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	return &average, nil
 }
 
 var _ primary.ReviewUseCase = (*CachedReviewUseCase)(nil)

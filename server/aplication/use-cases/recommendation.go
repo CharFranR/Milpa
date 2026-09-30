@@ -136,7 +136,13 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 		}
 
 		ranked = append(ranked, &dto.PrioritizedOfferDTO{
-			Offer:             *matchOfferToDTO(&offers[i]),
+			// supplyOfferToDTO, not a second copy of it. This file used to hold
+			// its own matchOfferToDTO with an identical body, and a copy only
+			// fails silently: the ranked offer still serialises, it just carries
+			// less than the offer the buyer already saw on the listing endpoint.
+			// A price dropped here reads as a broken price score factor, not as a
+			// missing field, and that is a much more expensive detour.
+			Offer:             *supplyOfferToDTO(&offers[i]),
 			Score:             score,
 			AvailableQuantity: available,
 			Contributions:     contributions,
@@ -206,21 +212,3 @@ func (uc *RecommendationUseCaseImpl) availableQuantity(ctx context.Context, supp
 }
 
 var _ primary.RecommendationUseCase = (*RecommendationUseCaseImpl)(nil)
-
-func matchOfferToDTO(offer *domain.SupplyOffer) *dto.SupplyOfferDTO {
-	id := offer.ID
-	supplierID := offer.SupplierID
-	supplyRequest := offer.SupplyRequest
-	return &dto.SupplyOfferDTO{
-		ID:                  &id,
-		SupplierID:          &supplierID,
-		SupplyRequest:       &supplyRequest,
-		TotalAmount:         offer.TotalAmount,
-		AmountUnit:          offer.AmountUnit,
-		ProposedDeliveryDay: offer.ProposedDeliveryDay,
-		DeliveryAvailable:   offer.DeliveryAvailable,
-		Status:              offer.Status,
-		CreatedAt:           offer.CreatedAt,
-		UpdatedAt:           offer.UpdatedAt,
-	}
-}

@@ -13,6 +13,8 @@ type SupplyOfferDTO struct {
 	SupplyRequest       *uuid.UUID                `json:"supply_request_id"`
 	TotalAmount         float64                   `json:"total_amount"`
 	AmountUnit          domain.MeasurementOptions `json:"measurement"`
+	PricePerUnit        *float64                  `json:"price_per_unit"`
+	Comments            string                    `json:"comments"`
 	ProposedDeliveryDay time.Time                 `json:"delivery_day"`
 	DeliveryAvailable   bool                      `json:"delivery_available"`
 	Status              domain.OfferStatus        `json:"status"`
@@ -23,6 +25,8 @@ type SupplyOfferDTO struct {
 type SupplyOfferUpdateDTO struct {
 	TotalAmount         float64                   `json:"total_amount"`
 	AmountUnit          domain.MeasurementOptions `json:"measurement"`
+	PricePerUnit        *float64                  `json:"price_per_unit"`
+	Comments            string                    `json:"comments"`
 	ProposedDeliveryDay time.Time                 `json:"delivery_day"`
 	DeliveryAvailable   bool                      `json:"delivery_available"`
 }

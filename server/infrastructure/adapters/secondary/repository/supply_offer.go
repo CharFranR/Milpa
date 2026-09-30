@@ -26,12 +26,20 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+// supplyOfferColumns is the single source of truth for the projection shared by
+// every supply_offers read. The five read paths used to spell the column list out
+// individually, which is exactly how a column ends up missing from one of them:
+// ranking and matching would then disagree about the same row.
+const supplyOfferColumns = `id, supplier_id, supply_request_id, total_amount, amount_unit, price_per_unit, comments,
+	proposed_delivery_day, delivery_available, status, created_at, updated_at`
+
 func scanSupplyOffer(scan func(dest ...any) error) (domain.SupplyOffer, error) {
 	var supplyOffer domain.SupplyOffer
 
 	err := scan(
 		&supplyOffer.ID, &supplyOffer.SupplierID, &supplyOffer.SupplyRequest, &supplyOffer.TotalAmount,
-		&supplyOffer.AmountUnit, &supplyOffer.ProposedDeliveryDay, &supplyOffer.DeliveryAvailable, &supplyOffer.Status,
+		&supplyOffer.AmountUnit, &supplyOffer.PricePerUnit, &supplyOffer.Comments,
+		&supplyOffer.ProposedDeliveryDay, &supplyOffer.DeliveryAvailable, &supplyOffer.Status,
 		&supplyOffer.CreatedAt, &supplyOffer.UpdatedAt,
 	)
 	if err != nil {
@@ -44,11 +52,12 @@ func scanSupplyOffer(scan func(dest ...any) error) (domain.SupplyOffer, error) {
 func (r *SupplyOfferRepositoryImpl) Create(ctx context.Context, supplyOffer *domain.SupplyOffer) error {
 	query := `
 		INSERT INTO supply_offers (id, supplier_id, supply_request_id, total_amount, amount_unit,
-			proposed_delivery_day, delivery_available, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			price_per_unit, comments, proposed_delivery_day, delivery_available, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := r.db.Exec(ctx, query,
 		supplyOffer.ID, supplyOffer.SupplierID, supplyOffer.SupplyRequest, supplyOffer.TotalAmount, supplyOffer.AmountUnit,
+		supplyOffer.PricePerUnit, supplyOffer.Comments,
 		supplyOffer.ProposedDeliveryDay, supplyOffer.DeliveryAvailable, supplyOffer.Status,
 		supplyOffer.CreatedAt, supplyOffer.UpdatedAt,
 	)
@@ -63,8 +72,7 @@ func (r *SupplyOfferRepositoryImpl) Create(ctx context.Context, supplyOffer *dom
 
 func (r *SupplyOfferRepositoryImpl) List(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplyOffer, error) {
 	query := `
-		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
-		       status, created_at, updated_at
+		SELECT ` + supplyOfferColumns + `
 		FROM supply_offers
 		WHERE supplier_id = $1
 	`
@@ -93,8 +101,7 @@ func (r *SupplyOfferRepositoryImpl) List(ctx context.Context, supplierID uuid.UU
 
 func (r *SupplyOfferRepositoryImpl) ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.SupplyOffer, error) {
 	query := `
-		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
-		       status, created_at, updated_at
+		SELECT ` + supplyOfferColumns + `
 		FROM supply_offers
 		WHERE supply_request_id = $1
 	`
@@ -123,8 +130,7 @@ func (r *SupplyOfferRepositoryImpl) ListByRequest(ctx context.Context, supplyReq
 
 func (r *SupplyOfferRepositoryImpl) FindBySupplierAndRequest(ctx context.Context, supplierID, supplyRequestID uuid.UUID) (domain.SupplyOffer, error) {
 	query := `
-		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
-		       status, created_at, updated_at
+		SELECT ` + supplyOfferColumns + `
 		FROM supply_offers
 		WHERE supplier_id = $1 AND supply_request_id = $2
 	`
@@ -142,8 +148,7 @@ func (r *SupplyOfferRepositoryImpl) FindBySupplierAndRequest(ctx context.Context
 
 func (r *SupplyOfferRepositoryImpl) GetByID(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error) {
 	query := `
-		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
-		       status, created_at, updated_at
+		SELECT ` + supplyOfferColumns + `
 		FROM supply_offers
 		WHERE id = $1
 	`
@@ -162,10 +167,12 @@ func (r *SupplyOfferRepositoryImpl) GetByID(ctx context.Context, supplyOfferID u
 // LockByIDForUpdate reads the offer and holds a row lock on it until the
 // enclosing transaction ends. It is the second lock of the global order:
 // SupplyRequest -> SupplyOffer.
+//
+// It projects the same columns as the unlocked reads, price included, so a
+// price read under the row lock is the locked price.
 func (r *SupplyOfferRepositoryImpl) LockByIDForUpdate(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error) {
 	query := `
-		SELECT id, supplier_id, supply_request_id, total_amount, amount_unit, proposed_delivery_day, delivery_available,
-		       status, created_at, updated_at
+		SELECT ` + supplyOfferColumns + `
 		FROM supply_offers
 		WHERE id = $1
 		FOR UPDATE
@@ -185,12 +192,13 @@ func (r *SupplyOfferRepositoryImpl) LockByIDForUpdate(ctx context.Context, suppl
 func (r *SupplyOfferRepositoryImpl) Update(ctx context.Context, supplyOffer *domain.SupplyOffer) error {
 	query := `
 		UPDATE supply_offers
-		SET total_amount = $1, amount_unit = $2, proposed_delivery_day = $3, delivery_available = $4, status = $5,
-		    updated_at = $6
-		WHERE id = $7
+		SET total_amount = $1, amount_unit = $2, price_per_unit = $3, comments = $4, proposed_delivery_day = $5,
+		    delivery_available = $6, status = $7, updated_at = $8
+		WHERE id = $9
 	`
 	_, err := r.db.Exec(ctx, query,
-		supplyOffer.TotalAmount, supplyOffer.AmountUnit, supplyOffer.ProposedDeliveryDay, supplyOffer.DeliveryAvailable,
+		supplyOffer.TotalAmount, supplyOffer.AmountUnit, supplyOffer.PricePerUnit, supplyOffer.Comments,
+		supplyOffer.ProposedDeliveryDay, supplyOffer.DeliveryAvailable,
 		supplyOffer.Status, supplyOffer.UpdatedAt, supplyOffer.ID,
 	)
 	if err != nil {

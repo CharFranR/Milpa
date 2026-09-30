@@ -42,6 +42,19 @@ func (f *recommendationFixture) seedOffer(id, supplierID uuid.UUID, status domai
 	f.offers.seed(*offer)
 }
 
+// seedPricedOffer is seedOffer plus the RF-11 quotation. A nil price is a
+// legitimate state for a row that predates the column, so the helper takes the
+// pointer rather than hiding the nil case behind a default.
+func (f *recommendationFixture) seedPricedOffer(id, supplierID uuid.UUID, status domain.OfferStatus, createdAt time.Time, price *float64, comments string) {
+	offer := domain.NewSupplyOffer(supplierID, matchTestRequestID, 30, domain.Kg, fixedTime, true)
+	offer.ID = id
+	offer.Status = status
+	offer.CreatedAt = createdAt
+	offer.PricePerUnit = price
+	offer.Comments = comments
+	f.offers.seed(*offer)
+}
+
 type stubScoreFactor struct {
 	name  string
 	score float64
@@ -479,6 +492,67 @@ func TestRecommendationRankOffers(t *testing.T) {
 		}
 		if got[0].Contributions[1].Factor != "geography" || got[0].Contributions[1].WeightedScore != 5 {
 			t.Errorf("second contribution = %+v, want geography weighted 5", got[0].Contributions[1])
+		}
+	})
+
+	t.Run("carries the price and comments to the prioritized payload", func(t *testing.T) {
+		t.Parallel()
+
+		// The regression test for the duplicated mapper: recommendation.go used
+		// to carry its own matchOfferToDTO, so every field added to the offer DTO
+		// had to be remembered in two places, and forgetting one failed silently
+		// on the one endpoint where a buyer compares suppliers. So the assertion
+		// is on the ranked payload, not on the DTO.
+		f := newRecommendationFixture()
+		f.seedPricedOffer(matchTestOfferID, matchTestSupplierID, domain.OfferActive, fixedTime.Add(time.Hour), ptrFloat64(8.25), "harvested last week")
+		f.seedPricedOffer(matchTestOtherOfferID, matchTestOtherSupply, domain.OfferActive, fixedTime, nil, "quote pending")
+
+		uc := f.useCase(nil)
+		got, err := uc.RankOffers(principalCtx(), matchTestRequestID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("offers = %d, want 2", len(got))
+		}
+
+		byID := make(map[uuid.UUID]struct {
+			price    *float64
+			comments string
+		}, len(got))
+		for _, ranked := range got {
+			if ranked.Offer.ID == nil {
+				t.Fatal("ranked offer has a nil id")
+			}
+			byID[*ranked.Offer.ID] = struct {
+				price    *float64
+				comments string
+			}{ranked.Offer.PricePerUnit, ranked.Offer.Comments}
+		}
+
+		priced, ok := byID[matchTestOfferID]
+		if !ok {
+			t.Fatalf("the priced offer %s is missing from the ranked payload", matchTestOfferID)
+		}
+		if priced.price == nil {
+			t.Fatal("ranked offer price_per_unit = null, want 8.25")
+		}
+		if *priced.price != 8.25 {
+			t.Errorf("ranked offer price_per_unit = %v, want 8.25", *priced.price)
+		}
+		if priced.comments != "harvested last week" {
+			t.Errorf("ranked offer comments = %q, want %q", priced.comments, "harvested last week")
+		}
+
+		// The other direction matters just as much: an offer that predates the
+		// price column has to reach the buyer as null, not as a zero. A zero
+		// here would read as the cheapest offer on the platform.
+		unpriced, ok := byID[matchTestOtherOfferID]
+		if !ok {
+			t.Fatalf("the unpriced offer %s is missing from the ranked payload", matchTestOtherOfferID)
+		}
+		if unpriced.price != nil {
+			t.Errorf("ranked offer price_per_unit = %v, want null for an offer with no quote", *unpriced.price)
 		}
 	})
 
