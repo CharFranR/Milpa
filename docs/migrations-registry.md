@@ -22,14 +22,15 @@ allocated here.
 | `000026` | `offerings_catalogue` | RF-05, RF-09 | `000024`, `000025` |
 | `000027` | `supply_offers_price_and_comments` | RF-11 | — |
 | `000028` | `reviews_targets` | RF-15 | — |
-| `000029` | `transactions_cancel_reasons` | RF-12 | — |
-| `000030` | `conversations_match_link` | RF-13 | `matches` exists (000018) |
+| `000029` | `offerings_duplicate_prevention` | RF-05 | — |
+| `000030` | `transactions_cancel_reasons` | RF-12 | — |
 | `000031` | `liquidations_buyer_visibility` (+ `closed_at` backfill) | RF-14 | `users` exists (000003) |
 | `000032` | `liquidation_interests` (+ `assigned_buyer_id`) | RF-14 | `000031` |
 | `000033` | `report_target_types` | RF-16 | — |
 | `000034` | `users_registration_invariants` | RF-01 | — |
 | `000035` | `companies_agricultural` | RF-04 | `companies` exists (000004) |
-| `000036`+ | **RESERVED BLOCK — roles/RBAC stream** | RF-01, RF-03, RF-08, RF-14, RF-17 | — |
+| `000036` | `conversations_match_link` | RF-13 | `matches` exists (000018) |
+| `000037`+ | **RESERVED BLOCK — roles/RBAC stream** | RF-01, RF-03, RF-08, RF-14, RF-17 | — |
 
 ## Rules
 
@@ -61,13 +62,13 @@ comment.
 
 ### The blocks do not overlap
 
-- The workstream handling **RF-01 … RF-14** owns `000024`–`000035`.
-- The workstream handling the **roles / RBAC** migration owns `000036` and above.
+- The workstream handling **RF-01 … RF-14** owns `000024`–`000036`.
+- The workstream handling the **roles / RBAC** migration owns `000037` and above.
 - Neither may use the other's block. If a workstream needs a migration outside
   its range, that is a change to this document, agreed first — not a number
   picked at the keyboard.
 
-`000036`+ is a block and not a single migration because the RBAC stream is
+`000037`+ is a block and not a single migration because the RBAC stream is
 expected to need more than one: roles, permissions, and the user-to-role
 assignment are three separate changes and they will not land in one commit.
 
