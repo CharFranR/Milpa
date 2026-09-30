@@ -112,6 +112,88 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 	}
 }
 
+// TestOfferingUseCaseCreateOfferingRequiresCompleteAddress is the RF-03 gate.
+//
+// The interesting cases are the partial ones, not the empty one. A farmer who
+// typed an address line and stopped still owns that line, so HasData would
+// happily keep it; only IsComplete refuses. A user with no department at all is
+// the case a hand-written "is the address non-empty" check would wave through.
+func TestOfferingUseCaseCreateOfferingRequiresCompleteAddress(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		address domain.Address
+		wantErr error
+	}{
+		{
+			name:    "no address at all",
+			address: domain.Address{},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name: "address line but no coordinates and no municipality",
+			// HasData() is true here, IsComplete() is false.
+			address: domain.Address{ID: testAddressID, AddressLine: "Barrio San Francisco"},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "no department",
+			address: domain.Address{ID: testAddressID, Municipality: "Leon", AddressLine: "Barrio San Francisco"},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "fully located farmer publishes",
+			address: domain.Address{ID: testAddressID, Department: "Leon", Municipality: "Leon", AddressLine: "Barrio San Francisco", Latitude: 12.4379, Longitude: -86.8781},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			userRepo := newFakeUserRepo()
+			userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+				user := mustUser()
+				user.ID = id
+				user.Address = tt.address
+				return user, nil
+			}
+			offeringRepo := newFakeOfferingRepo()
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			got, err := uc.CreateOffering(principalCtx(), dto.CreateOfferingRequest{
+				UserID: testUserID,
+				Type:   domain.OfferingProduct,
+				Name:   "Organic Corn",
+			})
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(offeringRepo.saved) != 0 {
+					t.Errorf("saved offerings = %d, want 0: nothing may be persisted for an incomplete profile", len(offeringRepo.saved))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.ID == uuid.Nil {
+				t.Error("expected a generated ID, got nil UUID")
+			}
+			if len(offeringRepo.saved) != 1 {
+				t.Fatalf("saved offerings = %d, want 1", len(offeringRepo.saved))
+			}
+		})
+	}
+}
+
 func TestOfferingUseCaseGetByID(t *testing.T) {
 	t.Parallel()
 

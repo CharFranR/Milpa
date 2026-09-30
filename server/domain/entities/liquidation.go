@@ -121,6 +121,7 @@ func (l *Liquidation) Assign(now time.Time) error {
 		return ErrLiquidationCannotAssign
 	}
 	l.Status = LiquidationAssigned
+	l.ClosedAt = &now
 	l.Touch(now)
 	return nil
 }

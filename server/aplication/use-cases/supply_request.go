@@ -42,6 +42,12 @@ func (uc *SupplyRequestUseCaseImpl) Create(ctx context.Context, req dto.SupplyRe
 	if err := validateSupplyRequestDeadlines(req.RequestDeadline, req.DeliveryDeadline); err != nil {
 		return nil, err
 	}
+	if err := validateSupplyRequestUnitOfMeasure(req.UnitOfMeasure); err != nil {
+		return nil, err
+	}
+	if err := validateSupplyRequestAddress(req.Address); err != nil {
+		return nil, err
+	}
 
 	supplyRequest := domain.NewSupplyRequest(
 		principal.UserID, req.ProductName, req.TotalAmount, req.AmountUnit, req.NumberOfUnits,
@@ -140,6 +146,9 @@ func (uc *SupplyRequestUseCaseImpl) Update(ctx context.Context, id uuid.UUID, re
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
 	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
+	}
 	if err := validateSupplyRequestContent(req.ProductName, req.TotalAmount); err != nil {
 		return err
 	}
@@ -179,6 +188,9 @@ func (uc *SupplyRequestUseCaseImpl) UpdateAmounts(ctx context.Context, id uuid.U
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
 	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
+	}
 	if err := validateSupplyAmounts(req.TotalAmount, req.ActualAmount); err != nil {
 		return err
 	}
@@ -205,6 +217,9 @@ func (uc *SupplyRequestUseCaseImpl) UpdateDeadlines(ctx context.Context, id uuid
 	}
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
+	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
 	}
 	if err := validateSupplyRequestDeadlines(req.RequestDeadline, req.DeliveryDeadline); err != nil {
 		return err
@@ -285,6 +300,25 @@ func (uc *SupplyRequestUseCaseImpl) getOwnedSupplyRequest(ctx context.Context, i
 	return &supplyRequest, nil
 }
 
+// ensureNoAcceptedOffer refuses an edit once an offer has been accepted against
+// the request.
+//
+// RF-10: "Una solicitud no podrá modificarse después de aceptar una oferta." A
+// request with an active match is still IsOpen, so the status guard alone never
+// caught this, and validateAgainstMatchedAmount only constrains the two
+// amounts — the product name, the unit of measure, the address and the
+// deadlines were all still rewritable behind an accepted offer.
+func (uc *SupplyRequestUseCaseImpl) ensureNoAcceptedOffer(ctx context.Context, id uuid.UUID) error {
+	hasActiveMatch, err := uc.matchRepo.ExistsActiveByRequest(ctx, id)
+	if err != nil {
+		return err
+	}
+	if hasActiveMatch {
+		return primary.ErrActiveMatch
+	}
+	return nil
+}
+
 func (uc *SupplyRequestUseCaseImpl) validateAgainstMatchedAmount(ctx context.Context, id uuid.UUID, totalAmount, actualAmount float64) error {
 	matches, err := uc.matchRepo.ListActiveByRequest(ctx, id)
 	if err != nil {
@@ -331,6 +365,32 @@ func validateSupplyAmounts(totalAmount, actualAmount float64) error {
 func validateSupplyRequestDeadlines(requestDeadline, deliveryDeadline time.Time) error {
 	if !requestDeadline.IsZero() && !deliveryDeadline.IsZero() && requestDeadline.After(deliveryDeadline) {
 		return fmt.Errorf("%w: request deadline must not be after delivery deadline", domain.ErrInvalidInput)
+	}
+	return nil
+}
+
+// validateSupplyRequestUnitOfMeasure rejects a unit outside the vocabulary.
+//
+// The field is an iota decoded straight off the wire, so a client can ask for
+// unit 7 and the repository will store it. The brief lists the unit of measure
+// as a required part of a request, and a request whose unit nothing can
+// interpret is not one.
+func validateSupplyRequestUnitOfMeasure(unit domain.MeasurementOptions) error {
+	if !domain.ValidMeasurementOptions(unit) {
+		return fmt.Errorf("%w: unknown unit of measure %d", domain.ErrInvalidInput, int(unit))
+	}
+	return nil
+}
+
+// validateSupplyRequestAddress refuses an address with no department.
+//
+// req.Address is passed straight through to the entity, and the repository
+// writes address_id = NULL when the address carries no data — so a request with
+// an entirely empty address used to be accepted while carrying no location at
+// all, even though the brief makes the location required.
+func validateSupplyRequestAddress(address domain.Address) error {
+	if address.Department == "" {
+		return domain.ErrDepartmentRequired
 	}
 	return nil
 }

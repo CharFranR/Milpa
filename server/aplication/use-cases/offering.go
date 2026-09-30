@@ -49,6 +49,14 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, domain.ErrForbidden
 	}
 
+	// RF-03: publishing requires a complete farmer profile. The check reuses
+	// Address.IsComplete rather than restating the predicate, so the rule lives
+	// in the domain and this call site cannot drift away from it. The user is
+	// already loaded above, so this costs no extra query.
+	if !user.Address.IsComplete() {
+		return nil, fmt.Errorf("%w: a complete address (department, municipality and address line) is required to publish an offering", domain.ErrInvalidInput)
+	}
+
 	now := uc.timer.Now()
 
 	offering, err := domain.NewOffering(req.UserID, req.Name, req.Type, now)

@@ -186,7 +186,9 @@ func (uc *ReportUseCaseImpl) Resolve(ctx context.Context, id uuid.UUID, req dto.
 				"user_id":   report.TargetID.String(),
 			})
 			suspendLog := domain.NewAuditLog(principal.UserID, domain.AuditActionUserSuspended, "user", report.TargetID, suspendMeta, now)
-			_ = uc.auditRepo.Save(ctx, suspendLog)
+			if err := uc.auditRepo.Save(ctx, suspendLog); err != nil {
+				return nil, err
+			}
 		} else {
 			if err := uc.offeringRepo.Delete(ctx, report.TargetID); err != nil {
 				return nil, err
@@ -196,18 +198,24 @@ func (uc *ReportUseCaseImpl) Resolve(ctx context.Context, id uuid.UUID, req dto.
 				"offering_id": report.TargetID.String(),
 			})
 			deleteLog := domain.NewAuditLog(principal.UserID, domain.AuditActionOfferingDeleted, "offering", report.TargetID, deleteMeta, now)
-			_ = uc.auditRepo.Save(ctx, deleteLog)
+			if err := uc.auditRepo.Save(ctx, deleteLog); err != nil {
+				return nil, err
+			}
 		}
 
 		approveMeta, _ := json.Marshal(map[string]string{"report_id": report.ID.String()})
 		approveLog := domain.NewAuditLog(principal.UserID, domain.AuditActionReportApproved, "report", report.ID, approveMeta, now)
-		_ = uc.auditRepo.Save(ctx, approveLog)
+		if err := uc.auditRepo.Save(ctx, approveLog); err != nil {
+			return nil, err
+		}
 	} else {
 		report.Reject(principal.UserID, now)
 
 		rejectMeta, _ := json.Marshal(map[string]string{"report_id": report.ID.String()})
 		rejectLog := domain.NewAuditLog(principal.UserID, domain.AuditActionReportRejected, "report", report.ID, rejectMeta, now)
-		_ = uc.auditRepo.Save(ctx, rejectLog)
+		if err := uc.auditRepo.Save(ctx, rejectLog); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := uc.reportRepo.Resolve(ctx, report); err != nil {
@@ -312,13 +320,17 @@ func (uc *ModerationUseCaseImpl) SuspendUser(ctx context.Context, id uuid.UUID, 
 
 		meta, _ := json.Marshal(map[string]string{"user_id": id.String()})
 		log := domain.NewAuditLog(principal.UserID, domain.AuditActionUserSuspended, "user", id, meta, uc.timer.Now())
-		_ = uc.auditRepo.Save(ctx, log)
+		if err := uc.auditRepo.Save(ctx, log); err != nil {
+			return err
+		}
 	} else {
 		user.Reactivate(uc.timer.Now())
 
 		meta, _ := json.Marshal(map[string]string{"user_id": id.String()})
 		log := domain.NewAuditLog(principal.UserID, domain.AuditActionUserReactivated, "user", id, meta, uc.timer.Now())
-		_ = uc.auditRepo.Save(ctx, log)
+		if err := uc.auditRepo.Save(ctx, log); err != nil {
+			return err
+		}
 	}
 
 	return uc.userRepo.Update(ctx, user)
@@ -342,7 +354,9 @@ func (uc *ModerationUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUI
 
 	meta, _ := json.Marshal(map[string]string{"offering_id": id.String()})
 	log := domain.NewAuditLog(principal.UserID, domain.AuditActionOfferingDeleted, "offering", id, meta, uc.timer.Now())
-	_ = uc.auditRepo.Save(ctx, log)
+	if err := uc.auditRepo.Save(ctx, log); err != nil {
+		return err
+	}
 
 	return nil
 }

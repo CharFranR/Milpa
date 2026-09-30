@@ -26,6 +26,7 @@ var (
 
 	testConversationID = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	testMessageID      = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	testAddressID      = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 )
 
 func principalCtx() context.Context {
@@ -52,12 +53,26 @@ func inquiryStatusPtr(s domain.InquiryStatus) *domain.InquiryStatus {
 	return &s
 }
 
+// mustUser builds a farmer whose profile is complete.
+//
+// The address is set because publishing an offering requires one (RF-03, checked
+// through Address.IsComplete in OfferingUseCaseImpl.CreateOffering). A default
+// fixture that cannot publish would only mean every such test had to re-add the
+// address; tests that want the refusal clear the fields they need cleared.
 func mustUser() *domain.User {
 	user, err := domain.NewUser("user@milpa.com.ni", "John", "Doe", fixedTime)
 	if err != nil {
 		panic(err)
 	}
 	user.ID = testUserID
+	user.Address = domain.Address{
+		ID:           testAddressID,
+		Department:   "Leon",
+		Municipality: "Leon",
+		AddressLine:  "Barrio San Francisco",
+		Latitude:     12.4379,
+		Longitude:    -86.8781,
+	}
 	return user
 }
 

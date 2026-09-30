@@ -472,11 +472,12 @@ func TestUserUseCaseUpdateProfile(t *testing.T) {
 		wantPhone       string
 	}{
 		{
-			name:          "no fields",
-			req:           dto.UpdateUserRequest{},
-			wantEmail:     "user@milpa.com.ni",
-			wantFirstName: "John",
-			wantLastName:  "Doe",
+			name:            "no fields",
+			req:             dto.UpdateUserRequest{},
+			wantEmail:       "user@milpa.com.ni",
+			wantFirstName:   "John",
+			wantLastName:    "Doe",
+			wantAddressLine: "Barrio San Francisco",
 		},
 		{
 			name: "all fields",
@@ -493,11 +494,16 @@ func TestUserUseCaseUpdateProfile(t *testing.T) {
 			wantAddressLine: "Managua",
 			wantPhone:       "888-0000",
 		},
-		{name: "email only", req: dto.UpdateUserRequest{Email: strPtr("new@milpa.com.ni")}, wantEmail: "new@milpa.com.ni", wantFirstName: "John", wantLastName: "Doe"},
-		{name: "first name only", req: dto.UpdateUserRequest{FirstName: strPtr("Jane")}, wantEmail: "user@milpa.com.ni", wantFirstName: "Jane", wantLastName: "Doe"},
-		{name: "last name only", req: dto.UpdateUserRequest{LastName: strPtr("Roe")}, wantEmail: "user@milpa.com.ni", wantFirstName: "John", wantLastName: "Roe"},
+		// The address line is asserted on every case, including the ones that
+		// never mention it. The fixture farmer now carries a complete address,
+		// so "untouched" has a non-empty value to be untouched *to* — which is
+		// the stronger claim: an unrelated profile edit must not clobber the
+		// address a publication depends on.
+		{name: "email only", req: dto.UpdateUserRequest{Email: strPtr("new@milpa.com.ni")}, wantEmail: "new@milpa.com.ni", wantFirstName: "John", wantLastName: "Doe", wantAddressLine: "Barrio San Francisco"},
+		{name: "first name only", req: dto.UpdateUserRequest{FirstName: strPtr("Jane")}, wantEmail: "user@milpa.com.ni", wantFirstName: "Jane", wantLastName: "Doe", wantAddressLine: "Barrio San Francisco"},
+		{name: "last name only", req: dto.UpdateUserRequest{LastName: strPtr("Roe")}, wantEmail: "user@milpa.com.ni", wantFirstName: "John", wantLastName: "Roe", wantAddressLine: "Barrio San Francisco"},
 		{name: "address only", req: dto.UpdateUserRequest{Address: strPtr("Managua")}, wantEmail: "user@milpa.com.ni", wantFirstName: "John", wantLastName: "Doe", wantAddressLine: "Managua"},
-		{name: "phone only", req: dto.UpdateUserRequest{PhoneNumber: strPtr("888-0000")}, wantEmail: "user@milpa.com.ni", wantFirstName: "John", wantLastName: "Doe", wantPhone: "888-0000"},
+		{name: "phone only", req: dto.UpdateUserRequest{PhoneNumber: strPtr("888-0000")}, wantEmail: "user@milpa.com.ni", wantFirstName: "John", wantLastName: "Doe", wantPhone: "888-0000", wantAddressLine: "Barrio San Francisco"},
 		{name: "repo error", req: dto.UpdateUserRequest{FirstName: strPtr("Jane")}, repoErr: errFake, wantErr: errFake},
 		{name: "not found", req: dto.UpdateUserRequest{FirstName: strPtr("Jane")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
 	}

@@ -91,6 +91,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		NumberOfUnits:     10,
 		AmountPerUnit:     10,
 		UnitOfMeasure:     domain.Kg,
+		Address:           domain.Address{Department: "Masaya", Municipality: "Masaya", AddressLine: "Km 5 Carretera Sur"},
 		RequestDeadline:   time.Now().Add(24 * time.Hour),
 		DeliveryDeadline:  time.Now().Add(48 * time.Hour),
 		Description:       "e2e supply flow",
