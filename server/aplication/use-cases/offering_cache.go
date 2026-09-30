@@ -84,6 +84,11 @@ func (uc *CachedOfferingUseCase) UpdateOffering(ctx context.Context, id uuid.UUI
 
 	_ = uc.cache.Delete(ctx, "offering:"+id.String())
 
+	updated, err := uc.next.GetByID(ctx, id)
+	if err == nil {
+		_ = uc.cache.Delete(ctx, "offerings:byuser:"+updated.UserID.String())
+	}
+
 	return nil
 }
 
@@ -100,6 +105,18 @@ func (uc *CachedOfferingUseCase) DeleteOffering(ctx context.Context, id uuid.UUI
 
 func (uc *CachedOfferingUseCase) DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error) {
 	result, err := uc.next.DeactivateOffering(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = uc.cache.Delete(ctx, "offering:"+id.String())
+	_ = uc.cache.Delete(ctx, "offerings:byuser:"+result.UserID.String())
+
+	return result, nil
+}
+
+func (uc *CachedOfferingUseCase) RenewOffering(ctx context.Context, id uuid.UUID, req dto.RenewOfferingRequest) (*dto.OfferingDTO, error) {
+	result, err := uc.next.RenewOffering(ctx, id, req)
 	if err != nil {
 		return nil, err
 	}

@@ -6,9 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"milpa/aplication/dto"
 	usecases "milpa/aplication/use-cases"
 	domain "milpa/domain/entities"
+	"milpa/internal/auth"
 )
 
 func TestOfferingCreateRefusesAnIncompleteProduct(t *testing.T) {
@@ -251,6 +254,69 @@ func TestOfferingDeactivateIsIdempotentAndOwnerOnly(t *testing.T) {
 				if offering.IsActive {
 					t.Error("the offering is still active after deactivation")
 				}
+			}
+		})
+	}
+}
+
+func TestOfferingRenewIsOwnerOnlyAndReactivatesTheProduct(t *testing.T) {
+	t.Parallel()
+
+	newExpiry := fixedTime.Add(15 * 24 * time.Hour)
+
+	tests := []struct {
+		name        string
+		ctx         context.Context
+		wantErr     error
+		wantUpdates int
+	}{
+		{name: "unauthenticated", ctx: context.Background(), wantErr: auth.ErrUnauthenticated},
+		{name: "foreign user", ctx: principalCtxFor(testOtherID), wantErr: domain.ErrForbidden},
+		{name: "owner", ctx: principalCtx(), wantUpdates: 1},
+		{name: "admin", ctx: reportAdminCtx(), wantUpdates: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			offeringRepo := newFakeOfferingRepo()
+			offeringRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
+				offering := mustOffering()
+				offering.ID = id
+				offering.Deactivate()
+				expiry := fixedTime.Add(-time.Hour)
+				offering.ExpiresAt = &expiry
+				return offering, nil
+			}
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			result, err := uc.RenewOffering(tt.ctx, testOfferingID, dto.RenewOfferingRequest{ExpiresAt: newExpiry})
+
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("RenewOffering() error = %v, want %v", err, tt.wantErr)
+				}
+				if len(offeringRepo.updated) != 0 {
+					t.Errorf("a refused caller wrote %d offerings, want 0", len(offeringRepo.updated))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("RenewOffering() error: %v", err)
+			}
+			if len(offeringRepo.updated) != tt.wantUpdates {
+				t.Fatalf("updated = %d, want %d", len(offeringRepo.updated), tt.wantUpdates)
+			}
+			if result.ExpiresAt == nil || !result.ExpiresAt.Equal(newExpiry) {
+				t.Errorf("expires at = %v, want %v", result.ExpiresAt, newExpiry)
+			}
+			if !result.IsActive {
+				t.Error("the renewed product is not active")
+			}
+			if result.UpdatedAt != fixedTime {
+				t.Errorf("updated at = %v, want %v", result.UpdatedAt, fixedTime)
 			}
 		})
 	}

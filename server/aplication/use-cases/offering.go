@@ -280,6 +280,32 @@ func (uc *OfferingUseCaseImpl) DeactivateOffering(ctx context.Context, id uuid.U
 	return offeringToDTO(offering), nil
 }
 
+func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, req dto.RenewOfferingRequest) (*dto.OfferingDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	offering, err := uc.offeringRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := requireOfferingOwner(principal, offering); err != nil {
+		return nil, err
+	}
+
+	offering.Renew(req.ExpiresAt, uc.timer.Now())
+
+	if err := uc.offeringRepo.Update(ctx, offering); err != nil {
+		return nil, err
+	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
+	return offeringToDTO(offering), nil
+}
+
 // requireOfferingOwner refuses a caller that does not own the offering.
 //
 // An admin is allowed through because the moderation endpoint

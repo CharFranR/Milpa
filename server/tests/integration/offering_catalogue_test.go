@@ -3,10 +3,12 @@ package integration
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	domain "milpa/domain/entities"
 	"milpa/infrastructure/adapters/secondary/repository"
@@ -143,6 +145,116 @@ func TestOfferingSaveRefusesADuplicateActiveProduct(t *testing.T) {
 	}
 	if len(listed) != 1 {
 		t.Errorf("the catalogue holds %d products, want only the first one", len(listed))
+	}
+}
+
+func TestOfferingSaveRefusesADuplicateActiveProductPublishedLater(t *testing.T) {
+	setupOfferingTestData(t)
+
+	repo := repository.NewOfferingRepository(TestPool)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	first := catalogueOffering(testOwnerID, "Maiz criollo", now)
+	if err := repo.Save(ctx, first); err != nil {
+		t.Fatalf("save first: %v", err)
+	}
+
+	second := catalogueOffering(testOwnerID, "Maiz criollo", now.Add(3*time.Hour))
+	err := repo.Save(ctx, second)
+	if !errors.Is(err, domain.ErrDuplicate) {
+		t.Fatalf("save duplicate published three hours later = %v, want ErrDuplicate", err)
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		t.Errorf("the driver error leaked past the repository: %v", pgErr)
+	}
+
+	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	if err != nil {
+		t.Fatalf("FindByUserID() error: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Errorf("the catalogue holds %d products, want only the first one", len(listed))
+	}
+	if listed[0].ID != first.ID {
+		t.Errorf("the catalogue kept %s, want the first one %s", listed[0].ID, first.ID)
+	}
+}
+
+func TestOfferingSaveAcceptsTheSameNameOnceTheFirstIsDeactivated(t *testing.T) {
+	setupOfferingTestData(t)
+
+	repo := repository.NewOfferingRepository(TestPool)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	first := catalogueOffering(testOwnerID, "Frijol rojo", now)
+	if err := repo.Save(ctx, first); err != nil {
+		t.Fatalf("save first: %v", err)
+	}
+
+	first.Deactivate()
+	if err := repo.Update(ctx, first); err != nil {
+		t.Fatalf("deactivate first: %v", err)
+	}
+
+	second := catalogueOffering(testOwnerID, "Frijol rojo", now.Add(4*time.Hour))
+	if err := repo.Save(ctx, second); err != nil {
+		t.Fatalf("save after deactivating the first: %v", err)
+	}
+
+	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	if err != nil {
+		t.Fatalf("FindByUserID() error: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("the catalogue holds %d products, want only the republished one", len(listed))
+	}
+	if listed[0].ID != second.ID {
+		t.Errorf("the catalogue kept %s, want the republished %s", listed[0].ID, second.ID)
+	}
+}
+
+func TestOfferingDuplicatePreventionIndexCoversOnlyTheActivePair(t *testing.T) {
+	setupOfferingTestData(t)
+
+	ctx := context.Background()
+
+	rows, err := TestPool.Query(ctx,
+		`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'offerings' AND indexname LIKE 'uq_offerings_farmer%'`)
+	if err != nil {
+		t.Fatalf("read the offerings unique indexes: %v", err)
+	}
+	defer rows.Close()
+
+	definitions := map[string]string{}
+	for rows.Next() {
+		var name, definition string
+		if err := rows.Scan(&name, &definition); err != nil {
+			t.Fatalf("scan an index definition: %v", err)
+		}
+		definitions[name] = definition
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("read the index definitions: %v", err)
+	}
+
+	if _, stale := definitions["uq_offerings_farmer_product_window"]; stale {
+		t.Error("uq_offerings_farmer_product_window is still installed")
+	}
+
+	active, ok := definitions["uq_offerings_farmer_active_product"]
+	if !ok {
+		t.Fatalf("uq_offerings_farmer_active_product is missing; installed: %v", definitions)
+	}
+	if strings.Contains(active, "created_at") {
+		t.Errorf("index definition = %q, want a key without created_at", active)
+	}
+	if !strings.Contains(active, "WHERE") || !strings.Contains(active, "is_active") {
+		t.Errorf("index definition = %q, want a partial index over the active rows", active)
 	}
 }
 

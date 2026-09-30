@@ -15,4 +15,5 @@ type OfferingUseCase interface {
 	UpdateOffering(ctx context.Context, id uuid.UUID, req dto.UpdateOfferingRequest) error
 	DeleteOffering(ctx context.Context, id uuid.UUID) error
 	DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error)
+	RenewOffering(ctx context.Context, id uuid.UUID, req dto.RenewOfferingRequest) (*dto.OfferingDTO, error)
 }
