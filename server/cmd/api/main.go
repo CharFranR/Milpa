@@ -153,6 +153,8 @@ func main() {
 	messageHandler := handler.NewMessageHandler(messageUC)
 	supplyRequestHandler := handler.NewSupplyRequestHandler(supplyRequestUC)
 	supplyOfferHandler := handler.NewSupplyOfferHandler(supplyOfferUC)
+	var inventoryUC primary.SupplierInventoryUseCase = usecases.NewSupplierInventoryUseCase(supplierInventoryRepo)
+	inventoryHandler := handler.NewSupplierInventoryHandler(inventoryUC)
 	matchHandler := handler.NewMatchHandler(matchUC)
 	recommendationHandler := handler.NewRecommendationHandler(recommendationUC)
 	transactionHandler := handler.NewTransactionHandler(transactionUC)
@@ -165,7 +167,7 @@ func main() {
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, matchHandler, recommendationHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, inventoryHandler, matchHandler, recommendationHandler)
 	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{

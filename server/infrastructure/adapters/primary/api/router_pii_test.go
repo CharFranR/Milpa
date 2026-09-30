@@ -156,7 +156,7 @@ func newPIIRouter(t *testing.T, userUC primary.UserUseCase, companyUC primary.Co
 		nil, nil, nil, nil, nil,
 		authMW, suspensionMW,
 		nil, nil, nil, nil, nil, nil, chat,
-		nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 }
 
