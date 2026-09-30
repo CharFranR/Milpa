@@ -481,6 +481,97 @@ func TestSupplyOfferUpdate(t *testing.T) {
 	}
 }
 
+func TestSupplyOfferPriceAndCommentsRoundTrip(t *testing.T) {
+	setupSupplyOfferTestData(t)
+	db := repository.NewSupplyOfferRepository(TestPool)
+	ctx := context.Background()
+
+	price, repriced := 12.75, 9.5
+
+	saved := newSupplyOfferFixture(testSupplyOfferID, testSupplyOfferSupplierID, testSupplyOfferRequestID, fixedTime)
+	saved.PricePerUnit = &price
+	saved.Comments = "Picked yesterday, delivered chilled"
+	if err := db.Create(ctx, saved); err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	got, err := db.GetByID(ctx, testSupplyOfferID)
+	if err != nil {
+		t.Fatalf("GetByID() error: %v", err)
+	}
+	if got.PricePerUnit == nil || *got.PricePerUnit != price {
+		t.Errorf("GetByID() PricePerUnit = %v, want %v", got.PricePerUnit, price)
+	}
+	if got.Comments != saved.Comments {
+		t.Errorf("GetByID() Comments = %q, want %q", got.Comments, saved.Comments)
+	}
+
+	// The locked read spells its own column list, so pin it to the unlocked one.
+	// A price missing from the FOR UPDATE projection would hand the transactional
+	// paths a different value for the same row, silently: each read stays
+	// self-consistent on its own.
+	locked, err := db.LockByIDForUpdate(ctx, testSupplyOfferID)
+	if err != nil {
+		t.Fatalf("LockByIDForUpdate() error: %v", err)
+	}
+	if locked.PricePerUnit == nil || *locked.PricePerUnit != price {
+		t.Errorf("LockByIDForUpdate() PricePerUnit = %v, want %v", locked.PricePerUnit, price)
+	}
+	if locked.Comments != got.Comments {
+		t.Errorf("LockByIDForUpdate() Comments = %q, want %q", locked.Comments, got.Comments)
+	}
+
+	got.PricePerUnit = &repriced
+	got.Comments = "Bulk price if you take the lot"
+	if err := db.Update(ctx, &got); err != nil {
+		t.Fatalf("Update() error: %v", err)
+	}
+
+	reread, err := db.GetByID(ctx, testSupplyOfferID)
+	if err != nil {
+		t.Fatalf("GetByID() after Update error: %v", err)
+	}
+	if reread.PricePerUnit == nil || *reread.PricePerUnit != repriced {
+		t.Errorf("GetByID() after Update PricePerUnit = %v, want %v", reread.PricePerUnit, repriced)
+	}
+	if reread.Comments != got.Comments {
+		t.Errorf("GetByID() after Update Comments = %q, want %q", reread.Comments, got.Comments)
+	}
+}
+
+// TestSupplyOfferPriceCheckIsTheStorageBackstop proves the column is nullable
+// and that the CHECK is what keeps it honest. The use case is the layer that
+// refuses an unpriced create; this is the layer that still holds for a direct
+// write, and the two are not redundant.
+func TestSupplyOfferPriceCheckIsTheStorageBackstop(t *testing.T) {
+	setupSupplyOfferTestData(t)
+	db := repository.NewSupplyOfferRepository(TestPool)
+	ctx := context.Background()
+
+	t.Run("nil price is accepted so legacy offers survive", func(t *testing.T) {
+		legacy := newSupplyOfferFixture(testSupplyOfferID, testSupplyOfferSupplierID, testSupplyOfferRequestID, fixedTime)
+		if err := db.Create(ctx, legacy); err != nil {
+			t.Fatalf("Create() with a nil price error: %v", err)
+		}
+		got, err := db.GetByID(ctx, testSupplyOfferID)
+		if err != nil {
+			t.Fatalf("GetByID() error: %v", err)
+		}
+		if got.PricePerUnit != nil {
+			t.Errorf("GetByID() PricePerUnit = %v, want nil", *got.PricePerUnit)
+		}
+	})
+
+	t.Run("a zero price is rejected by the CHECK", func(t *testing.T) {
+		zero := 0.0
+		rejected := newSupplyOfferFixture(testSupplyOfferID2, testSupplyOfferOtherSupplierID, testSupplyOfferRequestID, fixedTime.Add(time.Minute))
+		rejected.PricePerUnit = &zero
+		if err := db.Create(ctx, rejected); err == nil {
+			t.Fatal("Create() with a zero price succeeded, want ck_supply_offers_price to reject it")
+		}
+	})
+}
+
 func TestSupplyOfferDelete(t *testing.T) {
 	setupSupplyOfferTestData(t)
 	db := repository.NewSupplyOfferRepository(TestPool)

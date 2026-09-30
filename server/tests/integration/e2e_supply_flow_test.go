@@ -18,6 +18,10 @@ import (
 var testE2EBuyerID uuid.UUID = uuid.MustParse("e2e00000-0000-4000-8000-000000000001")
 var testE2ESupplierID uuid.UUID = uuid.MustParse("e2e00000-0000-4000-8000-000000000002")
 
+// e2eOfferPrice is the unit price the end-to-end supplier quotes. RF-11 makes
+// the price a required field, so the fixture carries one; nothing reads it.
+var e2eOfferPrice = 25.5
+
 func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 	cleanupTables(t)
 
@@ -115,6 +119,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		SupplyRequest:       &requestID,
 		TotalAmount:         totalAmount,
 		AmountUnit:          domain.Kg,
+		PricePerUnit:        &e2eOfferPrice,
 		ProposedDeliveryDay: time.Now().Add(72 * time.Hour),
 		DeliveryAvailable:   true,
 	})

@@ -77,6 +77,7 @@ func NewRouter(
 
 		r.Route("/reviews", func(r chi.Router) {
 			r.Get("/", review.List)
+			r.Get("/average", review.Average)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", review.Create)
 		})
 

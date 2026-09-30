@@ -47,6 +47,13 @@ type SupplyOffer struct {
 	TotalAmount   float64
 	AmountUnit    MeasurementOptions
 
+	// PricePerUnit is a pointer so "no price quoted" stays distinguishable from
+	// "zero quoted". A zero ranks as the cheapest offer on the platform, which
+	// is a claim nobody made, so the column is nullable in SQL and nil here and
+	// the price score factor reads nil as unranked rather than as free.
+	PricePerUnit *float64
+	Comments     string
+
 	ProposedDeliveryDay time.Time
 	DeliveryAvailable   bool
 	Status              OfferStatus
@@ -55,6 +62,11 @@ type SupplyOffer struct {
 	UpdatedAt time.Time
 }
 
+// NewSupplyOffer keeps its original six arguments. Price and comments are RF-11
+// additions, and folding them in would make this an eight-argument constructor
+// in which the adjacent float64 and time.Time values are the only reliable thing
+// telling you which is which. The caller sets them, the same way it already sets
+// Status through MarkMatched and Withdraw.
 func NewSupplyOffer(
 	SupplierID uuid.UUID, SupplyRequest uuid.UUID, TotalAmount float64, AmountUnit MeasurementOptions, ProposedDeliveryDay time.Time, DeliveryAvailable bool,
 ) *SupplyOffer {
