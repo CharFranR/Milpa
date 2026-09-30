@@ -13,6 +13,7 @@
       "description": { "type": "text" },
       "price": { "type": "float" },
       "type": { "type": "keyword" },
+      "category_id": { "type": "keyword" },
       "image_url": { "type": "keyword", "index": false },
       "user_id": { "type": "keyword" },
       "farmer_name": { "type": "text" },

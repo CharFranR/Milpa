@@ -55,6 +55,7 @@ func (s *SearchImpl) buildQuery(req dto.SearchRequest) *dto.SearchQuery {
 		Term: req.Term,
 		Filters: dto.SearchFilters{
 			Type:         req.Type,
+			CategoryID:   req.CategoryID,
 			Department:   req.Department,
 			Municipality: req.Municipality,
 			PriceMin:     req.PriceMin,

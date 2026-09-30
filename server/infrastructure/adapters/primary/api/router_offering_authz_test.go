@@ -34,6 +34,7 @@ var (
 type ownershipOfferingRepo struct {
 	offering *domain.Offering
 	deleted  []uuid.UUID
+	updated  []*domain.Offering
 }
 
 func (r *ownershipOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
@@ -53,6 +54,8 @@ func (r *ownershipOfferingRepo) Save(ctx context.Context, offering *domain.Offer
 }
 
 func (r *ownershipOfferingRepo) Update(ctx context.Context, offering *domain.Offering) error {
+	copied := *offering
+	r.updated = append(r.updated, &copied)
 	return nil
 }
 
@@ -246,5 +249,96 @@ func TestOfferingMutationUnknownIDIsNotFound(t *testing.T) {
 	}
 	if len(repo.deleted) != 0 {
 		t.Errorf("an unknown id deleted %v, want nothing", repo.deleted)
+	}
+}
+
+func TestOfferingRenewReachesTheOwner(t *testing.T) {
+	t.Parallel()
+
+	router, repo := newOwnershipRouter(t)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
+		strings.NewReader(`{"expires_at":"2026-09-30T10:00:00Z"}`))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if len(repo.updated) != 1 {
+		t.Fatalf("updated = %d, want 1", len(repo.updated))
+	}
+
+	renewed := repo.updated[0]
+	if renewed.ExpiresAt == nil || !renewed.ExpiresAt.Equal(time.Date(2026, 9, 30, 10, 0, 0, 0, time.UTC)) {
+		t.Errorf("expires at = %v, want 2026-09-30T10:00:00Z", renewed.ExpiresAt)
+	}
+	if !renewed.IsActive {
+		t.Error("the renewed offering is not active")
+	}
+}
+
+func TestOfferingRenewRefusesForeignUser(t *testing.T) {
+	t.Parallel()
+
+	router, repo := newOwnershipRouter(t)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
+		strings.NewReader(`{"expires_at":"2026-09-30T10:00:00Z"}`))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleProvider))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body = %s", rr.Code, rr.Body.String())
+	}
+	if len(repo.updated) != 0 {
+		t.Errorf("a foreign caller renewed %d offerings, want 0", len(repo.updated))
+	}
+}
+
+func TestOfferingRenewRequiresAuthentication(t *testing.T) {
+	t.Parallel()
+
+	router, repo := newOwnershipRouter(t)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
+		strings.NewReader(`{"expires_at":"2026-09-30T10:00:00Z"}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401; body = %s", rr.Code, rr.Body.String())
+	}
+	if len(repo.updated) != 0 {
+		t.Errorf("an unauthenticated caller renewed %d offerings, want 0", len(repo.updated))
+	}
+}
+
+func TestOfferingRenewRejectsAMissingDate(t *testing.T) {
+	t.Parallel()
+
+	router, repo := newOwnershipRouter(t)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
+		strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Content-Type", "application/json")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", rr.Code, rr.Body.String())
+	}
+	if len(repo.updated) != 0 {
+		t.Errorf("a renewal without a date wrote %d offerings, want 0", len(repo.updated))
 	}
 }

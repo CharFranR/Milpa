@@ -189,6 +189,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 		Type:      domain.OfferingProduct,
 		Name:      "Laptop",
 		Price:     1200.50,
+		IsActive:  true,
 		CreatedAt: fixedTime,
 		UpdatedAt: fixedTime,
 	}
@@ -198,6 +199,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 		Type:      domain.OfferingService,
 		Name:      "Consultoria",
 		Price:     100.00,
+		IsActive:  true,
 		CreatedAt: fixedTime,
 		UpdatedAt: fixedTime,
 	}

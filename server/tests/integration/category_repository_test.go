@@ -36,11 +36,11 @@ func TestCategoryFindAll(t *testing.T) {
 		{
 			Name: "Multiple categories",
 			SetupCats: []domain.Category{
-				{ID: uuid.New(), Name: "Tech", Description: "Technology services"},
+				{ID: uuid.New(), Name: "Craft", Description: "Artisan goods"},
 				{ID: uuid.New(), Name: "Food", Description: "Food products"},
 			},
 			ExpectedLen:   2,
-			ExpectedNames: []string{"Tech", "Food"},
+			ExpectedNames: []string{"Craft", "Food"},
 		},
 	}
 

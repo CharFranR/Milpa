@@ -24,9 +24,10 @@ var (
 	testInquiryID  = uuid.MustParse("66666666-6666-6666-6666-666666666666")
 	testOtherID    = uuid.MustParse("77777777-7777-7777-7777-777777777777")
 
-	testConversationID = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-	testMessageID      = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
-	testAddressID      = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	testConversationID  = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	testMessageID       = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	testAddressID       = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	testUnitOfMeasureID = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 )
 
 func principalCtx() context.Context {
@@ -47,6 +48,21 @@ func floatPtr(f float64) *float64 {
 
 func offeringTypePtr(t domain.OfferingType) *domain.OfferingType {
 	return &t
+}
+
+func withType(req dto.CreateOfferingRequest, offeringType domain.OfferingType) dto.CreateOfferingRequest {
+	req.Type = offeringType
+	return req
+}
+
+func withName(req dto.CreateOfferingRequest, name string) dto.CreateOfferingRequest {
+	req.Name = name
+	return req
+}
+
+func withUser(req dto.CreateOfferingRequest, userID uuid.UUID) dto.CreateOfferingRequest {
+	req.UserID = userID
+	return req
 }
 
 func inquiryStatusPtr(s domain.InquiryStatus) *domain.InquiryStatus {
@@ -94,7 +110,28 @@ func mustOffering() *domain.Offering {
 	offering.Description = "Fresh organic corn"
 	offering.Price = 10.0
 	offering.ImageURL = "http://images.milpa.com/corn.png"
+	offering.Variety = "Cuzqueño"
+	offering.UnitOfMeasureID = &testUnitOfMeasureID
+	offering.QuantityAvailable = 100
+	offering.CategoryID = &testCategoryID
 	return offering
+}
+
+func completeCatalogueRequest() dto.CreateOfferingRequest {
+	unitID := testUnitOfMeasureID
+	categoryID := testCategoryID
+	return dto.CreateOfferingRequest{
+		UserID:            testUserID,
+		Type:              domain.OfferingProduct,
+		Name:              "Organic Corn",
+		Description:       "Fresh corn",
+		Price:             10.5,
+		ImageURL:          "http://img.milpa.com/corn.png",
+		Variety:           "Cuzqueño",
+		UnitOfMeasureID:   &unitID,
+		QuantityAvailable: 100,
+		CategoryID:        &categoryID,
+	}
 }
 
 func mustReview() *domain.Review {
@@ -116,7 +153,7 @@ func mustInquiry() *domain.Inquiry {
 }
 
 func mustCategory() *domain.Category {
-	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products"}
+	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products", MainCategory: "granos", IsActive: true}
 }
 
 func mustConversation() *domain.Conversation {
@@ -644,4 +681,38 @@ type fakeInvalidator struct {
 func (f *fakeInvalidator) InvalidateAll(ctx context.Context) error {
 	f.called = true
 	return nil
+}
+
+type capturingFuzzyRetrival struct {
+	document *dto.IndexOfferingRequest
+}
+
+func (f *capturingFuzzyRetrival) Search(ctx context.Context, query *dto.SearchQuery) (*dto.SearchResponse, error) {
+	return &dto.SearchResponse{}, nil
+}
+
+func (f *capturingFuzzyRetrival) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
+	f.document = p
+	return nil
+}
+
+func (f *capturingFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexOfferingRequest) error {
+	f.document = p
+	return nil
+}
+
+func (f *capturingFuzzyRetrival) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func farmerAt(latitude, longitude float64) *fakeUserRepo {
+	repo := newFakeUserRepo()
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user := mustUser()
+		user.ID = id
+		user.Address.Latitude = latitude
+		user.Address.Longitude = longitude
+		return user, nil
+	}
+	return repo
 }

@@ -174,6 +174,49 @@ func (h *OfferingHandler) Update(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusOK, nil)
 }
 
+func (h *OfferingHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid offering id")
+		return
+	}
+
+	result, err := h.uc.DeactivateOffering(r.Context(), id)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}
+
+func (h *OfferingHandler) Renew(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid offering id")
+		return
+	}
+
+	var req dto.RenewOfferingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.ExpiresAt.IsZero() {
+		respondError(w, http.StatusBadRequest, "expires_at: cannot be blank")
+		return
+	}
+
+	result, err := h.uc.RenewOffering(r.Context(), id, req)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}
+
 func (h *OfferingHandler) DeleteOffering(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "id"))

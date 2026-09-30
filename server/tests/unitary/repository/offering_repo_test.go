@@ -23,6 +23,8 @@ func TestOfferingFindByID(t *testing.T) {
 		Description: "maiz organico",
 		Price:       19.99,
 		ImageURL:    "http://img",
+		Variety:     "cuzqueno",
+		IsActive:    true,
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
 	}
@@ -35,8 +37,10 @@ func TestOfferingFindByID(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "company_id", "type", "name", "description", "price", "image_url", "created_at", "updated_at"}).
-					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
+				rows := pgxmock.NewRows([]string{"id", "user_id", "type", "name", "description", "price", "image_url", "variety", "unit_of_measure_id", "quantity_available", "expires_at", "is_active", "category_id", "company_id", "latitude", "longitude", "created_at", "updated_at"}).
+					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.CreatedAt, offering.UpdatedAt)
 				m.ExpectQuery("FROM offerings").WithArgs(offeringID).WillReturnRows(rows)
 			},
 		},
@@ -83,6 +87,8 @@ func TestOfferingFindByCompany(t *testing.T) {
 		Description: "maiz organico",
 		Price:       19.99,
 		ImageURL:    "http://img",
+		Variety:     "cuzqueno",
+		IsActive:    true,
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
 	}
@@ -95,8 +101,10 @@ func TestOfferingFindByCompany(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "company_id", "type", "name", "description", "price", "image_url", "created_at", "updated_at"}).
-					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt)
+				rows := pgxmock.NewRows([]string{"id", "user_id", "type", "name", "description", "price", "image_url", "variety", "unit_of_measure_id", "quantity_available", "expires_at", "is_active", "category_id", "company_id", "latitude", "longitude", "created_at", "updated_at"}).
+					AddRow(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.CreatedAt, offering.UpdatedAt)
 				m.ExpectQuery("FROM offerings").WithArgs(companyID).WillReturnRows(rows)
 			},
 		},
@@ -143,6 +151,8 @@ func TestOfferingSave(t *testing.T) {
 		Description: "maiz organico",
 		Price:       19.99,
 		ImageURL:    "http://img",
+		Variety:     "cuzqueno",
+		IsActive:    true,
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
 	}
@@ -156,7 +166,9 @@ func TestOfferingSave(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO offerings").
-					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
+					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.CreatedAt, offering.UpdatedAt).
 					WillReturnResult(pgxmock.NewResult("INSERT", 1))
 			},
 		},
@@ -165,7 +177,9 @@ func TestOfferingSave(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO offerings").
-					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.CreatedAt, offering.UpdatedAt).
+					WithArgs(offering.ID, offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.CreatedAt, offering.UpdatedAt).
 					WillReturnError(errors.New("exec failed"))
 			},
 		},
@@ -205,6 +219,8 @@ func TestOfferingUpdate(t *testing.T) {
 		Description: "maiz organico",
 		Price:       19.99,
 		ImageURL:    "http://img",
+		Variety:     "cuzqueno",
+		IsActive:    true,
 		CreatedAt:   fixedTime,
 		UpdatedAt:   fixedTime,
 	}
@@ -218,7 +234,9 @@ func TestOfferingUpdate(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("UPDATE offerings").
-					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
+					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.UpdatedAt, offering.ID).
 					WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 			},
 		},
@@ -227,7 +245,9 @@ func TestOfferingUpdate(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("UPDATE offerings").
-					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL, offering.UpdatedAt, offering.ID).
+					WithArgs(offering.UserID, offering.Type, offering.Name, offering.Description, offering.Price, offering.ImageURL,
+						offering.Variety, offering.UnitOfMeasureID, offering.QuantityAvailable, offering.ExpiresAt, offering.IsActive,
+						offering.CategoryID, offering.CompanyID, offering.Latitude, offering.Longitude, offering.UpdatedAt, offering.ID).
 					WillReturnError(errors.New("exec failed"))
 			},
 		},
