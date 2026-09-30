@@ -47,6 +47,12 @@ var (
 	ErrCannotSuspendAdmin      = errors.New("cannot suspend an administrator")
 	ErrUserSuspended           = errors.New("your account has been suspended")
 
+	// Review errors
+	ErrAuthorRequired          = errors.New("author is required")
+	ErrInvalidReviewTargetType = errors.New("target type must be company or user")
+	ErrSelfReview              = errors.New("you cannot review yourself")
+	ErrReviewTargetMismatch    = errors.New("a company review must mirror its target as the company")
+
 	// Conversation errors
 	ErrFarmerConversationRequired  = errors.New("farmer for conversation in required")
 	ErrBuyerConversationRequired   = errors.New("buyer for a conversation in required")

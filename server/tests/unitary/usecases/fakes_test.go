@@ -98,7 +98,7 @@ func mustOffering() *domain.Offering {
 }
 
 func mustReview() *domain.Review {
-	review, err := domain.NewReview(testUserID, testCompanyID, 5, "Great quality", fixedTime)
+	review, err := domain.NewReview(testUserID, domain.ReviewTargetCompany, testCompanyID, testCompanyID, 5, "Great quality", fixedTime)
 	if err != nil {
 		panic(err)
 	}
@@ -313,7 +313,9 @@ type fakeReviewRepo struct {
 	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	findByUser    func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
 	save          func(ctx context.Context, review *domain.Review) error
+	averageRating func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
 	saved         []*domain.Review
+	averageCalls  []uuid.UUID
 }
 
 func newFakeReviewRepo() *fakeReviewRepo {
@@ -328,7 +330,15 @@ func newFakeReviewRepo() *fakeReviewRepo {
 		f.saved = append(f.saved, review)
 		return nil
 	}
+	f.averageRating = func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
+		f.averageCalls = append(f.averageCalls, targetID)
+		return 4.5, 2, nil
+	}
 	return f
+}
+
+func (f *fakeReviewRepo) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
+	return f.averageRating(ctx, targetType, targetID)
 }
 
 func (f *fakeReviewRepo) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error) {

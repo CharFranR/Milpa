@@ -68,6 +68,7 @@ func TestMain(m *testing.M) {
 			filepath.Join(dbCredentials.migrationsPath, "000022_supply_requests_open_index.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000023_supplier_inventory_quantity_check.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000027_supply_offers_price_and_comments.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000028_reviews_targets_and_aggregate_guard.up.sql"),
 		),
 		postgres.WithDatabase(dbCredentials.dbName),
 		postgres.WithUsername(dbCredentials.dbUser),
