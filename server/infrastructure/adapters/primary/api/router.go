@@ -162,6 +162,9 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/users/{id}/suspend", moderation.SuspendUser)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/offerings/{id}", moderation.DeleteOffering)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/audit-logs", moderation.ListAuditLogs)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/categories", category.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/categories/{id}", category.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/categories/{id}/status", category.SetStatus)
 		})
 	})
 

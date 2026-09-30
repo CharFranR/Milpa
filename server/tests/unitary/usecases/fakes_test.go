@@ -116,7 +116,7 @@ func mustInquiry() *domain.Inquiry {
 }
 
 func mustCategory() *domain.Category {
-	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products"}
+	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products", MainCategory: "granos", IsActive: true}
 }
 
 func mustConversation() *domain.Conversation {
