@@ -14,6 +14,23 @@ const (
 	Tn
 )
 
+// ValidMeasurementOptions reports whether m is part of the unit vocabulary.
+//
+// It lives next to the constants so the vocabulary has exactly one definition,
+// the same way AllocationMethod.String and AllocationMethod.Scan do it in
+// liquidation.go. A MeasurementOptions is an iota and the field arrives straight
+// off the wire, so any integer the client sends is representable — including
+// ones nobody defined. Without this there is no way to tell a kilogram from a
+// request for unit 7.
+func ValidMeasurementOptions(m MeasurementOptions) bool {
+	switch m {
+	case Kg, Lb, Tn:
+		return true
+	default:
+		return false
+	}
+}
+
 type OfferStatus int
 
 const (

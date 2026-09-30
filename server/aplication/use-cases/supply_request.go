@@ -42,6 +42,12 @@ func (uc *SupplyRequestUseCaseImpl) Create(ctx context.Context, req dto.SupplyRe
 	if err := validateSupplyRequestDeadlines(req.RequestDeadline, req.DeliveryDeadline); err != nil {
 		return nil, err
 	}
+	if err := validateSupplyRequestUnitOfMeasure(req.UnitOfMeasure); err != nil {
+		return nil, err
+	}
+	if err := validateSupplyRequestAddress(req.Address); err != nil {
+		return nil, err
+	}
 
 	supplyRequest := domain.NewSupplyRequest(
 		principal.UserID, req.ProductName, req.TotalAmount, req.AmountUnit, req.NumberOfUnits,
@@ -331,6 +337,32 @@ func validateSupplyAmounts(totalAmount, actualAmount float64) error {
 func validateSupplyRequestDeadlines(requestDeadline, deliveryDeadline time.Time) error {
 	if !requestDeadline.IsZero() && !deliveryDeadline.IsZero() && requestDeadline.After(deliveryDeadline) {
 		return fmt.Errorf("%w: request deadline must not be after delivery deadline", domain.ErrInvalidInput)
+	}
+	return nil
+}
+
+// validateSupplyRequestUnitOfMeasure rejects a unit outside the vocabulary.
+//
+// The field is an iota decoded straight off the wire, so a client can ask for
+// unit 7 and the repository will store it. The brief lists the unit of measure
+// as a required part of a request, and a request whose unit nothing can
+// interpret is not one.
+func validateSupplyRequestUnitOfMeasure(unit domain.MeasurementOptions) error {
+	if !domain.ValidMeasurementOptions(unit) {
+		return fmt.Errorf("%w: unknown unit of measure %d", domain.ErrInvalidInput, int(unit))
+	}
+	return nil
+}
+
+// validateSupplyRequestAddress refuses an address with no department.
+//
+// req.Address is passed straight through to the entity, and the repository
+// writes address_id = NULL when the address carries no data — so a request with
+// an entirely empty address used to be accepted while carrying no location at
+// all, even though the brief makes the location required.
+func validateSupplyRequestAddress(address domain.Address) error {
+	if address.Department == "" {
+		return domain.ErrDepartmentRequired
 	}
 	return nil
 }

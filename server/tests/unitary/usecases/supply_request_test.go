@@ -106,6 +106,120 @@ func TestSupplyRequestUseCaseCreate(t *testing.T) {
 	}
 }
 
+// TestSupplyRequestUseCaseCreateRequiresUnitAndLocation covers the two required
+// fields RF-10 names that Create did not check: the unit of measure and the
+// location.
+//
+// UnitOfMeasure is a 3-value iota decoded straight off the wire, so a client can
+// request unit 7 and the repository would store it. The address was passed
+// through untouched, and an address with no data is written as
+// address_id = NULL, so a request that declared no location at all was accepted
+// as a valid, publishable request.
+func TestSupplyRequestUseCaseCreateRequiresUnitAndLocation(t *testing.T) {
+	t.Parallel()
+
+	valid := dto.SupplyRequestDTO{
+		ProductName:      "Rice",
+		TotalAmount:      100,
+		AmountUnit:       domain.Kg,
+		NumberOfUnits:    10,
+		AmountPerUnit:    10,
+		UnitOfMeasure:    domain.Kg,
+		Address:          domain.Address{Department: "Masaya", Municipality: "Masaya", AddressLine: "Km 5 Carretera Sur"},
+		RequestDeadline:  fixedTime.Add(24 * time.Hour),
+		DeliveryDeadline: fixedTime.Add(72 * time.Hour),
+	}
+
+	tests := []struct {
+		name    string
+		mutate  func(req *dto.SupplyRequestDTO)
+		wantErr error
+	}{
+		{
+			name:    "unit of measure outside the vocabulary",
+			mutate:  func(req *dto.SupplyRequestDTO) { req.UnitOfMeasure = domain.MeasurementOptions(7) },
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "negative unit of measure",
+			mutate:  func(req *dto.SupplyRequestDTO) { req.UnitOfMeasure = domain.MeasurementOptions(-1) },
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "entirely empty address",
+			mutate:  func(req *dto.SupplyRequestDTO) { req.Address = domain.Address{} },
+			wantErr: domain.ErrDepartmentRequired,
+		},
+		{
+			name:    "address with a line but no department",
+			mutate:  func(req *dto.SupplyRequestDTO) { req.Address = domain.Address{AddressLine: "Km 5 Carretera Sur"} },
+			wantErr: domain.ErrDepartmentRequired,
+		},
+		{
+			name:   "every required field present",
+			mutate: func(req *dto.SupplyRequestDTO) {},
+		},
+		{
+			name:   "every unit in the vocabulary is accepted",
+			mutate: func(req *dto.SupplyRequestDTO) { req.UnitOfMeasure = domain.Tn; req.AmountUnit = domain.Tn },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := valid
+			tt.mutate(&req)
+
+			requestRepo := newSupplyFakeRequestRepo()
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
+
+			got, err := uc.Create(principalCtx(), req)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				// The repository is never reached: nothing is persisted for a
+				// request the brief does not consider well formed.
+				if len(requestRepo.created) != 0 {
+					t.Errorf("created supply requests = %d, want 0", len(requestRepo.created))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got == nil || got.ID == nil || *got.ID == uuid.Nil {
+				t.Fatal("expected a persisted request with a generated ID")
+			}
+			if len(requestRepo.created) != 1 {
+				t.Fatalf("created supply requests = %d, want 1", len(requestRepo.created))
+			}
+		})
+	}
+}
+
+func TestValidMeasurementOptions(t *testing.T) {
+	t.Parallel()
+
+	for _, m := range []domain.MeasurementOptions{domain.Kg, domain.Lb, domain.Tn} {
+		if !domain.ValidMeasurementOptions(m) {
+			t.Errorf("ValidMeasurementOptions(%d) = false, want true", int(m))
+		}
+	}
+	for _, m := range []domain.MeasurementOptions{-1, 3, 4, 99} {
+		if domain.ValidMeasurementOptions(m) {
+			t.Errorf("ValidMeasurementOptions(%d) = true, want false", int(m))
+		}
+	}
+}
+
 func TestSupplyRequestUseCaseList(t *testing.T) {
 	t.Parallel()
 
