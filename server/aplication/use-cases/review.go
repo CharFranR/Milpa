@@ -32,7 +32,19 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 
 	now := uc.timer.Now()
 
-	review, err := domain.NewReview(principal.UserID, req.CompanyID, req.Rating, req.Comment, now)
+	// RF-15 accepts two forms and NewReview only ever sees one shape.
+	// company_id is the legacy spelling of a company target, and a request
+	// carrying both is refused rather than letting one silently win.
+	targetType, targetID, err := resolveReviewTarget(req)
+	if err != nil {
+		return nil, err
+	}
+	companyID := uuid.Nil
+	if targetType == domain.ReviewTargetCompany {
+		companyID = targetID
+	}
+
+	review, err := domain.NewReview(principal.UserID, targetType, targetID, companyID, req.Rating, req.Comment, now)
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +54,27 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 	}
 
 	return reviewToDTO(review), nil
+}
+
+func resolveReviewTarget(req dto.CreateReviewRequest) (domain.ReviewTargetType, uuid.UUID, error) {
+	hasLegacy := req.CompanyID != uuid.Nil
+	hasExplicit := req.TargetID != uuid.Nil || req.TargetType != ""
+
+	if hasLegacy && hasExplicit {
+		return "", uuid.Nil, domain.ErrReviewTargetMismatch
+	}
+	if hasLegacy {
+		return domain.ReviewTargetCompany, req.CompanyID, nil
+	}
+	if req.TargetID == uuid.Nil {
+		return "", uuid.Nil, domain.ErrTargetRequired
+	}
+
+	targetType := domain.ReviewTargetType(req.TargetType)
+	if !domain.ValidReviewTargetType(targetType) {
+		return "", uuid.Nil, domain.ErrInvalidReviewTargetType
+	}
+	return targetType, req.TargetID, nil
 }
 
 func (uc *ReviewUseCaseImpl) FindByUser(ctx context.Context, userID uuid.UUID) ([]*dto.ReviewDTO, error) {
@@ -72,15 +105,38 @@ func (uc *ReviewUseCaseImpl) FindByCompany(ctx context.Context, companyID uuid.U
 	return dtos, nil
 }
 
+func (uc *ReviewUseCaseImpl) GetAverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (*dto.ReviewAverageDTO, error) {
+	if !domain.ValidReviewTargetType(targetType) {
+		return nil, domain.ErrInvalidReviewTargetType
+	}
+	if targetID == uuid.Nil {
+		return nil, domain.ErrTargetRequired
+	}
+
+	average, count, err := uc.reviewRepo.AverageRating(ctx, targetType, targetID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.ReviewAverageDTO{
+		TargetType: string(targetType),
+		TargetID:   targetID,
+		Average:    average,
+		Count:      count,
+	}, nil
+}
+
 var _ primary.ReviewUseCase = (*ReviewUseCaseImpl)(nil)
 
 func reviewToDTO(review *domain.Review) *dto.ReviewDTO {
 	return &dto.ReviewDTO{
-		ID:        review.ID,
-		UserID:    review.UserID,
-		CompanyID: review.CompanyID,
-		Rating:    review.Rating,
-		Comment:   review.Comment,
-		CreatedAt: review.CreatedAt,
+		ID:         review.ID,
+		UserID:     review.AuthorID,
+		CompanyID:  review.CompanyID,
+		Rating:     review.Rating,
+		Comment:    review.Comment,
+		CreatedAt:  review.CreatedAt,
+		TargetType: string(review.TargetType),
+		TargetID:   review.TargetID,
 	}
 }

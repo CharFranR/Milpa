@@ -341,8 +341,9 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid) | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
-| `POST /api/v1/reviews/` | Bearer | JSON: `company_id` (required), `rating` (1–5), `comment`. `user_id` = token user | `201` → `ReviewDTO` | `400` blank `company_id` / rating out of range |
+| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid). `user_id` lists reviews **authored by** that user | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
+| `GET /api/v1/reviews/average` | Public | query `target_type` (`company`\|`user`) and `target_id` (uuid) | `200` → `ReviewAverageDTO` | `400` unknown `target_type` / invalid `target_id` |
+| `POST /api/v1/reviews/` | Bearer | JSON: `rating` (1–5, required), `comment`, and **exactly one** of `company_id` (review a company) or `target_type` + `target_id` (review anyone). Author = token user | `201` → `ReviewDTO` | `400` neither form / both forms / unknown `target_type` / rating out of range / rating yourself |
 
 ### Inquiries
 
@@ -546,7 +547,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
 | `OfferingDTO` | `id`, `user_id`, `type`, `name`, `description`, `price`, `image_url`, `created_at`, `updated_at` |
-| `ReviewDTO` | `id`, `user_id`, `company_id`, `rating`, `comment`, `created_at` |
+| `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
+| `ReviewAverageDTO` (`GET /reviews/average`) | `target_type`, `target_id`, `average`, `count`. A target with no reviews is `average: 0, count: 0` |
 | `InquiryDTO` | `id`, `user_id`, `offering_id`, `offering_name`, `message`, `status`, `created_at` |
 | `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `created_at`, `updated_at` |
 | `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `visibility`, `created_at`, `updated_at` |
