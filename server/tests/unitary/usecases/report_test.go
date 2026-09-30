@@ -412,3 +412,141 @@ func TestReportUseCaseResolve(t *testing.T) {
 		}
 	})
 }
+
+// errAuditWrite stands in for an audit_logs insert that fails — a dropped
+// connection, a constraint, a full disk. Every moderation action is required to
+// be logged ("el sistema registrará todas las operaciones de moderación para
+// auditoría"), so a write that fails must abort the action rather than commit it
+// unlogged.
+var errAuditWrite = errors.New("audit log insert failed")
+
+// failingAuditRepo is newFakeAuditLogRepo with every Save rejecting, so the
+// only way a moderation use case can succeed is by ignoring the failure.
+func failingAuditRepo() *fakeAuditLogRepo {
+	repo := newFakeAuditLogRepo()
+	repo.save = func(ctx context.Context, log *domain.AuditLog) error {
+		return errAuditWrite
+	}
+	return repo
+}
+
+// TestReportUseCaseResolveFailsClosedOnAuditWrite is the RF-16 guarantee for
+// report resolution.
+//
+// Report creation already checked the audit error; every one of the four writes
+// on the resolution path discarded it with `_ = uc.auditRepo.Save(...)`, so an
+// admin could approve or reject a report, and the platform would be left holding
+// a moderation action with no record of who took it or why.
+func TestReportUseCaseResolveFailsClosedOnAuditWrite(t *testing.T) {
+	t.Parallel()
+
+	for _, action := range []string{"approve", "reject"} {
+		t.Run(action, func(t *testing.T) {
+			t.Parallel()
+
+			reportRepo := newFakeReportRepo()
+			auditRepo := failingAuditRepo()
+			userRepo := newFakeUserRepo()
+			offeringRepo := newFakeOfferingRepo()
+
+			uc := usecases.NewReportUseCase(reportRepo, auditRepo, userRepo, offeringRepo, newFakeTimer())
+
+			result, err := uc.Resolve(reportAdminCtx(), testReportID, dto.ResolveReportRequest{Action: action})
+
+			if !errors.Is(err, errAuditWrite) {
+				t.Fatalf("expected the audit write error to propagate, got %v", err)
+			}
+			if result != nil {
+				t.Errorf("expected no response after a failed audit write, got %+v", result)
+			}
+			// The guarantee: the report is not handed to the repository, so the
+			// stored row keeps its pending status and the queue still shows it.
+			if len(reportRepo.resolved) != 0 {
+				t.Errorf("report.Resolve called %d times, want 0: a failed audit write must leave the report pending", len(reportRepo.resolved))
+			}
+			if len(auditRepo.saved) != 0 {
+				t.Errorf("audit logs stored = %d, want 0", len(auditRepo.saved))
+			}
+		})
+	}
+}
+
+// TestModerationUseCaseSuspendUserFailsClosedOnAuditWrite is the RF-16
+// guarantee for the moderation endpoint.
+//
+// SuspendUser writes the audit log BEFORE it persists the user, so failing the
+// audit write is what keeps an unsuspended user from becoming suspended without
+// a trace. This is the assertion that matters: not merely that an error is
+// returned, but that the user is still active afterwards.
+func TestModerationUseCaseSuspendUserFailsClosedOnAuditWrite(t *testing.T) {
+	t.Parallel()
+
+	for _, action := range []string{"suspend", "reactivate"} {
+		t.Run(action, func(t *testing.T) {
+			t.Parallel()
+
+			userRepo := newFakeUserRepo()
+			offeringRepo := newFakeOfferingRepo()
+			auditRepo := failingAuditRepo()
+			offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+
+			err := uc.SuspendUser(reportAdminCtx(), testUserID, dto.SuspendUserRequest{Action: action})
+
+			if !errors.Is(err, errAuditWrite) {
+				t.Fatalf("expected the audit write error to propagate, got %v", err)
+			}
+			if len(userRepo.updated) != 0 {
+				t.Errorf("user.Update called %d times, want 0: a failed audit write must leave the user unsuspended", len(userRepo.updated))
+			}
+		})
+	}
+}
+
+// TestModerationSuspendUserPersistsWhenAuditSucceeds is the control for the
+// test above. Without it, a use case that never wrote the user at all would
+// satisfy the fail-closed assertion while the feature was quietly broken.
+func TestModerationSuspendUserPersistsWhenAuditSucceeds(t *testing.T) {
+	t.Parallel()
+
+	userRepo := newFakeUserRepo()
+	offeringRepo := newFakeOfferingRepo()
+	auditRepo := newFakeAuditLogRepo()
+	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+
+	if err := uc.SuspendUser(reportAdminCtx(), testUserID, dto.SuspendUserRequest{Action: "suspend"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(auditRepo.saved) != 1 {
+		t.Fatalf("audit logs stored = %d, want 1", len(auditRepo.saved))
+	}
+	if len(userRepo.updated) != 1 {
+		t.Fatalf("users updated = %d, want 1", len(userRepo.updated))
+	}
+	if !userRepo.updated[0].IsSuspended() {
+		t.Error("the user must be suspended once the audit write has succeeded")
+	}
+}
+
+// TestModerationUseCaseDeleteOfferingFailsClosedOnAuditWrite is the RF-16
+// guarantee for offering deletion: the action reports failure instead of
+// returning a success the audit trail does not support.
+func TestModerationUseCaseDeleteOfferingFailsClosedOnAuditWrite(t *testing.T) {
+	t.Parallel()
+
+	userRepo := newFakeUserRepo()
+	offeringRepo := newFakeOfferingRepo()
+	auditRepo := failingAuditRepo()
+	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+
+	err := uc.DeleteOffering(reportAdminCtx(), testOfferingID)
+
+	if !errors.Is(err, errAuditWrite) {
+		t.Fatalf("expected the audit write error to propagate, got %v", err)
+	}
+	if len(auditRepo.saved) != 0 {
+		t.Errorf("audit logs stored = %d, want 0", len(auditRepo.saved))
+	}
+}
