@@ -407,6 +407,17 @@ func TestLiquidationAssign(t *testing.T) {
 			if liq.Status != LiquidationAssigned {
 				t.Errorf("status = %v, want %v", liq.Status, LiquidationAssigned)
 			}
+			// assigned is terminal, so it must stamp closed_at exactly like Close
+			// and Expire do. Without it a terminal lot is left with closed_at IS
+			// NULL and any "show me closed lots" query filtering on that column
+			// silently misses it. This assertion is what was missing when Assign
+			// forgot the field.
+			if liq.ClosedAt == nil {
+				t.Fatal("closed_at = nil after Assign, want the assignment time")
+			}
+			if !liq.ClosedAt.Equal(now) {
+				t.Errorf("closed_at = %v, want %v", liq.ClosedAt, now)
+			}
 			if !liq.UpdatedAt.Equal(now) {
 				t.Errorf("updated_at = %v, want %v", liq.UpdatedAt, now)
 			}
