@@ -20,7 +20,7 @@ allocated here.
 | `000024` | `units_of_measure` (+ seed) | RF-06, RF-17 | — |
 | `000025` | `categories_catalogue` (+ seed) | RF-06 | `000024` |
 | `000026` | `offerings_catalogue` | RF-05, RF-09 | `000024`, `000025` |
-| `000027` | `supply_offers_price_comments` | RF-11 | — |
+| `000027` | `supply_offers_price_and_comments` | RF-11 | — |
 | `000028` | `reviews_targets` | RF-15 | — |
 | `000029` | `transactions_cancel_reasons` | RF-12 | — |
 | `000030` | `conversations_match_link` | RF-13 | `matches` exists (000018) |

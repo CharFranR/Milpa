@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 			filepath.Join(dbCredentials.migrationsPath, "000024_units_of_measure.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000025_categories_catalogue.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000026_offerings_catalogue.up.sql"),
-			filepath.Join(dbCredentials.migrationsPath, "000027_offerings_duplicate_prevention.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000029_offerings_duplicate_prevention.up.sql"),
 		),
 		postgres.WithDatabase(dbCredentials.dbName),
 		postgres.WithUsername(dbCredentials.dbUser),
