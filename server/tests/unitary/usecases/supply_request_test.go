@@ -997,3 +997,211 @@ func TestSupplyRequestUseCaseExpireRefusesWhileActiveMatchStrandsReservation(t *
 		t.Errorf("repo updates = %d, want 0", len(requestRepo.updated))
 	}
 }
+
+type supplyEditFunc func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error
+
+// RF-10: "Una solicitud no podrá modificarse después de aceptar una oferta."
+//
+// A request holding an active match is still IsOpen, so the status guard never
+// caught this: the buyer could rewrite the product name, the unit of measure,
+// the address and the deadlines behind an offer they had already accepted.
+// validateAgainstMatchedAmount only constrains the two amounts, so the rule had
+// no enforcement at all. Each of the three edit paths now refuses, and refuses
+// before the repository is reached.
+func TestSupplyRequestUseCaseEditsRefusedOnceOfferAccepted(t *testing.T) {
+	t.Parallel()
+
+	updates := []struct {
+		name   string
+		invoke supplyEditFunc
+	}{
+		{
+			name: "Update",
+			invoke: func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+				return uc.Update(ctx, id, dto.SupplyGeneralUpdateDTO{
+					ProductName:      "Maize",
+					TotalAmount:      80,
+					ActualAmount:     60,
+					AmountUnit:       domain.Lb,
+					NumberOfUnits:    8,
+					AmountPerUnit:    10,
+					UnitOfMeasure:    domain.Lb,
+					Address:          domain.Address{Department: "León", Municipality: "León", AddressLine: "Central Market"},
+					RequestDeadline:  fixedTime.Add(30 * time.Hour),
+					DeliveryDeadline: fixedTime.Add(90 * time.Hour),
+				})
+			},
+		},
+		{
+			name: "UpdateAmounts",
+			invoke: func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+				return uc.UpdateAmounts(ctx, id, dto.SupplyUpdateAmountsDTO{
+					TotalAmount:          80,
+					ActualAmount:         60,
+					AmountUnit:           domain.Lb,
+					AmountPerUnit:        10,
+					UnitOfMeasure:        domain.Lb,
+					MultipleProviders:    true,
+					MinAmountPerProvider: 5,
+				})
+			},
+		},
+		{
+			name: "UpdateDeadlines",
+			invoke: func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+				return uc.UpdateDeadlines(ctx, id, dto.SupplyUpdateTimeDTO{
+					RequestDeadline:  fixedTime.Add(30 * time.Hour),
+					DeliveryDeadline: fixedTime.Add(90 * time.Hour),
+				})
+			},
+		},
+	}
+
+	tests := []struct {
+		name        string
+		activeMatch bool
+		wantErr     error
+	}{
+		{name: "offer accepted", activeMatch: true, wantErr: primary.ErrActiveMatch},
+		{name: "no offer accepted"},
+	}
+
+	for _, update := range updates {
+		for _, tt := range tests {
+			t.Run(update.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				ownedRequest := supplyTestRequest(testUserID)
+
+				requestRepo := newSupplyFakeRequestRepo()
+				requestRepo.requests[ownedRequest.ID] = ownedRequest
+				matchRepo := newSupplyFakeMatchRepo()
+				matchRepo.existsActive = tt.activeMatch
+				uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+				err := update.invoke(uc, principalCtx(), ownedRequest.ID)
+
+				if tt.wantErr != nil {
+					if !errors.Is(err, tt.wantErr) {
+						t.Fatalf("error = %v, want %v", err, tt.wantErr)
+					}
+					// Refused before persistence: the row is untouched.
+					if len(requestRepo.updated) != 0 {
+						t.Fatalf("repo updates = %d, want 0", len(requestRepo.updated))
+					}
+					saved := requestRepo.requests[ownedRequest.ID]
+					if saved.ProductName != "Rice" || saved.TotalAmount != 100 {
+						t.Errorf("stored request = %q / %v, want the untouched Rice / 100", saved.ProductName, saved.TotalAmount)
+					}
+					if !saved.RequestDeadline.Equal(ownedRequest.RequestDeadline) || !saved.DeliveryDeadline.Equal(ownedRequest.DeliveryDeadline) {
+						t.Errorf("deadlines = %v / %v, want the untouched %v / %v",
+							saved.RequestDeadline, saved.DeliveryDeadline, ownedRequest.RequestDeadline, ownedRequest.DeliveryDeadline)
+					}
+					return
+				}
+
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if len(requestRepo.updated) != 1 {
+					t.Fatalf("repo updates = %d, want 1", len(requestRepo.updated))
+				}
+			})
+		}
+	}
+}
+
+// A match repository failure is not an answer to "is there an active offer?".
+// The edits propagate it rather than assuming there is none and writing.
+func TestSupplyRequestUseCaseEditsPropagateMatchLookupFailure(t *testing.T) {
+	t.Parallel()
+
+	ownedRequest := supplyTestRequest(testUserID)
+
+	invocations := map[string]supplyEditFunc{
+		"Update": func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+			return uc.Update(ctx, id, dto.SupplyGeneralUpdateDTO{
+				ProductName:     "Maize",
+				TotalAmount:     80,
+				ActualAmount:    60,
+				RequestDeadline: fixedTime.Add(30 * time.Hour),
+			})
+		},
+		"UpdateAmounts": func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+			return uc.UpdateAmounts(ctx, id, dto.SupplyUpdateAmountsDTO{TotalAmount: 80, ActualAmount: 60})
+		},
+		"UpdateDeadlines": func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+			return uc.UpdateDeadlines(ctx, id, dto.SupplyUpdateTimeDTO{
+				RequestDeadline:  fixedTime.Add(30 * time.Hour),
+				DeliveryDeadline: fixedTime.Add(90 * time.Hour),
+			})
+		},
+	}
+
+	for name, invoke := range invocations {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			requestRepo := newSupplyFakeRequestRepo()
+			requestRepo.requests[ownedRequest.ID] = ownedRequest
+			matchRepo := newSupplyFakeMatchRepo()
+			matchRepo.existsErr = errFake
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+			err := invoke(uc, principalCtx(), ownedRequest.ID)
+
+			if !errors.Is(err, errFake) {
+				t.Fatalf("error = %v, want %v", err, errFake)
+			}
+			if len(requestRepo.updated) != 0 {
+				t.Errorf("repo updates = %d, want 0", len(requestRepo.updated))
+			}
+		})
+	}
+}
+
+// Cancel and Expire are guarded by the same predicate and that is deliberate:
+// RF-10 lets the buyer cancel "siempre que aún no haya aceptado una oferta", so
+// refusing to cancel while a match exists is the rule, not an oversight. The
+// exit path is cancelling the individual transaction, not the request. This
+// test exists so a future reader who spots the duplication does not "fix" it by
+// relaxing Cancel and Expire to match the edits.
+func TestSupplyRequestUseCaseCancelAndExpireStayRefusedOnceOfferAccepted(t *testing.T) {
+	t.Parallel()
+
+	invocations := map[string]supplyEditFunc{
+		"Cancel": func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+			return uc.Cancel(ctx, id)
+		},
+		"Expire": func(uc *usecases.SupplyRequestUseCaseImpl, ctx context.Context, id uuid.UUID) error {
+			return uc.Expire(ctx, id)
+		},
+	}
+
+	for name, invoke := range invocations {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			ownedRequest := supplyTestRequest(testUserID)
+
+			requestRepo := newSupplyFakeRequestRepo()
+			requestRepo.requests[ownedRequest.ID] = ownedRequest
+			matchRepo := newSupplyFakeMatchRepo()
+			matchRepo.existsActive = true
+			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
+
+			err := invoke(uc, principalCtx(), ownedRequest.ID)
+
+			if !errors.Is(err, primary.ErrActiveMatch) {
+				t.Fatalf("error = %v, want %v", err, primary.ErrActiveMatch)
+			}
+			if len(requestRepo.updated) != 0 {
+				t.Errorf("repo updates = %d, want 0", len(requestRepo.updated))
+			}
+			saved := requestRepo.requests[ownedRequest.ID]
+			if saved.Status != domain.SupplyRequestOpen {
+				t.Errorf("status = %v, want open", saved.Status)
+			}
+		})
+	}
+}

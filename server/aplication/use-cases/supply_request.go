@@ -146,6 +146,9 @@ func (uc *SupplyRequestUseCaseImpl) Update(ctx context.Context, id uuid.UUID, re
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
 	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
+	}
 	if err := validateSupplyRequestContent(req.ProductName, req.TotalAmount); err != nil {
 		return err
 	}
@@ -185,6 +188,9 @@ func (uc *SupplyRequestUseCaseImpl) UpdateAmounts(ctx context.Context, id uuid.U
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
 	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
+	}
 	if err := validateSupplyAmounts(req.TotalAmount, req.ActualAmount); err != nil {
 		return err
 	}
@@ -211,6 +217,9 @@ func (uc *SupplyRequestUseCaseImpl) UpdateDeadlines(ctx context.Context, id uuid
 	}
 	if !supplyRequest.IsOpen() {
 		return domain.ErrInvalidRequestStatus
+	}
+	if err := uc.ensureNoAcceptedOffer(ctx, id); err != nil {
+		return err
 	}
 	if err := validateSupplyRequestDeadlines(req.RequestDeadline, req.DeliveryDeadline); err != nil {
 		return err
@@ -289,6 +298,25 @@ func (uc *SupplyRequestUseCaseImpl) getOwnedSupplyRequest(ctx context.Context, i
 	}
 
 	return &supplyRequest, nil
+}
+
+// ensureNoAcceptedOffer refuses an edit once an offer has been accepted against
+// the request.
+//
+// RF-10: "Una solicitud no podrá modificarse después de aceptar una oferta." A
+// request with an active match is still IsOpen, so the status guard alone never
+// caught this, and validateAgainstMatchedAmount only constrains the two
+// amounts — the product name, the unit of measure, the address and the
+// deadlines were all still rewritable behind an accepted offer.
+func (uc *SupplyRequestUseCaseImpl) ensureNoAcceptedOffer(ctx context.Context, id uuid.UUID) error {
+	hasActiveMatch, err := uc.matchRepo.ExistsActiveByRequest(ctx, id)
+	if err != nil {
+		return err
+	}
+	if hasActiveMatch {
+		return primary.ErrActiveMatch
+	}
+	return nil
 }
 
 func (uc *SupplyRequestUseCaseImpl) validateAgainstMatchedAmount(ctx context.Context, id uuid.UUID, totalAmount, actualAmount float64) error {
