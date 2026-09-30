@@ -98,4 +98,16 @@ func (uc *CachedOfferingUseCase) DeleteOffering(ctx context.Context, id uuid.UUI
 	return nil
 }
 
+func (uc *CachedOfferingUseCase) DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error) {
+	result, err := uc.next.DeactivateOffering(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = uc.cache.Delete(ctx, "offering:"+id.String())
+	_ = uc.cache.Delete(ctx, "offerings:byuser:"+result.UserID.String())
+
+	return result, nil
+}
+
 var _ primary.OfferingUseCase = (*CachedOfferingUseCase)(nil)

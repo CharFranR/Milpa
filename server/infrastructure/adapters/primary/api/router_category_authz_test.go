@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -206,4 +207,64 @@ func TestPublicCatalogueExcludesDeactivatedEntries(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), "Frutales") {
 		t.Errorf("the public catalogue dropped the active entry: %s", rr.Body.String())
 	}
+}
+
+func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
+	t.Parallel()
+
+	offeringRepo := &ownershipOfferingRepo{offering: offeringWithLocation()}
+	uc := usecases.NewOfferingUseCase(
+		offeringRepo,
+		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleProvider}},
+		ownershipClock{},
+		ownershipSearch{},
+		ownershipInvalidator{},
+	)
+
+	router := NewRouter(
+		nil, nil,
+		handler.NewOfferingHandler(uc, nil),
+		nil, nil, nil, nil,
+		middleware.NewAuthMiddleware(ownershipJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
+		nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil,
+	)
+
+	path := "/api/v1/offerings/" + ownerOfferingID.String() + "/status"
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPatch, path, nil))
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous deactivate status = %d, want 401; body = %s", rr.Code, rr.Body.String())
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, path, nil)
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleProvider))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("foreign deactivate status = %d, want 403; body = %s", rr.Code, rr.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPatch, path, nil)
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("owner deactivate status = %d, want 200; body = %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"is_active":false`) {
+		t.Errorf("deactivate body = %s, want the entry reported inactive", rr.Body.String())
+	}
+}
+
+func offeringWithLocation() *domain.Offering {
+	offering, err := domain.NewOffering(ownerFarmerID, "Organic Corn", domain.OfferingProduct, time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC))
+	if err != nil {
+		panic(err)
+	}
+	offering.ID = ownerOfferingID
+	offering.Variety = "Cuzqueño"
+	offering.QuantityAvailable = 100
+	return offering
 }

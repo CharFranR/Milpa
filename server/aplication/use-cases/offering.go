@@ -38,6 +38,10 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		return nil, err
 	}
 
+	if req.Type == domain.OfferingService {
+		return nil, domain.ErrInvalidOfferingType
+	}
+
 	user, err := uc.userRepo.FindByID(ctx, req.UserID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
@@ -69,6 +73,20 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 		offering.Price = req.Price
 	}
 	offering.ImageURL = req.ImageURL
+
+	if err := offering.SetLocation(req.Latitude, req.Longitude, now); err != nil {
+		return nil, err
+	}
+	offering.SetVariety(req.Variety, now)
+	offering.SetUnitOfMeasure(req.UnitOfMeasureID, now)
+	offering.SetQuantity(req.QuantityAvailable, now)
+	offering.SetExpiry(req.ExpiresAt, now)
+	offering.SetCategory(req.CategoryID, now)
+	offering.SetCompany(req.CompanyID, now)
+
+	if err := offering.RequirePublishable(); err != nil {
+		return nil, err
+	}
 
 	if err := uc.offeringRepo.Save(ctx, offering); err != nil {
 		return nil, err
@@ -118,6 +136,10 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 		return err
 	}
 
+	if req.Type != nil && *req.Type == domain.OfferingService {
+		return domain.ErrInvalidOfferingType
+	}
+
 	offering, err := uc.offeringRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -148,6 +170,33 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 	}
 	if req.ImageURL != nil {
 		offering.UpdateImage(*req.ImageURL, now)
+	}
+	if req.Latitude != nil || req.Longitude != nil {
+		if err := offering.SetLocation(req.Latitude, req.Longitude, now); err != nil {
+			return err
+		}
+	}
+	if req.Variety != nil {
+		offering.SetVariety(*req.Variety, now)
+	}
+	if req.UnitOfMeasureID != nil {
+		offering.SetUnitOfMeasure(req.UnitOfMeasureID, now)
+	}
+	if req.QuantityAvailable != nil {
+		offering.SetQuantity(*req.QuantityAvailable, now)
+	}
+	if req.ExpiresAt != nil {
+		offering.SetExpiry(req.ExpiresAt, now)
+	}
+	if req.CategoryID != nil {
+		offering.SetCategory(req.CategoryID, now)
+	}
+	if req.CompanyID != nil {
+		offering.SetCompany(req.CompanyID, now)
+	}
+
+	if err := offering.RequirePublishable(); err != nil {
+		return err
 	}
 
 	offering.Touch(now)
@@ -205,6 +254,32 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
+func (uc *OfferingUseCaseImpl) DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	offering, err := uc.offeringRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := requireOfferingOwner(principal, offering); err != nil {
+		return nil, err
+	}
+
+	offering.Deactivate()
+
+	if err := uc.offeringRepo.Update(ctx, offering); err != nil {
+		return nil, err
+	}
+
+	_ = uc.searchInvalidator.InvalidateAll(ctx)
+
+	return offeringToDTO(offering), nil
+}
+
 // requireOfferingOwner refuses a caller that does not own the offering.
 //
 // An admin is allowed through because the moderation endpoint
@@ -227,6 +302,11 @@ var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
 func indexRequestFor(offering *domain.Offering, user *domain.User) *dto.IndexOfferingRequest {
 	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
 
+	latitude, longitude := user.Address.Latitude, user.Address.Longitude
+	if offering.HasLocation() {
+		latitude, longitude = *offering.Latitude, *offering.Longitude
+	}
+
 	return &dto.IndexOfferingRequest{
 		ID:             offering.ID.String(),
 		Name:           offering.Name,
@@ -239,21 +319,30 @@ func indexRequestFor(offering *domain.Offering, user *domain.User) *dto.IndexOff
 		FarmerVerified: farmerVerified,
 		Department:     user.Address.Department,
 		Municipality:   user.Address.Municipality,
-		Latitude:       user.Address.Latitude,
-		Longitude:      user.Address.Longitude,
+		Latitude:       latitude,
+		Longitude:      longitude,
 	}
 }
 
 func offeringToDTO(offering *domain.Offering) *dto.OfferingDTO {
 	return &dto.OfferingDTO{
-		ID:          offering.ID,
-		UserID:      offering.UserID,
-		Type:        offering.Type,
-		Name:        offering.Name,
-		Description: offering.Description,
-		Price:       offering.Price,
-		ImageURL:    offering.ImageURL,
-		CreatedAt:   offering.CreatedAt,
-		UpdatedAt:   offering.UpdatedAt,
+		ID:                offering.ID,
+		UserID:            offering.UserID,
+		Type:              offering.Type,
+		Name:              offering.Name,
+		Description:       offering.Description,
+		Price:             offering.Price,
+		ImageURL:          offering.ImageURL,
+		Variety:           offering.Variety,
+		UnitOfMeasureID:   offering.UnitOfMeasureID,
+		QuantityAvailable: offering.QuantityAvailable,
+		ExpiresAt:         offering.ExpiresAt,
+		IsActive:          offering.IsActive,
+		CategoryID:        offering.CategoryID,
+		CompanyID:         offering.CompanyID,
+		Latitude:          offering.Latitude,
+		Longitude:         offering.Longitude,
+		CreatedAt:         offering.CreatedAt,
+		UpdatedAt:         offering.UpdatedAt,
 	}
 }
