@@ -307,12 +307,18 @@ func indexRequestFor(offering *domain.Offering, user *domain.User) *dto.IndexOff
 		latitude, longitude = *offering.Latitude, *offering.Longitude
 	}
 
+	categoryID := ""
+	if offering.CategoryID != nil {
+		categoryID = offering.CategoryID.String()
+	}
+
 	return &dto.IndexOfferingRequest{
 		ID:             offering.ID.String(),
 		Name:           offering.Name,
 		Description:    offering.Description,
 		Price:          offering.Price,
 		Type:           offering.Type.String(),
+		CategoryID:     categoryID,
 		ImageURL:       offering.ImageURL,
 		UserID:         offering.UserID.String(),
 		FarmerName:     user.FullName(),

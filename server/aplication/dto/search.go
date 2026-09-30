@@ -21,6 +21,7 @@ type FuzzySearchDto struct {
 type SearchRequest struct {
 	Term         string          `json:"term"`
 	Type         string          `json:"type,omitempty"`
+	CategoryID   string          `json:"category_id,omitempty"`
 	Department   string          `json:"department,omitempty"`
 	Municipality string          `json:"municipality,omitempty"`
 	PriceMin     *float64        `json:"price_min,omitempty"`
@@ -44,6 +45,7 @@ type SearchQuery struct {
 
 type SearchFilters struct {
 	Type         string
+	CategoryID   string
 	Department   string
 	Municipality string
 	PriceMin     *float64
@@ -95,6 +97,7 @@ type IndexOfferingRequest struct {
 	Description    string    `json:"description"`
 	Price          float64   `json:"price"`
 	Type           string    `json:"type"`
+	CategoryID     string    `json:"category_id"`
 	ImageURL       string    `json:"image_url"`
 	UserID         string    `json:"user_id"`
 	FarmerName     string    `json:"farmer_name"`

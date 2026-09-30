@@ -22,6 +22,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 	req := dto.SearchRequest{
 		Term:         r.URL.Query().Get("term"),
 		Type:         r.URL.Query().Get("type"),
+		CategoryID:   r.URL.Query().Get("category_id"),
 		Department:   r.URL.Query().Get("department"),
 		Municipality: r.URL.Query().Get("municipality"),
 		FarmerID:     r.URL.Query().Get("farmer_id"),
