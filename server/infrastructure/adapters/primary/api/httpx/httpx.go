@@ -58,6 +58,7 @@ func IsValidationError(err error) bool {
 	return errors.Is(err, domain.ErrInvalidInput) ||
 		errors.Is(err, domain.ErrInvalidPrice) ||
 		errors.Is(err, domain.ErrInvalidRating) ||
+		errors.Is(err, domain.ErrInvalidQuantity) ||
 		errors.Is(err, domain.ErrInvalidOfferingType) ||
 		errors.Is(err, domain.ErrNameRequired) ||
 		errors.Is(err, domain.ErrMessageRequired) ||

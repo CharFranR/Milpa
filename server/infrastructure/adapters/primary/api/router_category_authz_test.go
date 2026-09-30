@@ -67,7 +67,7 @@ func newCatalogueRouter(t *testing.T) (http.Handler, *catalogueRepo) {
 		nil, nil,
 		middleware.NewAuthMiddleware(piiJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
 		nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	return router, repo
@@ -191,7 +191,7 @@ func TestPublicCatalogueExcludesDeactivatedEntries(t *testing.T) {
 		nil, nil,
 		middleware.NewAuthMiddleware(piiJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
 		nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
@@ -227,7 +227,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 		nil, nil, nil, nil,
 		middleware.NewAuthMiddleware(ownershipJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
 		nil, nil, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil,
+		nil, nil, nil, nil, nil,
 	)
 
 	path := "/api/v1/offerings/" + ownerOfferingID.String() + "/status"

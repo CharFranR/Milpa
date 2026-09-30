@@ -90,7 +90,7 @@ func newMatchTestRouter(t *testing.T, matchUC primary.MatchUseCase, recUC primar
 	authMW := middleware.NewAuthMiddleware(stubJWT{})
 	suspensionMW := middleware.NewSuspensionMiddleware(stubUserRepo{})
 
-	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, handler.NewMatchHandler(matchUC), handler.NewRecommendationHandler(recUC))
+	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, nil, handler.NewMatchHandler(matchUC), handler.NewRecommendationHandler(recUC))
 }
 
 func TestMatchRoutesRequireToken(t *testing.T) {

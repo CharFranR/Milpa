@@ -29,6 +29,7 @@ func NewRouter(
 	chat *ws.Handler,
 	supplyRequest *handler.SupplyRequestHandler,
 	supplyOffer *handler.SupplyOfferHandler,
+	inventory *handler.SupplierInventoryHandler,
 	match *handler.MatchHandler,
 	recommendation *handler.RecommendationHandler,
 ) *chi.Mux {
@@ -150,6 +151,12 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}", match.ListByRequest)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/requests/{requestID}/prioritized", match.ListPrioritized)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/{matchID}", match.GetByID)
+		})
+
+		r.Route("/inventory", func(r chi.Router) {
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/", inventory.ListBySupplier)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Put("/", inventory.Upsert)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/{id}", inventory.Delete)
 		})
 
 		r.Route("/recommendations", func(r chi.Router) {
