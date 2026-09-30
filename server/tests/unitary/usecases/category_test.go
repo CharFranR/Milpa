@@ -23,7 +23,7 @@ func TestCategoryUseCaseGetAll(t *testing.T) {
 			name: "happy path",
 			categories: []domain.Category{
 				*mustCategory(),
-				{ID: testOtherID, Name: "Fruits", Description: "Fresh fruits"},
+				{ID: testOtherID, Name: "Fruits", Description: "Fresh fruits", MainCategory: "frutales", IsActive: true},
 			},
 			wantLen: 2,
 		},

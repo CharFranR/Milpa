@@ -11,6 +11,11 @@ import (
 	"github.com/pashagolub/pgxmock/v2"
 )
 
+func catalogueRow(id uuid.UUID, name string) *pgxmock.Rows {
+	return pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id"}).
+		AddRow(id, name, "desc", "granos", true, nil)
+}
+
 func TestCategoryFindAll(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -20,10 +25,10 @@ func TestCategoryFindAll(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "name", "description"}).
-					AddRow(testCategoryID, "Cat", "desc").
-					AddRow(uuid.MustParse("55555555-5555-5555-5555-555555555556"), "Cat2", "desc2")
-				m.ExpectQuery("FROM categories").WillReturnRows(rows)
+				m.ExpectQuery("FROM categories").WillReturnRows(
+					catalogueRow(testCategoryID, "Cat").
+						AddRow(uuid.MustParse("55555555-5555-5555-5555-555555555556"), "Cat2", "desc2", "granos", true, nil),
+				)
 			},
 		},
 		{
@@ -66,16 +71,16 @@ func TestCategoryFindByID(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "name", "description"}).
-					AddRow(testCategoryID, "Cat", "desc")
-				m.ExpectQuery("FROM categories").WithArgs(testCategoryID).WillReturnRows(rows)
+				m.ExpectQuery("FROM categories").WithArgs(testCategoryID).WillReturnRows(catalogueRow(testCategoryID, "Cat"))
 			},
 		},
 		{
 			name:    "not found",
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
-				m.ExpectQuery("FROM categories").WithArgs(testCategoryID).WillReturnRows(pgxmock.NewRows([]string{"id", "name", "description"}))
+				m.ExpectQuery("FROM categories").WithArgs(testCategoryID).WillReturnRows(
+					pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id"}),
+				)
 			},
 		},
 		{

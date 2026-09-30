@@ -150,11 +150,7 @@ func TestOfferingInvalidatesSearchCache(t *testing.T) {
 		{
 			name: "create offering invalidates",
 			action: func(uc *usecases.OfferingUseCaseImpl, ctx context.Context) error {
-				_, err := uc.CreateOffering(ctx, dto.CreateOfferingRequest{
-					UserID: testUserID,
-					Type:   1,
-					Name:   "Test",
-				})
+				_, err := uc.CreateOffering(ctx, completeCatalogueRequest())
 				return err
 			},
 		},

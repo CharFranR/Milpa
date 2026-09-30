@@ -26,6 +26,9 @@ var (
 	ErrPhoneNumberRequired  = errors.New("A phone number is required")
 	ErrUserNotFound         = errors.New("user not found")
 
+	ErrVarietyRequired  = errors.New("variety is required")
+	ErrCategoryRequired = errors.New("category is required")
+
 	// Liquidation errors
 	ErrProductNameRequired     = errors.New("product name is required")
 	ErrInvalidQuantity         = errors.New("quantity must be greater than zero")

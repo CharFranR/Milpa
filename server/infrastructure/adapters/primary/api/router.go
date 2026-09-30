@@ -71,6 +71,8 @@ func NewRouter(
 			r.Get("/", offering.GetByUserID)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/", offering.Create)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/create2/", offering.Create_v2)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/status", offering.Deactivate)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/renew", offering.Renew)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.Update)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.DeleteOffering)
 		})
@@ -162,6 +164,9 @@ func NewRouter(
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/users/{id}/suspend", moderation.SuspendUser)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Delete("/offerings/{id}", moderation.DeleteOffering)
 			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Get("/audit-logs", moderation.ListAuditLogs)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Post("/categories", category.Create)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/categories/{id}", category.Update)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/categories/{id}/status", category.SetStatus)
 		})
 	})
 

@@ -40,7 +40,7 @@ func TestEnsureIndexCreatesIndexWithMapping(t *testing.T) {
 	// Every field the search filters and sorts on has to be an explicit type:
 	// Elasticsearch otherwise infers it from the first document it sees and
 	// silently mis-types every later one.
-	for _, field := range []string{"id", "name", "description", "price", "type", "user_id", "farmer_name", "farmer_verified", "department", "municipality", "latitude", "longitude", "location"} {
+	for _, field := range []string{"id", "name", "description", "price", "type", "category_id", "user_id", "farmer_name", "farmer_verified", "department", "municipality", "latitude", "longitude", "location"} {
 		if _, ok := mapping[field]; !ok {
 			t.Errorf("mapping is missing the %q property", field)
 		}

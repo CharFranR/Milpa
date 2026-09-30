@@ -105,6 +105,11 @@ func (E *ElasticSearchImpl) buildQuery(query *dto.SearchQuery) map[string]interf
 			"term": map[string]interface{}{"type": f.Type},
 		})
 	}
+	if f.CategoryID != "" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"term": map[string]interface{}{"category_id": f.CategoryID},
+		})
+	}
 	if f.Department != "" {
 		filterClauses = append(filterClauses, map[string]interface{}{
 			"term": map[string]interface{}{"department": f.Department},
