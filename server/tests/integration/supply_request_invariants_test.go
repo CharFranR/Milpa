@@ -17,10 +17,6 @@ import (
 
 const openRequestIndexName = "idx_supply_requests_status_created"
 
-// listOpenPlanQuery mirrors SupplyRequestRepositoryImpl.ListOpen. The planner can
-// only be asked about the statement that is actually issued, so the text is
-// repeated here; the equality of behaviour is asserted through the repository
-// itself in TestListOpenReturnsNewestFirst.
 const listOpenPlanQuery = `
 	SELECT s.id, s.buyer_id, s.product_name, s.total_amount, s.actual_amount, s.amount_unit, s.number_of_units,
 	       s.amount_per_unit, s.unit_of_measure, s.request_deadline, s.delivery_deadline, s.description,

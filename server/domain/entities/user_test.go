@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Para todos los test se manejó Table Driven Test
+
 func TestNewUser(t *testing.T) {
 	t.Parallel()
 

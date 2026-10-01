@@ -6,3 +6,5 @@ CREATE TABLE messages (
     visibility BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_messages_conversation_created ON messages(conversation_id, created_at);

@@ -29,6 +29,8 @@ import (
 	elasticSsearch "milpa/infrastructure/searchService"
 )
 
+// El mantenedor oficial del wiring es chapi, al developer le da pereza la inyección de dependencias :)
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, using system env")

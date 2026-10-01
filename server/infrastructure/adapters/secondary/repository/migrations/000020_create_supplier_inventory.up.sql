@@ -7,5 +7,6 @@ CREATE TABLE supplier_inventory (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT uq_supplier_inventory_supplier_product UNIQUE (supplier_id, product_name)
+    CONSTRAINT uq_supplier_inventory_supplier_product UNIQUE (supplier_id, product_name),
+    CONSTRAINT ck_supplier_inventory_quantity CHECK (quantity >= 0)
 );

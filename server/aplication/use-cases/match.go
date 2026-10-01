@@ -40,13 +40,6 @@ func NewMatchUseCase(
 	}
 }
 
-// Like matches an offer with its request as ONE unit of work: the reservation,
-// the match row, the transaction row and the offer status either all become
-// visible or none of them do. The ROLLBACK is the compensation; there is no
-// manual compensation ladder to get wrong under a partial failure.
-//
-// Lock order inside the transaction: SupplyRequest -> SupplyOffer. Matches and
-// transactions are created rather than locked, so they take no row lock.
 func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (*dto.MatchDTO, *dto.TransactionDTO, error) {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
@@ -59,20 +52,15 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 	)
 
 	err = uc.tx.WithinTx(ctx, func(scope port.TxScope) error {
-		// Two unlocked PK reads, only to resolve the lock keys. The request id
-		// is only reachable through the offer row, so the offer is read first.
 		offer, err := scope.Offers.GetByID(ctx, supplyOfferID)
 		if err != nil {
 			return err
 		}
-
-		// FIRST LOCK: the request, per the global order.
 		request, err := scope.Requests.LockForUpdate(ctx, offer.SupplyRequest)
 		if err != nil {
 			return err
 		}
 
-		// Re-validate against the FRESH locked rows, not the unlocked reads.
 		if !offer.IsActionable() {
 			return domain.ErrInvalidOfferStatus
 		}
@@ -82,8 +70,6 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 		if request.BuyerID != principal.UserID {
 			return domain.ErrForbidden
 		}
-
-		// SECOND LOCK: the offer, now that the request is held.
 		offer, err = scope.Offers.LockByIDForUpdate(ctx, supplyOfferID)
 		if err != nil {
 			return err
@@ -92,9 +78,6 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 			return domain.ErrInvalidOfferStatus
 		}
 
-		// Both gates are evaluated under the request lock, so two concurrent
-		// likes on the same request serialize and the second one sees the first
-		// one's committed match.
 		if !request.MultipleProviders {
 			existsByRequest, err := scope.Matches.ExistsActiveByRequest(ctx, request.ID)
 			if err != nil {
@@ -113,7 +96,6 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 			return domain.ErrInvalidMatchStatus
 		}
 
-		// Go decides: the state machine rejects the over-assignment.
 		if err := request.ReserveAmount(offer.TotalAmount); err != nil {
 			return err
 		}
@@ -121,8 +103,6 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 		createdMatch = domain.NewMatch(offer.ID, request.ID, offer.TotalAmount, offer.AmountUnit)
 		createdTransaction = domain.NewTransaction(createdMatch.ID)
 
-		// SQL enforces: actual_amount >= $1 makes over-assignment impossible
-		// even if the lock discipline above is broken later.
 		if err := scope.Requests.Reserve(ctx, request.ID, offer.TotalAmount, time.Now()); err != nil {
 			return err
 		}

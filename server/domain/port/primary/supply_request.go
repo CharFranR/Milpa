@@ -11,6 +11,8 @@ import (
 
 var ErrActiveMatch = errors.New("supply request already has an active match")
 
+// ?
+
 type SupplyRequestUseCase interface {
 	Create(ctx context.Context, req dto.SupplyRequestDTO) (*dto.SupplyRequestDTO, error)
 	Update(ctx context.Context, id uuid.UUID, req dto.SupplyGeneralUpdateDTO) error

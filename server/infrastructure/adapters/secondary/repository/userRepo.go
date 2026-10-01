@@ -20,11 +20,6 @@ func NewUserRepository(pool DB) *UserRepositoryImpl {
 	return &UserRepositoryImpl{pool: pool}
 }
 
-// userColumns projects a user together with the address they point at.
-//
-// The address join is what makes the farmer's location readable back: without
-// it the repository only ever knew the address id, so every write of the
-// address columns would overwrite them with empty values.
 const userColumns = `
 	SELECT u.id, u.first_name, u.last_name, u.role, u.created_at, u.updated_at,
 	       u.address_id, u.email, u.phone_number, u.password_hash, u.suspended_at,
@@ -34,8 +29,6 @@ const userColumns = `
 	LEFT JOIN addresses a ON a.id = u.address_id
 `
 
-// scanUser maps one projected user row onto the entity. pgx.Row is an
-// interface, so a fake that replays recorded rows can stand in for the pool.
 func scanUser(row pgx.Row) (domain.User, error) {
 	var user domain.User
 
@@ -153,9 +146,6 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 
 	var AddressID uuid.UUID
 
-	// The addresses table marks department, municipality and address_line NOT
-	// NULL, so a row can only exist for an address that actually carries data.
-	// Gating on a single field used to mean no row was ever created.
 	if user.Address.HasData() {
 		query := `
 			INSERT INTO	addresses (id, department, municipality, address_line, latitude, longitude)
@@ -235,9 +225,6 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 
 	defer tx.Rollback(ctx)
 
-	// addressID is what the user row should end up pointing at. It stays nil
-	// when this update carries no address at all, and the users statement below
-	// then leaves the existing address_id untouched instead of nulling it.
 	var addressID *uuid.UUID
 
 	switch {

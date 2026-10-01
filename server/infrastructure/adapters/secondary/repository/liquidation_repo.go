@@ -28,16 +28,6 @@ const liquidationColumns = `
 	FROM liquidations
 `
 
-// visibilityFilter is the predicate that honours the stored visibility: a caller
-// sees every public liquidation plus their own regardless of visibility.
-//
-// viewerID is uuid.Nil for an anonymous caller, and the parameter stays present
-// in that case so there is a single statement shape rather than two that have
-// to be kept in step.
-//
-// A caller with no business seeing a private liquidation gets no row, not a
-// forbidden row: answering "forbidden" would confirm that the liquidation
-// exists, which is the same information the visibility flag withholds.
 const visibilityFilter = `(visibility = 'public' OR supplier_id = $1)`
 
 func scanLiquidations(rows pgx.Rows) ([]domain.Liquidation, error) {
@@ -60,12 +50,6 @@ func scanLiquidations(rows pgx.Rows) ([]domain.Liquidation, error) {
 	return liquidations, rows.Err()
 }
 
-// FindByID is unfiltered and is for paths that authorise against the result —
-// the update and delete use cases, which re-check ownership themselves and have
-// to be able to see a private liquidation in order to answer "forbidden" rather
-// than "not found".
-//
-// A publicly reachable read must not use this. Use FindVisibleByID.
 func (r *LiquidationRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.Liquidation, error) {
 	query := liquidationColumns + ` WHERE id = $1`
 
@@ -87,8 +71,6 @@ func (r *LiquidationRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) 
 	return &liq, nil
 }
 
-// FindVisibleByID applies the visibility filter, so a private liquidation the
-// caller does not own is indistinguishable from one that does not exist.
 func (r *LiquidationRepositoryImpl) FindVisibleByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*domain.Liquidation, error) {
 	query := liquidationColumns + ` WHERE id = $2 AND ` + visibilityFilter
 

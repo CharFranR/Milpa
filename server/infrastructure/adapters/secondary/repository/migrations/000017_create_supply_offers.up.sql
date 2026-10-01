@@ -9,8 +9,11 @@ CREATE TABLE supply_offers (
     status               SMALLINT NOT NULL DEFAULT 0,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    price_per_unit       DOUBLE PRECISION,
+    comments             TEXT NOT NULL DEFAULT '',
 
-    CONSTRAINT uq_supply_offers_supplier_request UNIQUE (supplier_id, supply_request_id)
+    CONSTRAINT uq_supply_offers_supplier_request UNIQUE (supplier_id, supply_request_id),
+    CONSTRAINT ck_supply_offers_price CHECK (price_per_unit IS NULL OR price_per_unit > 0)
 );
 
 CREATE INDEX idx_supply_offers_request ON supply_offers(supply_request_id);

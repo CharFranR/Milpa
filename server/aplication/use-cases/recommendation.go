@@ -25,11 +25,6 @@ func (availabilityScoreFactor) Name() string {
 	return "availability"
 }
 
-// Availability is reported against the largest availability in the same
-// candidate set. Returning the raw quantity made this factor incomparable with
-// the others: a supplier holding 500 kg scored 500 while every 0..1 factor
-// contributed at most its weight, so availability decided the ranking on its
-// own and the other weights were decoration.
 func (availabilityScoreFactor) Score(_ context.Context, input primary.OfferScoreInput) (float64, error) {
 	if input.MaxAvailableQuantity <= 0 {
 		return 0, nil
@@ -37,11 +32,6 @@ func (availabilityScoreFactor) Score(_ context.Context, input primary.OfferScore
 	return input.AvailableQuantity / input.MaxAvailableQuantity, nil
 }
 
-// priceScoreFactor ranks the cheapest quoted offer at 1 and halves the score
-// for every doubling above it. An offer with no quote scores 0: the column is
-// nullable so pre-existing rows survive, and an unquoted offer cannot claim to
-// be cheap. That is the opposite of scoring it 0 and having "0 is cheapest"
-// break the comparison, which is why the nil is checked before the division.
 type priceScoreFactor struct{}
 
 func (priceScoreFactor) Name() string {
@@ -59,10 +49,6 @@ func (priceScoreFactor) Score(_ context.Context, input primary.OfferScoreInput) 
 	return *input.CheapestPrice / price, nil
 }
 
-// deliveryTimeScoreFactor scores an offer that lands on or before the request
-// deadline at 1, then decays it by one unit per day late. A caller asking for
-// a delivery date that has already passed scores 0 and cannot outrank an offer
-// that keeps its promise, but a one-day slip still beats a two-day slip.
 type deliveryTimeScoreFactor struct{}
 
 func (deliveryTimeScoreFactor) Name() string {
@@ -86,10 +72,6 @@ func (deliveryTimeScoreFactor) Score(_ context.Context, input primary.OfferScore
 	return 1 / (1 + daysLate), nil
 }
 
-// reputationScoreFactor normalises the 1..5 average onto 0..1. An offer from a
-// supplier with no review yet scores the neutral midpoint rather than 0: zero
-// is what a genuinely bad rating looks like, and scoring "unknown" the same as
-// "terrible" would push every unreviewed farmer below a one-star one.
 type reputationScoreFactor struct {
 	reviewRepo port.ReviewRepository
 }
@@ -99,8 +81,7 @@ func (reputationScoreFactor) Name() string {
 }
 
 func (f reputationScoreFactor) Score(ctx context.Context, input primary.OfferScoreInput) (float64, error) {
-	// An unwired repository is the same observable situation as an unreviewed
-	// supplier: there is no reputation signal to read. Both score neutral.
+
 	if f.reviewRepo == nil {
 		return 0.5, nil
 	}
@@ -136,11 +117,6 @@ func ReputationScoreFactor(reviewRepo port.ReviewRepository) primary.ScoreFactor
 	return reputationScoreFactor{reviewRepo: reviewRepo}
 }
 
-// DefaultScoreFactors is the RF-12 list: availability, price, delivery time and
-// farmer reputation. The weights are a judgement call, not something the brief
-// quantifies — availability leads because it is the only factor backed by real
-// data today, and reputation is trusted above price because a farmer reputation
-// cannot be gamed by a single lowball bid the way price can.
 func DefaultScoreFactors(reviewRepo port.ReviewRepository) []WeightedScoreFactor {
 	return []WeightedScoreFactor{
 		{Factor: availabilityScoreFactor{}, Weight: 0.35},
@@ -182,9 +158,7 @@ func (uc *RecommendationUseCaseImpl) AvailableQuantity(ctx context.Context, supp
 	if err != nil {
 		return 0, err
 	}
-	// Only the public read is gated. The internal helper stays ungated because
-	// RankOffers resolves it on behalf of the BUYER of a request, who is
-	// entitled to see a candidate supplier's stock.
+
 	if supplierID != principal.UserID {
 		return 0, domain.ErrForbidden
 	}
@@ -212,12 +186,6 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 		return nil, err
 	}
 
-	// The reference values every factor normalises against have to be known
-	// before the first offer is scored, so the candidates are collected and
-	// measured in their own pass. Availability is keyed by supplier because it
-	// is a property of (supplier, product name) and every offer in this request
-	// carries the same product name: one supplier with two offers is measured
-	// once instead of twice.
 	actionable := make([]domain.SupplyOffer, 0, len(offers))
 	for i := range offers {
 		if offers[i].IsActionable() {
@@ -274,12 +242,6 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 		}
 
 		ranked = append(ranked, &dto.PrioritizedOfferDTO{
-			// supplyOfferToDTO, not a second copy of it. This file used to hold
-			// its own matchOfferToDTO with an identical body, and a copy only
-			// fails silently: the ranked offer still serialises, it just carries
-			// less than the offer the buyer already saw on the listing endpoint.
-			// A price dropped here reads as a broken price score factor, not as a
-			// missing field, and that is a much more expensive detour.
 			Offer:             *supplyOfferToDTO(&offer),
 			Score:             score,
 			AvailableQuantity: input.AvailableQuantity,

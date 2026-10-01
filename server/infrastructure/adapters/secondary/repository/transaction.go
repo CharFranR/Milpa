@@ -157,9 +157,6 @@ func (r *TransactionRepositoryImpl) GetByID(ctx context.Context, transactionID u
 	return transaction, nil
 }
 
-// LockByIDForUpdate reads the transaction and holds a row lock on it until the
-// enclosing transaction ends. It is the last lock of the global order:
-// SupplyRequest -> SupplyOffer -> Match -> Transaction.
 func (r *TransactionRepositoryImpl) LockByIDForUpdate(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error) {
 	query := `
 		SELECT id, match_id, status, buyer_start_confirmed_at, supplier_start_confirmed_at,

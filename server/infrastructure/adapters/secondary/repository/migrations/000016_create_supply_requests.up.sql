@@ -16,7 +16,10 @@ CREATE TABLE supply_requests (
     min_amount_per_provider DOUBLE PRECISION NOT NULL DEFAULT 0,
     status                  SMALLINT NOT NULL DEFAULT 0,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT ck_supply_requests_amounts CHECK (total_amount >= 0 AND actual_amount >= 0 AND actual_amount <= total_amount)
 );
 
 CREATE INDEX idx_supply_requests_buyer_status ON supply_requests(buyer_id, status);
+CREATE INDEX idx_supply_requests_status_created ON supply_requests (status, created_at DESC);

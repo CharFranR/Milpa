@@ -150,12 +150,6 @@ func (uc *TransactionUseCaseImpl) ConfirmStart(ctx context.Context, transactionI
 	return uc.transactionRepo.Update(ctx, &session.transaction)
 }
 
-// ConfirmDelivery confirms one side of a delivery as ONE unit of work. When the
-// confirmation completes the transaction and the request is already covered by
-// completed transactions, the request is closed inside the same transaction: the
-// request row is locked for the whole unit of work, so a concurrent completion
-// cannot read a snapshot that excludes the transaction this one just finished.
-//
 // Lock order: SupplyRequest -> SupplyOffer -> Match -> Transaction.
 func (uc *TransactionUseCaseImpl) ConfirmDelivery(ctx context.Context, transactionID uuid.UUID) error {
 	principal, err := auth.RequirePrincipal(ctx)
@@ -185,12 +179,7 @@ func (uc *TransactionUseCaseImpl) ConfirmDelivery(ctx context.Context, transacti
 	})
 }
 
-// Cancel cascades the cancellation as ONE unit of work. Every goroutine that
-// cancels the same transaction either commits the whole cascade or none of it,
-// so a cancellation can no longer release the request amount without releasing
-// the match, or vice versa.
-//
-// Lock order: SupplyRequest -> SupplyOffer -> Match -> Transaction.
+// Cancel cascades the cancellation as ONE unit of work.
 func (uc *TransactionUseCaseImpl) Cancel(ctx context.Context, transactionID uuid.UUID, reason string) error {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
@@ -392,7 +381,7 @@ func (uc *TransactionUseCaseImpl) autoCloseRequest(ctx context.Context, scope po
 	// else: the request row is locked, so a full-row rewrite would only be able
 	// to push a stale snapshot back over the row. Zeroing actual_amount is what
 	// makes a fully delivered request land on an exact 0 instead of the
-	// IEEE-754 residue of subtracting its fractions one at a time.
+	// IEEE-754 residue of subtracting its fractions one at a time. Plan serio, esto ya me supera
 	return scope.Requests.UpdateCompletion(ctx, session.request.ID, session.request.Status, session.request.UpdatedAt)
 }
 

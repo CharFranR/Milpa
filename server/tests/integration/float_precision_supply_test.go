@@ -8,24 +8,6 @@ import (
 	domain "milpa/domain/entities"
 )
 
-// TestFullyDeliveredRequestWithFractionalAmountCompletes is the regression test
-// for the money type. A request for 2.7 delivered as three transactions of 0.9
-// is fully covered, but the completed amount was accumulated in float32, where
-// 3 * 0.9f is 2.6999998092651367 while 2.7f is 2.700000047683716. The guard
-// `completedAmount < TotalAmount` therefore stayed true forever and the request
-// never left the open set even though it had been delivered in full.
-//
-// Every amount is float64 in Go and DOUBLE PRECISION in PostgreSQL, and 3 * 0.9
-// is exactly the same double as 2.7, so the guard is false and the request is
-// closed.
-//
-// The final assertion is deliberately an exact == 0 and not a tolerance. Three
-// subtractions of 0.9 from 2.7 in IEEE-754 double arithmetic land on
-// 2.220446049250313e-16, not on zero, and no ordering of further additions
-// recovers an exact zero either. Completion therefore SETS actual_amount to 0
-// rather than leaving the residue behind, and this assertion is what keeps that
-// true: a tolerance would have passed just as happily against the dust, which
-// is precisely the state it exists to rule out.
 func TestFullyDeliveredRequestWithFractionalAmountCompletes(t *testing.T) {
 	setupConcurrencyTestData(t)
 	f := newConcFixture(t)

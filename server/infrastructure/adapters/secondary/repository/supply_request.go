@@ -14,30 +14,13 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-// ErrAmountConstraint reports that PostgreSQL refused a write because it would
-// have violated ck_supply_requests_amounts
-// (total_amount >= 0 AND actual_amount >= 0 AND actual_amount <= total_amount).
-//
-// It exists so a caller can tell "the database rejected this arithmetic" apart
-// from an opaque driver failure with errors.Is, while the wrapped *pgconn.PgError
-// stays in the chain for anyone who needs the constraint name PostgreSQL
-// reported.
 var ErrAmountConstraint = errors.New("supply request amount constraint violated")
 
-// isCheckViolation mirrors isUniqueViolation for SQLSTATE 23514 (check_violation),
-// the class of failure the amount CHECK constraint raises.
 func isCheckViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23514"
 }
 
-// SupplyRequestRepositoryImpl keeps a DB and not a Querier: Create and Update
-// both touch addresses and supply_requests, so each of them opens its own
-// top-level transaction.
-//
-// The narrow reservation methods below (LockForUpdate, Reserve, Release,
-// UpdateStatus) are the only members a TxScope is allowed to use, and a
-// tx-bound instance is built by newTxScope.
 type SupplyRequestRepositoryImpl struct {
 	pool DB
 }
@@ -65,8 +48,6 @@ func scanSupplyRequest(scan func(dest ...any) error) (domain.SupplyRequest, erro
 	return supplyRequest, nil
 }
 
-// Create is TOP-LEVEL ONLY: it opens its own transaction and must NOT be called
-// from inside a TxScope, where a nested Begin would only emit a SAVEPOINT.
 func (r *SupplyRequestRepositoryImpl) Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -202,10 +183,6 @@ func (r *SupplyRequestRepositoryImpl) GetByID(ctx context.Context, supplyRequest
 	return supplyRequest, nil
 }
 
-// Update is TOP-LEVEL ONLY: it opens its own transaction and must NOT be called
-// from inside a TxScope. It rewrites the whole row, so a concurrent reservation
-// released or taken between this read and this write would be lost; the
-// reservation path uses Reserve/Release/UpdateStatus instead.
 func (r *SupplyRequestRepositoryImpl) Update(ctx context.Context, supplyRequest *domain.SupplyRequest) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -257,12 +234,6 @@ func (r *SupplyRequestRepositoryImpl) Delete(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
-// LockForUpdate reads the request and holds a row lock on it for the rest of the
-// transaction. It is the first lock taken by every unit of work, so no other
-// transaction can observe or change this request while the unit of work runs.
-//
-// The lock is restricted to `s` with FOR UPDATE OF: PostgreSQL refuses
-// FOR UPDATE on the nullable side of the LEFT JOIN with addresses.
 func (r *SupplyRequestRepositoryImpl) LockForUpdate(ctx context.Context, id uuid.UUID) (domain.SupplyRequest, error) {
 	query := `
 		SELECT s.id, s.buyer_id, s.product_name, s.total_amount, s.actual_amount, s.amount_unit, s.number_of_units,
@@ -287,10 +258,6 @@ func (r *SupplyRequestRepositoryImpl) LockForUpdate(ctx context.Context, id uuid
 	return supplyRequest, nil
 }
 
-// Reserve takes amount out of actual_amount only if the row still holds it. The
-// predicate is the storage-level safety net: over-assignment is impossible even
-// if the lock discipline is broken later, and RowsAffected == 0 is reported as
-// the same domain error the state machine would have raised.
 func (r *SupplyRequestRepositoryImpl) Reserve(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
 	query := `
 		UPDATE supply_requests
@@ -309,17 +276,6 @@ func (r *SupplyRequestRepositoryImpl) Reserve(ctx context.Context, id uuid.UUID,
 	return nil
 }
 
-// Release gives amount back to actual_amount.
-//
-// It is a plain addition on purpose. The statement used to clamp with
-// LEAST(actual_amount + $1, total_amount), which meant a double release was an
-// invisible no-op: the write succeeded, no error surfaced anywhere, and the only
-// symptom was an actual_amount that quietly disagreed with the transaction log.
-// Once ck_supply_requests_amounts exists, the clamp is redundant for every
-// legitimate path (Reserve is guarded by actual_amount >= amount and the request
-// row is locked for the whole unit of work) and actively harmful for the
-// illegitimate one, so the addition is left bare and the CHECK constraint is
-// allowed to reject an over-release as the corruption it is.
 func (r *SupplyRequestRepositoryImpl) Release(ctx context.Context, id uuid.UUID, amount float64, at time.Time) error {
 	query := `
 		UPDATE supply_requests
@@ -338,10 +294,6 @@ func (r *SupplyRequestRepositoryImpl) Release(ctx context.Context, id uuid.UUID,
 	return nil
 }
 
-// UpdateStatus writes only status and updated_at. Writing the whole row here
-// would reintroduce the lost update this refactor removes: the unit of work
-// holds a snapshot of actual_amount from the start of its transaction, and a
-// full-row write would push that snapshot back over any concurrent change.
 func (r *SupplyRequestRepositoryImpl) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
 	query := `
 		UPDATE supply_requests
@@ -356,21 +308,6 @@ func (r *SupplyRequestRepositoryImpl) UpdateStatus(ctx context.Context, id uuid.
 	return nil
 }
 
-// UpdateCompletion closes out a fulfilled request by writing status, zeroing
-// actual_amount and stamping updated_at in a single statement.
-//
-// It stays narrow on purpose, naming the three columns it owns. A full-row
-// write here would reintroduce the lost update this refactor exists to remove:
-// the caller is inside a unit of work that read actual_amount at the start of
-// its transaction, and pushing that snapshot back over the row would discard
-// any concurrent change. Status plus the zeroing is all completion requires.
-//
-// The zeroing is a real semantic statement, not cosmetics. Accumulating
-// fractional reservations in a DOUBLE PRECISION column leaves an IEEE-754
-// residue, so actual_amount drifts to 2.220446049250313e-16 for a 2.7 request
-// filled by three 0.9 deliveries and can never land on an exact zero by
-// subtraction. A completed request has nothing left to fulfil, so the column
-// is set rather than approximated.
 func (r *SupplyRequestRepositoryImpl) UpdateCompletion(ctx context.Context, id uuid.UUID, status domain.SupplyRequestStatus, at time.Time) error {
 	query := `
 		UPDATE supply_requests

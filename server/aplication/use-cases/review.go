@@ -32,9 +32,6 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 
 	now := uc.timer.Now()
 
-	// RF-15 accepts two forms and NewReview only ever sees one shape.
-	// company_id is the legacy spelling of a company target, and a request
-	// carrying both is refused rather than letting one silently win.
 	targetType, targetID, err := resolveReviewTarget(req)
 	if err != nil {
 		return nil, err

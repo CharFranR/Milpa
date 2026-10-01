@@ -8,5 +8,6 @@ CREATE TABLE users (
     phone_number  VARCHAR(20) NOT NULL,
     address_id    UUID REFERENCES addresses(id) ON DELETE SET NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    suspended_at  TIMESTAMPTZ
 );

@@ -175,16 +175,6 @@ func (a AllocationMethod) String() string {
 	}
 }
 
-// Scan parses the text form the liquidations table stores.
-//
-// The table holds status and allocation_method as VARCHAR constrained to the
-// same vocabulary String() produces, while the domain models them as integers.
-// Without this the read direction fails on every row, so a liquidation could be
-// created and then never read back by any of the query endpoints.
-//
-// The mapping is derived from String() so the vocabulary lives in exactly one
-// place; adding a status means adding it to the loop, not to a second table of
-// string literals.
 func (s *LiquidationStatus) Scan(src any) error {
 	text, err := scanText(src)
 	if err != nil {
