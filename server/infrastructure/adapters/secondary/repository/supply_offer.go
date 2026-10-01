@@ -26,10 +26,6 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-// supplyOfferColumns is the single source of truth for the projection shared by
-// every supply_offers read. The five read paths used to spell the column list out
-// individually, which is exactly how a column ends up missing from one of them:
-// ranking and matching would then disagree about the same row.
 const supplyOfferColumns = `id, supplier_id, supply_request_id, total_amount, amount_unit, price_per_unit, comments,
 	proposed_delivery_day, delivery_available, status, created_at, updated_at`
 
@@ -164,12 +160,6 @@ func (r *SupplyOfferRepositoryImpl) GetByID(ctx context.Context, supplyOfferID u
 	return supplyOffer, nil
 }
 
-// LockByIDForUpdate reads the offer and holds a row lock on it until the
-// enclosing transaction ends. It is the second lock of the global order:
-// SupplyRequest -> SupplyOffer.
-//
-// It projects the same columns as the unlocked reads, price included, so a
-// price read under the row lock is the locked price.
 func (r *SupplyOfferRepositoryImpl) LockByIDForUpdate(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error) {
 	query := `
 		SELECT ` + supplyOfferColumns + `

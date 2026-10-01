@@ -42,10 +42,7 @@ func (uc *SupplyOfferUseCaseImpl) Create(ctx context.Context, req dto.SupplyOffe
 	if req.TotalAmount <= 0 {
 		return nil, fmt.Errorf("%w: total amount must be greater than zero", domain.ErrInvalidInput)
 	}
-	// RF-11 lists the price among the fields the offer must include, so this is
-	// a business rejection and not an input-shape one. The nil branch here is
-	// not the nullable column: the column is nullable for the rows that predate
-	// it, while a supplier creating an offer now has to quote one.
+
 	if req.PricePerUnit == nil || *req.PricePerUnit <= 0 {
 		return nil, domain.ErrInvalidPrice
 	}
@@ -86,9 +83,7 @@ func (uc *SupplyOfferUseCaseImpl) Create(ctx context.Context, req dto.SupplyOffe
 		principal.UserID, supplyRequestID, req.TotalAmount, req.AmountUnit,
 		req.ProposedDeliveryDay, req.DeliveryAvailable,
 	)
-	// Set after construction, not passed to it: a price is a quotation the use
-	// case validates, not part of the offer's identity, and NewSupplyOffer is
-	// also the constructor for the rows that predate the price column.
+
 	supplyOffer.PricePerUnit = req.PricePerUnit
 	supplyOffer.Comments = req.Comments
 

@@ -64,12 +64,9 @@ func (uc *CompanyUseCaseImpl) CreateCompany(ctx context.Context, req dto.Registe
 		return nil, err
 	}
 
-	// The caller owns the company it just created, so this is the private view.
 	return privateCompanyDTO(company), nil
 }
 
-// GetByID returns the representation the caller is entitled to: the contact card
-// for the owner and for an admin, the public listing for everyone else.
 func (uc *CompanyUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (dto.CompanyView, error) {
 	company, err := uc.companyRepo.FindByID(ctx, id)
 	if err != nil {
@@ -79,9 +76,6 @@ func (uc *CompanyUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (dto.Co
 	return companyViewFor(ctx, company), nil
 }
 
-// GetByOwner lists the companies an owner registered, under the same boundary
-// as GetByID. This read is unauthenticated too, so leaving it returning contact
-// details would hand out exactly what GetByID refuses to.
 func (uc *CompanyUseCaseImpl) GetByOwner(ctx context.Context, ownerID uuid.UUID) ([]dto.CompanyView, error) {
 	companies, err := uc.companyRepo.FindByOwner(ctx, ownerID)
 	if err != nil {

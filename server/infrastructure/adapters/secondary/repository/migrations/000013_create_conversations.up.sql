@@ -9,3 +9,7 @@ CREATE TABLE conversations (
 
     CONSTRAINT different_users CHECK (buyer_id <> farmer_id)
 );
+
+CREATE INDEX idx_conversations_buyer ON conversations(buyer_id);
+CREATE INDEX idx_conversations_farmer ON conversations(farmer_id);
+CREATE INDEX idx_conversations_offering ON conversations(offering_id);

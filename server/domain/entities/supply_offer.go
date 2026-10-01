@@ -14,14 +14,6 @@ const (
 	Tn
 )
 
-// ValidMeasurementOptions reports whether m is part of the unit vocabulary.
-//
-// It lives next to the constants so the vocabulary has exactly one definition,
-// the same way AllocationMethod.String and AllocationMethod.Scan do it in
-// liquidation.go. A MeasurementOptions is an iota and the field arrives straight
-// off the wire, so any integer the client sends is representable — including
-// ones nobody defined. Without this there is no way to tell a kilogram from a
-// request for unit 7.
 func ValidMeasurementOptions(m MeasurementOptions) bool {
 	switch m {
 	case Kg, Lb, Tn:
@@ -47,10 +39,6 @@ type SupplyOffer struct {
 	TotalAmount   float64
 	AmountUnit    MeasurementOptions
 
-	// PricePerUnit is a pointer so "no price quoted" stays distinguishable from
-	// "zero quoted". A zero ranks as the cheapest offer on the platform, which
-	// is a claim nobody made, so the column is nullable in SQL and nil here and
-	// the price score factor reads nil as unranked rather than as free.
 	PricePerUnit *float64
 	Comments     string
 
@@ -62,11 +50,6 @@ type SupplyOffer struct {
 	UpdatedAt time.Time
 }
 
-// NewSupplyOffer keeps its original six arguments. Price and comments are RF-11
-// additions, and folding them in would make this an eight-argument constructor
-// in which the adjacent float64 and time.Time values are the only reliable thing
-// telling you which is which. The caller sets them, the same way it already sets
-// Status through MarkMatched and Withdraw.
 func NewSupplyOffer(
 	SupplierID uuid.UUID, SupplyRequest uuid.UUID, TotalAmount float64, AmountUnit MeasurementOptions, ProposedDeliveryDay time.Time, DeliveryAvailable bool,
 ) *SupplyOffer {

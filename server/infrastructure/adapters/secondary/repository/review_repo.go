@@ -10,9 +10,6 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-// reviewColumns is the one projection shared by both read paths, for the same
-// reason supplyOfferColumns exists: a review read that returns no author or no
-// target is not a review anybody asked for.
 const reviewColumns = `id, author_id, target_type, target_id, company_id, rating, comment, created_at`
 
 func scanReview(scan func(dest ...any) error) (domain.Review, error) {
@@ -26,9 +23,7 @@ func scanReview(scan func(dest ...any) error) (domain.Review, error) {
 	if err != nil {
 		return domain.Review{}, err
 	}
-	// A user review has no company to mirror, so the column is NULL and the
-	// entity carries the zero uuid. Scanning straight into a uuid.UUID would
-	// fail on the NULL instead, which is the only reason for the pointer.
+
 	if companyID != nil {
 		review.CompanyID = *companyID
 	}
@@ -102,13 +97,6 @@ func (r *ReviewRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID)
 	return reviews, nil
 }
 
-// AverageRating is the RF-15 aggregate: the mean rating of a target and how
-// many reviews it is a mean of.
-//
-// COALESCE keeps a target with no reviews reading as 0/0 rather than as a NULL
-// average: the callers are profiles, and a profile with no reviews is a real
-// state, not an error. AVG over SMALLINT already returns a double, so no cast
-// is wanted -- casting to float first would round.
 func (r *ReviewRepositoryImpl) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
 	query := `
 		SELECT COALESCE(AVG(rating), 0), COUNT(*)

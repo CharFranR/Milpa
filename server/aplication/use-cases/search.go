@@ -22,8 +22,6 @@ func NewSearchImpl(fuzzy port.FuzzySearch) *SearchImpl {
 	}
 }
 
-// Search takes a client SearchRequest, applies business/relevance rules,
-// builds a SearchQuery, and delegates to the adapter.
 func (s *SearchImpl) Search(ctx context.Context, req dto.SearchRequest) (*dto.SearchResponse, error) {
 	query := s.buildQuery(req)
 
@@ -35,8 +33,6 @@ func (s *SearchImpl) Search(ctx context.Context, req dto.SearchRequest) (*dto.Se
 	return response, nil
 }
 
-// buildQuery translates the client request into a SearchQuery with business rules.
-// This is WHERE relevance decisions are made — the adapter just executes.
 func (s *SearchImpl) buildQuery(req dto.SearchRequest) *dto.SearchQuery {
 	page := req.Page
 	if page < 1 {
@@ -73,7 +69,6 @@ func (s *SearchImpl) buildQuery(req dto.SearchRequest) *dto.SearchQuery {
 		},
 	}
 
-	// Relevance rules — owned by the application layer
 	query.ScoreRules = append(query.ScoreRules, dto.ScoreRule{
 		Field: "farmer_verified",
 		Value: true,

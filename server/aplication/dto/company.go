@@ -6,16 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// CompanyView is what reading a company returns. Same boundary as UserView: the
-// concrete type decides whether contact details travel with the response.
 type CompanyView interface {
 	companyView()
 }
 
-// PublicCompanyDTO is the marketplace representation of a company: its
-// catalogue-facing identity, where it operates and whether it is verified. The
-// address is reduced to the administrative area a buyer searches by; the street
-// line, the phone and the mailbox are contact mechanism, not catalogue.
 type PublicCompanyDTO struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
@@ -30,7 +24,6 @@ type PublicCompanyDTO struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// PrivateCompanyDTO adds the contact card on top of the public representation.
 type PrivateCompanyDTO struct {
 	PublicCompanyDTO
 	Email       string `json:"email"`

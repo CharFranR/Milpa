@@ -26,9 +26,6 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The two shapes are alternative spellings of the same thing, so the check
-	// is that exactly one of them arrived -- not that a particular one did.
-	// Requiring company_id would make every review of a farmer a 400.
 	if req.CompanyID == uuid.Nil && req.TargetID == uuid.Nil {
 		respondError(w, http.StatusBadRequest, "provide company_id or target_id")
 		return
@@ -81,9 +78,6 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 	respondError(w, http.StatusBadRequest, "provide company_id or user_id")
 }
 
-// Average is a separate route rather than a third reading of the existing
-// query: the existing one returns a list and this returns a number, and folding
-// them together would make each pay for the other.
 func (h *ReviewHandler) Average(w http.ResponseWriter, r *http.Request) {
 	rawTargetType := r.URL.Query().Get("target_type")
 	targetType := domain.ReviewTargetType(rawTargetType)
