@@ -384,24 +384,26 @@ func TestRecommendationRankOffers(t *testing.T) {
 		if got[0].Offer.ID == nil || *got[0].Offer.ID != matchTestOtherOfferID {
 			t.Errorf("first offer = %v, want %v", got[0].Offer.ID, matchTestOtherOfferID)
 		}
-		if got[0].Score != 50 || got[0].AvailableQuantity != 50 {
-			t.Errorf("first score/available = %v/%v, want 50/50", got[0].Score, got[0].AvailableQuantity)
+		// Availability is normalised against the largest quantity in the set, so
+		// the holder of the most stock scores 1 * 0.35 and the order is unchanged.
+		if got[0].AvailableQuantity != 50 {
+			t.Errorf("first available = %v, want 50", got[0].AvailableQuantity)
 		}
-		if got[1].Score != 20 || got[1].AvailableQuantity != 20 {
-			t.Errorf("second score/available = %v/%v, want 20/20", got[1].Score, got[1].AvailableQuantity)
+		if got[1].AvailableQuantity != 20 {
+			t.Errorf("second available = %v, want 20", got[1].AvailableQuantity)
 		}
-		if len(got[0].Contributions) != 1 {
-			t.Fatalf("contributions = %d, want 1", len(got[0].Contributions))
+		if len(got[0].Contributions) != 4 {
+			t.Fatalf("contributions = %d, want 4", len(got[0].Contributions))
 		}
 		contribution := got[0].Contributions[0]
 		if contribution.Factor != "availability" {
 			t.Errorf("factor = %q, want availability", contribution.Factor)
 		}
-		if contribution.Weight != 1 {
-			t.Errorf("weight = %v, want 1", contribution.Weight)
+		if contribution.Weight != 0.35 {
+			t.Errorf("weight = %v, want 0.35", contribution.Weight)
 		}
-		if contribution.Score != 50 || contribution.WeightedScore != 50 {
-			t.Errorf("contribution score/weighted = %v/%v, want 50/50", contribution.Score, contribution.WeightedScore)
+		if contribution.Score != 1 || contribution.WeightedScore != 0.35 {
+			t.Errorf("contribution score/weighted = %v/%v, want 1/0.35", contribution.Score, contribution.WeightedScore)
 		}
 	})
 
@@ -440,8 +442,13 @@ func TestRecommendationRankOffers(t *testing.T) {
 		if len(got) != 1 {
 			t.Fatalf("offers = %d, want 1", len(got))
 		}
-		if got[0].Score != 0 || got[0].AvailableQuantity != 0 {
-			t.Errorf("score/available = %v/%v, want 0/0", got[0].Score, got[0].AvailableQuantity)
+		// No inventory means no availability to normalise against, so the factor
+		// scores 0 while reputation alone still puts the offer above zero.
+		if got[0].AvailableQuantity != 0 {
+			t.Errorf("available = %v, want 0", got[0].AvailableQuantity)
+		}
+		if got[0].Score != 0.325 {
+			t.Errorf("score = %v, want 0.325 (neutral reputation 0.5 * 0.25)", got[0].Score)
 		}
 	})
 
@@ -484,8 +491,10 @@ func TestRecommendationRankOffers(t *testing.T) {
 		if len(got) != 1 {
 			t.Fatalf("offers = %d, want 1", len(got))
 		}
-		if got[0].Score != 105 {
-			t.Errorf("score = %v, want 105 (100 availability + 0.5*10 geography)", got[0].Score)
+		// 100 availability normalises to 1 against a single-offer set, so the
+		// composition is 1*1 + 0.5*10 rather than the raw-quantity 100 + 5.
+		if got[0].Score != 6 {
+			t.Errorf("score = %v, want 6 (1 availability + 0.5*10 geography)", got[0].Score)
 		}
 		if len(got[0].Contributions) != 2 {
 			t.Fatalf("contributions = %d, want 2", len(got[0].Contributions))
