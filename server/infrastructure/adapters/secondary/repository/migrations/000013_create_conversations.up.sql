@@ -2,7 +2,8 @@ CREATE TABLE conversations (
     id UUID PRIMARY KEY,
     buyer_id UUID NOT NULL REFERENCES users(id),
     farmer_id UUID NOT NULL REFERENCES users(id),
-    offering_id UUID NOT NULL REFERENCES offerings(id),
+    offering_id UUID NULL REFERENCES offerings(id),
+    match_id UUID NULL,
     visibility BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -13,3 +14,4 @@ CREATE TABLE conversations (
 CREATE INDEX idx_conversations_buyer ON conversations(buyer_id);
 CREATE INDEX idx_conversations_farmer ON conversations(farmer_id);
 CREATE INDEX idx_conversations_offering ON conversations(offering_id);
+CREATE INDEX idx_conversations_match ON conversations(match_id);
