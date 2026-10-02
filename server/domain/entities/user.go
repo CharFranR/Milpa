@@ -10,9 +10,12 @@ type RoleOptions int
 
 const (
 	RolePending RoleOptions = iota
-	RoleMIPYME
-	RoleProvider
+	RoleAgricultor
+	RoleCompradorMinorista
+	RoleCompradorMayoristaDetallista
+	RoleCompradorMayoristaCorporativo
 	RoleAdmin
+	RoleAuditor
 )
 
 type User struct {
@@ -72,20 +75,35 @@ func (r RoleOptions) String() string {
 	switch r {
 	case RolePending:
 		return "pending"
-	case RoleMIPYME:
-		return "mipyme"
-	case RoleProvider:
-		return "provider"
+	case RoleAgricultor:
+		return "agricultor"
+	case RoleCompradorMinorista:
+		return "comprador_minorista"
+	case RoleCompradorMayoristaDetallista:
+		return "comprador_mayorista_detallista"
+	case RoleCompradorMayoristaCorporativo:
+		return "comprador_mayorista_corporativo"
 	case RoleAdmin:
 		return "admin"
+	case RoleAuditor:
+		return "auditor"
 	default:
 		return "unknown"
 	}
 }
 
+func IsRegistrationRole(r RoleOptions) bool {
+	switch r {
+	case RoleAgricultor, RoleCompradorMinorista, RoleCompradorMayoristaDetallista, RoleCompradorMayoristaCorporativo:
+		return true
+	default:
+		return false
+	}
+}
+
 func ValidRole(r RoleOptions) bool {
 	switch r {
-	case RolePending, RoleMIPYME, RoleProvider, RoleAdmin:
+	case RolePending, RoleAgricultor, RoleCompradorMinorista, RoleCompradorMayoristaDetallista, RoleCompradorMayoristaCorporativo, RoleAdmin, RoleAuditor:
 		return true
 	default:
 		return false

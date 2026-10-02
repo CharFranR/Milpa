@@ -40,7 +40,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		ID:           testE2EBuyerID,
 		FirstName:    "E2E",
 		LastName:     "Buyer",
-		Role:         domain.RoleMIPYME,
+		Role:         domain.RoleCompradorMinorista,
 		Email:        "e2e-buyer@example.com",
 		PhoneNumber:  "4600-0001",
 		PasswordHash: "hash",
@@ -51,7 +51,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		ID:           testE2ESupplierID,
 		FirstName:    "E2E",
 		LastName:     "Supplier",
-		Role:         domain.RoleMIPYME,
+		Role:         domain.RoleAgricultor,
 		Email:        "e2e-supplier@example.com",
 		PhoneNumber:  "4600-0002",
 		PasswordHash: "hash",
@@ -77,8 +77,8 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		t.Fatalf("insert fixture supplier inventory: %v", err)
 	}
 
-	buyerCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2EBuyerID, Role: domain.RoleMIPYME})
-	supplierCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2ESupplierID, Role: domain.RoleMIPYME})
+	buyerCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2EBuyerID, Role: domain.RoleCompradorMinorista})
+	supplierCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2ESupplierID, Role: domain.RoleAgricultor})
 
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(requestRepo, offerRepo, matchRepo, clock)
 	supplyOfferUC := usecases.NewSupplyOfferUseCase(offerRepo, requestRepo, matchRepo, clock)

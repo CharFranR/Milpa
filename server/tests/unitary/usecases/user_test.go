@@ -29,16 +29,16 @@ func TestUserUseCaseRegister(t *testing.T) {
 		saveErr    error
 		wantErr    error
 	}{
-		{name: "happy path", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123"},
+		{name: "happy path", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123"},
 		{name: "invalid role", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RolePending, password: "secret123", confirm: "secret123", wantErr: domain.ErrInvalidInput},
-		{name: "password mismatch", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleProvider, password: "secret123", confirm: "other456", wantErr: domain.ErrInvalidInput},
-		{name: "empty email", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", wantErr: domain.ErrEmailRequired},
-		{name: "empty first name", email: "register@milpa.com.ni", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", wantErr: domain.ErrFirstNameRequired},
-		{name: "empty last name", email: "register@milpa.com.ni", firstName: "Jane", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", wantErr: domain.ErrLastNameRequired},
-		{name: "repo error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", existsErr: errFake, wantErr: errFake},
-		{name: "email taken", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", emailTaken: true, wantErr: domain.ErrEmailTaken},
-		{name: "hash error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", hashErr: errFake, wantErr: errFake},
-		{name: "save error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleMIPYME, password: "secret123", confirm: "secret123", saveErr: errFake, wantErr: errFake},
+		{name: "password mismatch", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleAgricultor, password: "secret123", confirm: "other456", wantErr: domain.ErrInvalidInput},
+		{name: "empty email", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", wantErr: domain.ErrEmailRequired},
+		{name: "empty first name", email: "register@milpa.com.ni", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", wantErr: domain.ErrFirstNameRequired},
+		{name: "empty last name", email: "register@milpa.com.ni", firstName: "Jane", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", wantErr: domain.ErrLastNameRequired},
+		{name: "repo error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", existsErr: errFake, wantErr: errFake},
+		{name: "email taken", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", emailTaken: true, wantErr: domain.ErrEmailTaken},
+		{name: "hash error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", hashErr: errFake, wantErr: errFake},
+		{name: "save error", email: "register@milpa.com.ni", firstName: "Jane", lastName: "Smith", role: domain.RoleCompradorMinorista, password: "secret123", confirm: "secret123", saveErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -302,7 +302,7 @@ func TestUserUseCaseRegisterPersistsLocation(t *testing.T) {
 		Email:           "geo@milpa.com.ni",
 		FirstName:       "Jane",
 		LastName:        "Smith",
-		Role:            domain.RoleProvider,
+		Role:            domain.RoleAgricultor,
 		Address:         "Costado Sur del Parque Central",
 		Department:      "Leon",
 		Municipality:    "Leon",
@@ -363,7 +363,7 @@ func TestUserUseCaseRegisterRejectsOutOfRangeCoordinates(t *testing.T) {
 				Email:           "geo@milpa.com.ni",
 				FirstName:       "Jane",
 				LastName:        "Smith",
-				Role:            domain.RoleProvider,
+				Role:            domain.RoleAgricultor,
 				Department:      "Leon",
 				Latitude:        &latitude,
 				Longitude:       &longitude,

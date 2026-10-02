@@ -336,6 +336,38 @@ func (uc *ModerationUseCaseImpl) SuspendUser(ctx context.Context, id uuid.UUID, 
 	return uc.userRepo.Update(ctx, user)
 }
 
+func (uc *ModerationUseCaseImpl) SetUserRole(ctx context.Context, id uuid.UUID, req dto.SetUserRoleRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+	if principal.Role != domain.RoleAdmin {
+		return domain.ErrForbidden
+	}
+
+	// Admins may only assign the auditor role or a registration role here;
+	// minting admins through this path is intentionally not allowed.
+	if req.Role != domain.RoleAuditor && !domain.IsRegistrationRole(req.Role) {
+		return domain.ErrInvalidInput
+	}
+
+	user, err := uc.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	user.Role = req.Role
+	user.Touch(uc.timer.Now())
+
+	meta, _ := json.Marshal(map[string]any{"user_id": id.String(), "role": req.Role.String()})
+	log := domain.NewAuditLog(principal.UserID, domain.AuditActionUserRoleUpdated, "user", id, meta, uc.timer.Now())
+	if err := uc.auditRepo.Save(ctx, log); err != nil {
+		return err
+	}
+
+	return uc.userRepo.Update(ctx, user)
+}
+
 func (uc *ModerationUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {

@@ -36,4 +36,5 @@ const (
 	AuditActionUserSuspended   = "user_suspended"
 	AuditActionUserReactivated = "user_reactivated"
 	AuditActionOfferingDeleted = "offering_deleted"
+	AuditActionUserRoleUpdated = "user_role_updated"
 )

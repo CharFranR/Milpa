@@ -258,11 +258,11 @@ func liquidationUC() *usecases.LiquidationUseCaseImpl {
 }
 
 func ownerCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqSupplierID, Role: domain.RoleProvider})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqSupplierID, Role: domain.RoleAgricultor})
 }
 
 func otherCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqOtherSupID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqOtherSupID, Role: domain.RoleCompradorMinorista})
 }
 
 func dtoIDs(dtos []*dto.LiquidationDTO) []uuid.UUID {

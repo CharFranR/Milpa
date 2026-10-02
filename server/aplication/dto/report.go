@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	domain "milpa/domain/entities"
 )
 
 type CreateReportRequest struct {
@@ -18,6 +20,10 @@ type ResolveReportRequest struct {
 
 type SuspendUserRequest struct {
 	Action string `json:"action"`
+}
+
+type SetUserRoleRequest struct {
+	Role domain.RoleOptions `json:"role"`
 }
 
 type ReportResponse struct {

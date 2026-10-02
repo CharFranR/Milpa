@@ -311,7 +311,7 @@ func requireOfferingOwner(principal auth.Principal, offering *domain.Offering) e
 var _ primary.OfferingUseCase = (*OfferingUseCaseImpl)(nil)
 
 func indexRequestFor(offering *domain.Offering, user *domain.User) *dto.IndexOfferingRequest {
-	farmerVerified := user.HasRole(domain.RoleProvider) || user.HasRole(domain.RoleMIPYME)
+	farmerVerified := user.HasRole(domain.RoleAgricultor)
 
 	latitude, longitude := user.Address.Latitude, user.Address.Longitude
 	if offering.HasLocation() {

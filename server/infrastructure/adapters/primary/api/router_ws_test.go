@@ -26,7 +26,7 @@ func (stubJWT) ValidateToken(token string) (*port.JWTClaims, error) {
 	if token != "valid-token" {
 		return nil, errors.New("invalid or expired token")
 	}
-	return &port.JWTClaims{UserID: uuid.New(), Role: domain.RoleMIPYME}, nil
+	return &port.JWTClaims{UserID: uuid.New(), Role: domain.RoleCompradorMinorista}, nil
 }
 
 type stubUserRepo struct{}

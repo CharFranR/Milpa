@@ -102,6 +102,27 @@ func (h *ModerationHandler) SuspendUser(w http.ResponseWriter, r *http.Request) 
 	respond(w, http.StatusOK, nil)
 }
 
+func (h *ModerationHandler) SetUserRole(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	var req dto.SetUserRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.uc.SetUserRole(r.Context(), id, req); err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, nil)
+}
+
 func (h *ModerationHandler) DeleteOffering(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

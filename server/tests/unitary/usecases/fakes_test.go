@@ -32,11 +32,11 @@ var (
 )
 
 func principalCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMinorista})
 }
 
 func principalCtxFor(userID uuid.UUID) context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMinorista})
 }
 
 func strPtr(s string) *string {
