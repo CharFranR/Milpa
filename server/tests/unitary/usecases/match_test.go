@@ -21,6 +21,7 @@ type matchFixture struct {
 	recs     *stubMatchRecommendationUC
 	uow      *fakeUnitOfWork
 	uc       *usecases.MatchUseCaseImpl
+	convs    *fakeConversationRepo
 }
 
 func newMatchFixture() *matchFixture {
@@ -30,6 +31,7 @@ func newMatchFixture() *matchFixture {
 		matches:  newFakeMatchRepository(),
 		txs:      newFakeMatchTransactionRepo(),
 		recs:     &stubMatchRecommendationUC{},
+		convs:    newFakeConversationRepo(),
 	}
 	f.uow = newFakeUnitOfWork(f.newTxScope())
 	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow)
@@ -289,6 +291,37 @@ func TestMatchUseCaseLikeHappyPathMultipleProviders(t *testing.T) {
 	}
 	if len(f.offers.updated) != 1 {
 		t.Errorf("offer updates = %d, want 1", len(f.offers.updated))
+	}
+}
+
+func TestMatchUseCaseLikeCreatesConversation(t *testing.T) {
+	t.Parallel()
+
+	f := newMatchFixture()
+
+	_, _, err := f.uc.Like(principalCtx(), matchTestOfferID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(f.convs.saved) != 1 {
+		t.Fatalf("conversations created = %d, want 1", len(f.convs.saved))
+	}
+	conversation := f.convs.saved[0]
+	if conversation.BuyerID != testUserID {
+		t.Errorf("conversation buyer = %v, want %v", conversation.BuyerID, testUserID)
+	}
+	if conversation.FarmerID != matchTestSupplierID {
+		t.Errorf("conversation farmer = %v, want %v", conversation.FarmerID, matchTestSupplierID)
+	}
+	if conversation.MatchID == nil || *conversation.MatchID == uuid.Nil {
+		t.Fatalf("conversation match id = %v, want a non-nil match id", conversation.MatchID)
+	}
+	if *conversation.MatchID != f.matches.created[0].ID {
+		t.Errorf("conversation match id = %v, want %v", *conversation.MatchID, f.matches.created[0].ID)
+	}
+	if conversation.OfferingID != uuid.Nil {
+		t.Errorf("conversation offering = %v, want nil uuid", conversation.OfferingID)
 	}
 }
 

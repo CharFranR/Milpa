@@ -17,6 +17,7 @@ const IndexOfferingsMappingFile = "offerings.json"
 
 const geoPointField = "location"
 
+//go:embed mappings
 var Mappings embed.FS
 
 var ErrEmptyIndexName = errors.New("elasticsearch index name is empty")

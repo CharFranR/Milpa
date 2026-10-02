@@ -60,6 +60,12 @@ var (
 	ErrFarmerConversationRequired  = errors.New("farmer for conversation in required")
 	ErrBuyerConversationRequired   = errors.New("buyer for a conversation in required")
 	ErrOfferingconversationRequied = errors.New("offering for conversation is required")
+	ErrConversationTargetRequired  = errors.New("either an offering or a match is required for conversation")
+
+	ErrTransactionRequired       = errors.New("transaction is required")
+	ErrTransactionNotCompleted   = errors.New("transaction must be completed before reviewing")
+	ErrReviewTargetPartyMismatch = errors.New("review target must be the other party of the transaction")
+	ErrReviewAlreadyExists       = errors.New("a review already exists for this transaction by this author")
 
 	// Message errors
 	ErrConversationRequired   = errors.New("conversation is required for message")

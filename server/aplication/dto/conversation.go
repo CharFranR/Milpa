@@ -7,13 +7,14 @@ import (
 )
 
 type ConversationDTO struct {
-	ID         uuid.UUID `json:"id"`
-	FarmerID   uuid.UUID `json:"farmer_id"`
-	BuyerID    uuid.UUID `json:"buyer_id"`
-	OfferingID uuid.UUID `json:"offering_id"`
-	Visibility bool      `json:"visibility"`
-	Created_at time.Time `json:"created_at"`
-	Updated_at time.Time `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	FarmerID   uuid.UUID  `json:"farmer_id"`
+	BuyerID    uuid.UUID  `json:"buyer_id"`
+	OfferingID uuid.UUID  `json:"offering_id"`
+	MatchID    *uuid.UUID `json:"match_id,omitempty"`
+	Visibility bool       `json:"visibility"`
+	Created_at time.Time  `json:"created_at"`
+	Updated_at time.Time  `json:"updated_at"`
 }
 
 type CreateWSConversation struct {

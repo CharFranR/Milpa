@@ -11,12 +11,13 @@ type Conversation struct {
 	FarmerID   uuid.UUID
 	BuyerID    uuid.UUID
 	OfferingID uuid.UUID
+	MatchID    *uuid.UUID
 	Visibility bool
 	Created_at time.Time
 	Updated_at time.Time
 }
 
-func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, now time.Time) (*Conversation, error) {
+func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, matchID *uuid.UUID, now time.Time) (*Conversation, error) {
 	if FamerID == uuid.Nil {
 		return nil, ErrFarmerConversationRequired
 	}
@@ -25,8 +26,8 @@ func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, 
 		return nil, ErrBuyerConversationRequired
 	}
 
-	if OfferingID == uuid.Nil {
-		return nil, ErrOfferingconversationRequied
+	if OfferingID == uuid.Nil && (matchID == nil || *matchID == uuid.Nil) {
+		return nil, ErrConversationTargetRequired
 	}
 
 	return &Conversation{
@@ -34,6 +35,7 @@ func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, 
 		FarmerID:   FamerID,
 		BuyerID:    BuyerID,
 		OfferingID: OfferingID,
+		MatchID:    matchID,
 		Visibility: true,
 		Created_at: now,
 		Updated_at: now,

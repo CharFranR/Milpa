@@ -25,7 +25,7 @@ func TestReviewCacheInvalidatesTheAggregate(t *testing.T) {
 	}{
 		{
 			name: "a company review evicts the company's list and average",
-			req:  dto.CreateReviewRequest{CompanyID: testCompanyID, Rating: 4},
+			req:  dto.CreateReviewRequest{CompanyID: testCompanyID, Rating: 4, TransactionID: txTestTransactID},
 			wantKeys: []string{
 				"reviews:byuser:" + testUserID.String(),
 				"reviews:bycompany:" + testCompanyID.String(),
@@ -34,7 +34,7 @@ func TestReviewCacheInvalidatesTheAggregate(t *testing.T) {
 		},
 		{
 			name: "a user review evicts the farmer's average, not a company's list",
-			req:  dto.CreateReviewRequest{TargetType: "user", TargetID: testOtherID, Rating: 4},
+			req:  dto.CreateReviewRequest{TargetType: "user", TargetID: testOtherID, Rating: 4, TransactionID: txTestTransactID},
 			wantKeys: []string{
 				"reviews:byuser:" + testUserID.String(),
 				"reviews:avg:user:" + testOtherID.String(),
@@ -50,7 +50,7 @@ func TestReviewCacheInvalidatesTheAggregate(t *testing.T) {
 			t.Parallel()
 
 			cache := newFakeCache()
-			uc := usecases.NewCachedReviewUseCase(usecases.NewReviewUseCase(newFakeReviewRepo(), newFakeTimer()), cache)
+			uc := usecases.NewCachedReviewUseCase(newTestReviewUC(newFakeReviewRepo()), cache)
 
 			if _, err := uc.CreateReview(principalCtx(), tt.req); err != nil {
 				t.Fatalf("CreateReview() error: %v", err)
@@ -76,7 +76,7 @@ func TestReviewCacheReadsTheAggregateThroughItself(t *testing.T) {
 	t.Parallel()
 
 	cache := newFakeCache()
-	uc := usecases.NewCachedReviewUseCase(usecases.NewReviewUseCase(newFakeReviewRepo(), newFakeTimer()), cache)
+	uc := usecases.NewCachedReviewUseCase(newTestReviewUC(newFakeReviewRepo()), cache)
 
 	got, err := uc.GetAverageRating(context.Background(), domain.ReviewTargetCompany, testCompanyID)
 	if err != nil {

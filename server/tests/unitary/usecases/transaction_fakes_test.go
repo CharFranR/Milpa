@@ -362,10 +362,11 @@ func (f *fakeTxOfferRepo) LockByIDForUpdate(ctx context.Context, supplyOfferID u
 // tx-scoped ports, so no adapter type is needed.
 func (f *txFixture) newTxScope() port.TxScope {
 	return port.TxScope{
-		Requests:     f.requestRepo,
-		Offers:       f.offerRepo,
-		Matches:      f.matchRepo,
-		Transactions: f.transactionRepo,
+		Requests:      f.requestRepo,
+		Offers:        f.offerRepo,
+		Matches:       f.matchRepo,
+		Transactions:  f.transactionRepo,
+		Conversations: newFakeConversationRepo(),
 	}
 }
 

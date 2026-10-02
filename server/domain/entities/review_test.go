@@ -16,31 +16,33 @@ func TestNewReview(t *testing.T) {
 	companyID := uuid.New()
 
 	tests := []struct {
-		name       string
-		authorID   uuid.UUID
-		targetType ReviewTargetType
-		targetID   uuid.UUID
-		companyID  uuid.UUID
-		rating     int
-		comment    string
-		wantErr    error
+		name          string
+		authorID      uuid.UUID
+		targetType    ReviewTargetType
+		targetID      uuid.UUID
+		companyID     uuid.UUID
+		rating        int
+		comment       string
+		transactionID uuid.UUID
+		wantErr       error
 	}{
-		{name: "happy path lower boundary", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 1, comment: "Bad"},
-		{name: "happy path upper boundary", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 5, comment: "Great"},
-		{name: "rating below range", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 0, wantErr: ErrInvalidRating},
-		{name: "rating above range", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 6, wantErr: ErrInvalidRating},
-		{name: "no author", authorID: uuid.Nil, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 4, wantErr: ErrAuthorRequired},
-		{name: "unknown target type", authorID: authorID, targetType: "transaction", targetID: companyID, rating: 4, wantErr: ErrInvalidReviewTargetType},
-		{name: "no target", authorID: authorID, targetType: ReviewTargetUser, rating: 4, wantErr: ErrTargetRequired},
-		{name: "self rating", authorID: authorID, targetType: ReviewTargetUser, targetID: authorID, rating: 5, wantErr: ErrSelfReview},
-		{name: "company mirror does not match target", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: uuid.New(), rating: 4, wantErr: ErrReviewTargetMismatch},
+		{name: "happy path lower boundary", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 1, comment: "Bad", transactionID: uuid.New()},
+		{name: "happy path upper boundary", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 5, comment: "Great", transactionID: uuid.New()},
+		{name: "rating below range", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 0, transactionID: uuid.New(), wantErr: ErrInvalidRating},
+		{name: "rating above range", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 6, transactionID: uuid.New(), wantErr: ErrInvalidRating},
+		{name: "no author", authorID: uuid.Nil, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 4, transactionID: uuid.New(), wantErr: ErrAuthorRequired},
+		{name: "no transaction", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: companyID, rating: 4, wantErr: ErrTransactionRequired},
+		{name: "unknown target type", authorID: authorID, targetType: "transaction", targetID: companyID, rating: 4, transactionID: uuid.New(), wantErr: ErrInvalidReviewTargetType},
+		{name: "no target", authorID: authorID, targetType: ReviewTargetUser, rating: 4, transactionID: uuid.New(), wantErr: ErrTargetRequired},
+		{name: "self rating", authorID: authorID, targetType: ReviewTargetUser, targetID: authorID, rating: 5, transactionID: uuid.New(), wantErr: ErrSelfReview},
+		{name: "company mirror does not match target", authorID: authorID, targetType: ReviewTargetCompany, targetID: companyID, companyID: uuid.New(), rating: 4, transactionID: uuid.New(), wantErr: ErrReviewTargetMismatch},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			review, err := NewReview(tt.authorID, tt.targetType, tt.targetID, tt.companyID, tt.rating, tt.comment, now)
+			review, err := NewReview(tt.authorID, tt.targetType, tt.targetID, tt.companyID, tt.rating, tt.comment, now, tt.transactionID)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -90,7 +92,7 @@ func TestNewReview(t *testing.T) {
 func TestNewReviewUserTargetDropsTheCompanyMirror(t *testing.T) {
 	t.Parallel()
 
-	review, err := NewReview(uuid.New(), ReviewTargetUser, uuid.New(), uuid.New(), 4, "Reliable delivery", time.Now())
+	review, err := NewReview(uuid.New(), ReviewTargetUser, uuid.New(), uuid.New(), 4, "Reliable delivery", time.Now(), uuid.New())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

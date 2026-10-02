@@ -193,16 +193,16 @@ func TestConversationList(t *testing.T) {
 		ExpectedTotal int
 	}{
 		{
-			Name:          "Buyer sees only visible conversations where they are the buyer",
+			Name:          "Buyer sees conversations where they are the buyer or the farmer",
 			UserID:        testConversationBuyerID,
-			ExpectedIDs:   []uuid.UUID{testConversationID},
-			ExpectedTotal: 1,
+			ExpectedIDs:   []uuid.UUID{testConversationID, testConversationID2},
+			ExpectedTotal: 2,
 		},
 		{
-			Name:          "Farmer of the conversations does not appear in the buyer list",
+			Name:          "Farmer sees conversations where they are the farmer",
 			UserID:        testConversationFarmerID,
-			ExpectedIDs:   nil,
-			ExpectedTotal: 0,
+			ExpectedIDs:   []uuid.UUID{testConversationID, testConversationID4},
+			ExpectedTotal: 2,
 		},
 		{
 			Name:          "Other buyer sees both of their conversations including the shared farmer one",

@@ -48,9 +48,10 @@ func (u *unitOfWork) rollback(ctx context.Context, tx pgx.Tx) {
 
 func newTxScope(tx pgx.Tx) port.TxScope {
 	return port.TxScope{
-		Requests:     &SupplyRequestRepositoryImpl{pool: tx},
-		Offers:       &SupplyOfferRepositoryImpl{db: tx},
-		Matches:      &MatchRepositoryImpl{db: tx},
-		Transactions: &TransactionRepositoryImpl{db: tx},
+		Requests:      &SupplyRequestRepositoryImpl{pool: tx},
+		Offers:        &SupplyOfferRepositoryImpl{db: tx},
+		Matches:       &MatchRepositoryImpl{db: tx},
+		Transactions:  &TransactionRepositoryImpl{db: tx},
+		Conversations: &ConversationRepositoyImpl{pool: tx},
 	}
 }

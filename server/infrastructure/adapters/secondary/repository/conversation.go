@@ -25,11 +25,11 @@ func NewConverationImpl(pool DB) *ConversationRepositoyImpl {
 func (r *ConversationRepositoyImpl) Save(ctx context.Context, conversation *domain.Conversation) error {
 
 	query := `
-				INSERT INTO conversations (id, buyer_id, farmer_id, offering_id, visibility, created_at, updated_at)
-				VALUES($1, $2, $3, $4, $5, $6, $7)
+			INSERT INTO conversations (id, buyer_id, farmer_id, offering_id, match_id, visibility, created_at, updated_at)
+			VALUES($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err := r.pool.Exec(ctx, query, conversation.ID, conversation.BuyerID, conversation.FarmerID, conversation.OfferingID, conversation.Visibility, conversation.Created_at, conversation.Updated_at)
+	_, err := r.pool.Exec(ctx, query, conversation.ID, conversation.BuyerID, conversation.FarmerID, nullUUID(conversation.OfferingID), conversation.MatchID, conversation.Visibility, conversation.Created_at, conversation.Updated_at)
 
 	if err != nil {
 		return fmt.Errorf("Conversation.Save: %w", err)
@@ -45,9 +45,9 @@ func (r *ConversationRepositoyImpl) List(ctx context.Context, userID uuid.UUID) 
 	}
 
 	query := `
-		SELECT id, buyer_id, farmer_id, offering_id, visibility, created_at, updated_at
+		SELECT id, buyer_id, farmer_id, offering_id, match_id, visibility, created_at, updated_at
 		FROM conversations
-		WHERE visibility = True AND buyer_id = $1
+		WHERE visibility = True AND (buyer_id = $1 OR farmer_id = $1)
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -62,10 +62,15 @@ func (r *ConversationRepositoyImpl) List(ctx context.Context, userID uuid.UUID) 
 	for rows.Next() {
 
 		var conversation domain.Conversation
+		var offeringID, matchID *uuid.UUID
 
-		if err = rows.Scan(&conversation.ID, &conversation.BuyerID, &conversation.FarmerID, &conversation.OfferingID, &conversation.Visibility, &conversation.Created_at, &conversation.Updated_at); err != nil {
+		if err = rows.Scan(&conversation.ID, &conversation.BuyerID, &conversation.FarmerID, &offeringID, &matchID, &conversation.Visibility, &conversation.Created_at, &conversation.Updated_at); err != nil {
 			return nil, fmt.Errorf("Conversation.List: %w", err)
 		}
+		if offeringID != nil {
+			conversation.OfferingID = *offeringID
+		}
+		conversation.MatchID = matchID
 
 		conversations = append(conversations, conversation)
 	}
@@ -120,16 +125,21 @@ func (r *ConversationRepositoyImpl) ListMessage(ctx context.Context, conversasti
 func (r *ConversationRepositoyImpl) GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
 
 	query := `
-		SELECT id, buyer_id, farmer_id, offering_id, visibility, created_at, updated_at
+		SELECT id, buyer_id, farmer_id, offering_id, match_id, visibility, created_at, updated_at
 		FROM conversations
 		WHERE id = $1
 	`
 
 	var conversation domain.Conversation
+	var offeringID, matchID *uuid.UUID
 	err := r.pool.QueryRow(ctx, query, id).Scan(
-		&conversation.ID, &conversation.BuyerID, &conversation.FarmerID, &conversation.OfferingID,
+		&conversation.ID, &conversation.BuyerID, &conversation.FarmerID, &offeringID, &matchID,
 		&conversation.Visibility, &conversation.Created_at, &conversation.Updated_at,
 	)
+	if offeringID != nil {
+		conversation.OfferingID = *offeringID
+	}
+	conversation.MatchID = matchID
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -23,21 +23,25 @@ func ValidReviewTargetType(t ReviewTargetType) bool {
 }
 
 type Review struct {
-	ID         uuid.UUID
-	AuthorID   uuid.UUID
-	TargetType ReviewTargetType
-	TargetID   uuid.UUID
-	CompanyID  uuid.UUID
-	Rating     int
-	Comment    string
-	CreatedAt  time.Time
+	ID            uuid.UUID
+	AuthorID      uuid.UUID
+	TargetType    ReviewTargetType
+	TargetID      uuid.UUID
+	CompanyID     uuid.UUID
+	Rating        int
+	Comment       string
+	CreatedAt     time.Time
+	TransactionID uuid.UUID
 }
 
 func NewReview(
-	authorID uuid.UUID, targetType ReviewTargetType, targetID, companyID uuid.UUID, rating int, comment string, now time.Time,
+	authorID uuid.UUID, targetType ReviewTargetType, targetID, companyID uuid.UUID, rating int, comment string, now time.Time, transactionID uuid.UUID,
 ) (*Review, error) {
 	if authorID == uuid.Nil {
 		return nil, ErrAuthorRequired
+	}
+	if transactionID == uuid.Nil {
+		return nil, ErrTransactionRequired
 	}
 	if targetType != ReviewTargetCompany && targetType != ReviewTargetUser {
 		return nil, ErrInvalidReviewTargetType
@@ -60,13 +64,14 @@ func NewReview(
 	}
 
 	return &Review{
-		ID:         uuid.New(),
-		AuthorID:   authorID,
-		TargetType: targetType,
-		TargetID:   targetID,
-		CompanyID:  companyID,
-		Rating:     rating,
-		Comment:    comment,
-		CreatedAt:  now,
+		ID:            uuid.New(),
+		AuthorID:      authorID,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		CompanyID:     companyID,
+		Rating:        rating,
+		Comment:       comment,
+		CreatedAt:     now,
+		TransactionID: transactionID,
 	}, nil
 }

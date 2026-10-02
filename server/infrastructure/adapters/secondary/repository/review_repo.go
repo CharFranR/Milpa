@@ -10,7 +10,7 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-const reviewColumns = `id, author_id, target_type, target_id, company_id, rating, comment, created_at`
+const reviewColumns = `id, author_id, target_type, target_id, company_id, rating, comment, created_at, transaction_id`
 
 func scanReview(scan func(dest ...any) error) (domain.Review, error) {
 	var review domain.Review
@@ -18,7 +18,7 @@ func scanReview(scan func(dest ...any) error) (domain.Review, error) {
 
 	err := scan(
 		&review.ID, &review.AuthorID, &review.TargetType, &review.TargetID, &companyID,
-		&review.Rating, &review.Comment, &review.CreatedAt,
+		&review.Rating, &review.Comment, &review.CreatedAt, &review.TransactionID,
 	)
 	if err != nil {
 		return domain.Review{}, err
@@ -115,17 +115,29 @@ func (r *ReviewRepositoryImpl) AverageRating(ctx context.Context, targetType dom
 
 func (r *ReviewRepositoryImpl) Save(ctx context.Context, review *domain.Review) error {
 	query := `
-		INSERT INTO reviews (id, author_id, target_type, target_id, company_id, rating, comment, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO reviews (id, author_id, target_type, target_id, company_id, rating, comment, created_at, transaction_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	_, err := r.pool.Exec(ctx, query,
 		review.ID, review.AuthorID, review.TargetType, review.TargetID, nullUUID(review.CompanyID),
-		review.Rating, review.Comment, review.CreatedAt,
+		review.Rating, review.Comment, review.CreatedAt, review.TransactionID,
 	)
 	if err != nil {
 		return fmt.Errorf("review.Save: %w", err)
 	}
 	return nil
+}
+
+func (r *ReviewRepositoryImpl) ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM reviews WHERE transaction_id = $1 AND author_id = $2)`,
+		transactionID, authorID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("review.ExistsByTransactionAndAuthor: %w", err)
+	}
+	return exists, nil
 }
 
 var _ port.ReviewRepository = (*ReviewRepositoryImpl)(nil)
