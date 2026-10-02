@@ -56,7 +56,7 @@ func (uc *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req d
 
 	now := uc.timer.Now()
 
-	conversation, err := domain.NewConvesation(req.FarmerID, principal.UserID, req.OfferingID, now)
+	conversation, err := domain.NewConvesation(req.FarmerID, principal.UserID, req.OfferingID, nil, now)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +145,7 @@ func conversationToDTO(conversation *domain.Conversation) *dto.ConversationDTO {
 		FarmerID:   conversation.FarmerID,
 		BuyerID:    conversation.BuyerID,
 		OfferingID: conversation.OfferingID,
+		MatchID:    conversation.MatchID,
 		Visibility: conversation.Visibility,
 		Created_at: conversation.Created_at,
 		Updated_at: conversation.Updated_at,

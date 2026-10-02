@@ -34,8 +34,8 @@ func TestReviewFindByCompany(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "author_id", "target_type", "target_id", "company_id", "rating", "comment", "created_at"}).
-					AddRow(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt)
+				rows := pgxmock.NewRows([]string{"id", "author_id", "target_type", "target_id", "company_id", "rating", "comment", "created_at", "transaction_id"}).
+					AddRow(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt, review.TransactionID)
 				m.ExpectQuery("FROM reviews").WithArgs(companyID).WillReturnRows(rows)
 			},
 		},
@@ -93,8 +93,8 @@ func TestReviewFindByUser(t *testing.T) {
 		{
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
-				rows := pgxmock.NewRows([]string{"id", "author_id", "target_type", "target_id", "company_id", "rating", "comment", "created_at"}).
-					AddRow(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt)
+				rows := pgxmock.NewRows([]string{"id", "author_id", "target_type", "target_id", "company_id", "rating", "comment", "created_at", "transaction_id"}).
+					AddRow(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt, review.TransactionID)
 				m.ExpectQuery("FROM reviews").WithArgs(userID).WillReturnRows(rows)
 			},
 		},
@@ -153,7 +153,7 @@ func TestReviewSave(t *testing.T) {
 			name: "Happy path",
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO reviews").
-					WithArgs(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt).
+					WithArgs(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt, review.TransactionID).
 					WillReturnResult(pgxmock.NewResult("INSERT", 1))
 			},
 		},
@@ -162,7 +162,7 @@ func TestReviewSave(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectExec("INSERT INTO reviews").
-					WithArgs(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt).
+					WithArgs(review.ID, review.AuthorID, review.TargetType, review.TargetID, &review.CompanyID, review.Rating, review.Comment, review.CreatedAt, review.TransactionID).
 					WillReturnError(errors.New("exec failed"))
 			},
 		},

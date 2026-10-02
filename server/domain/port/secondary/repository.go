@@ -38,6 +38,7 @@ type ReviewRepository interface {
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
 	Save(ctx context.Context, review *domain.Review) error
 	AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
+	ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
 }
 
 type CategoryRepository interface {

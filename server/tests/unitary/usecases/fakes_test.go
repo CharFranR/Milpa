@@ -24,10 +24,11 @@ var (
 	testInquiryID  = uuid.MustParse("66666666-6666-6666-6666-666666666666")
 	testOtherID    = uuid.MustParse("77777777-7777-7777-7777-777777777777")
 
-	testConversationID  = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-	testMessageID       = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
-	testAddressID       = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
-	testUnitOfMeasureID = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	testConversationID      = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	testMessageID           = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	testAddressID           = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	testUnitOfMeasureID     = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	testReviewTransactionID = uuid.MustParse("ffffffff-ffff-4fff-8fff-ffffffffffff")
 )
 
 func principalCtx() context.Context {
@@ -135,7 +136,7 @@ func completeCatalogueRequest() dto.CreateOfferingRequest {
 }
 
 func mustReview() *domain.Review {
-	review, err := domain.NewReview(testUserID, domain.ReviewTargetCompany, testCompanyID, testCompanyID, 5, "Great quality", fixedTime)
+	review, err := domain.NewReview(testUserID, domain.ReviewTargetCompany, testCompanyID, testCompanyID, 5, "Great quality", fixedTime, testReviewTransactionID)
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +158,7 @@ func mustCategory() *domain.Category {
 }
 
 func mustConversation() *domain.Conversation {
-	conversation, err := domain.NewConvesation(testCompanyID, testUserID, testOfferingID, fixedTime)
+	conversation, err := domain.NewConvesation(testCompanyID, testUserID, testOfferingID, nil, fixedTime)
 	if err != nil {
 		panic(err)
 	}
@@ -347,12 +348,13 @@ func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 type fakeReviewRepo struct {
-	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
-	findByUser    func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
-	save          func(ctx context.Context, review *domain.Review) error
-	averageRating func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
-	saved         []*domain.Review
-	averageCalls  []uuid.UUID
+	findByCompany  func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
+	findByUser     func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	save           func(ctx context.Context, review *domain.Review) error
+	averageRating  func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
+	existsByTxAuth func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
+	saved          []*domain.Review
+	averageCalls   []uuid.UUID
 }
 
 func newFakeReviewRepo() *fakeReviewRepo {
@@ -371,7 +373,14 @@ func newFakeReviewRepo() *fakeReviewRepo {
 		f.averageCalls = append(f.averageCalls, targetID)
 		return 4.5, 2, nil
 	}
+	f.existsByTxAuth = func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+		return false, nil
+	}
 	return f
+}
+
+func (f *fakeReviewRepo) ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+	return f.existsByTxAuth(ctx, transactionID, authorID)
 }
 
 func (f *fakeReviewRepo) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {

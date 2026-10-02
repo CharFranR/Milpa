@@ -53,10 +53,11 @@ func matchTestInventory(quantity float64) domain.SupplierInventory {
 // tx-scoped ports, so no adapter type is needed.
 func (f *matchFixture) newTxScope() port.TxScope {
 	return port.TxScope{
-		Requests:     f.requests,
-		Offers:       f.offers,
-		Matches:      f.matches,
-		Transactions: f.txs,
+		Requests:      f.requests,
+		Offers:        f.offers,
+		Matches:       f.matches,
+		Transactions:  f.txs,
+		Conversations: f.convs,
 	}
 }
 

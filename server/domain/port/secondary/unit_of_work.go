@@ -36,11 +36,16 @@ type TxTransactionRepository interface {
 	LockByIDForUpdate(ctx context.Context, id uuid.UUID) (domain.Transaction, error)
 }
 
+type TxConversationRepository interface {
+	ConversationRepository
+}
+
 type TxScope struct {
-	Requests     RequestReservationStore
-	Offers       TxOfferRepository
-	Matches      TxMatchRepository
-	Transactions TxTransactionRepository
+	Requests      RequestReservationStore
+	Offers        TxOfferRepository
+	Matches       TxMatchRepository
+	Transactions  TxTransactionRepository
+	Conversations TxConversationRepository
 }
 
 type UnitOfWork interface {

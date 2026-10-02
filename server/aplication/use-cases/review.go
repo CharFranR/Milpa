@@ -13,14 +13,22 @@ import (
 )
 
 type ReviewUseCaseImpl struct {
-	reviewRepo port.ReviewRepository
-	timer      port.TimeProvider
+	reviewRepo        port.ReviewRepository
+	txRepo            port.TransactionRepository
+	matchRepo         port.MatchRepository
+	supplyOfferRepo   port.SupplyOfferRepository
+	supplyRequestRepo port.SupplyRequestRepository
+	timer             port.TimeProvider
 }
 
-func NewReviewUseCase(reviewRepo port.ReviewRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
+func NewReviewUseCase(reviewRepo port.ReviewRepository, txRepo port.TransactionRepository, matchRepo port.MatchRepository, supplyOfferRepo port.SupplyOfferRepository, supplyRequestRepo port.SupplyRequestRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
 	return &ReviewUseCaseImpl{
-		reviewRepo: reviewRepo,
-		timer:      timer,
+		reviewRepo:        reviewRepo,
+		txRepo:            txRepo,
+		matchRepo:         matchRepo,
+		supplyOfferRepo:   supplyOfferRepo,
+		supplyRequestRepo: supplyRequestRepo,
+		timer:             timer,
 	}
 }
 
@@ -30,7 +38,35 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 		return nil, err
 	}
 
-	now := uc.timer.Now()
+	if req.TransactionID == uuid.Nil {
+		return nil, domain.ErrTransactionRequired
+	}
+
+	transaction, err := uc.txRepo.GetByID(ctx, req.TransactionID)
+	if err != nil {
+		return nil, err
+	}
+	if transaction.Status != domain.TransactionCompleted {
+		return nil, domain.ErrTransactionNotCompleted
+	}
+
+	match, err := uc.matchRepo.GetByID(ctx, transaction.MatchID)
+	if err != nil {
+		return nil, err
+	}
+
+	offer, err := uc.supplyOfferRepo.GetByID(ctx, match.SupplyOffer)
+	if err != nil {
+		return nil, err
+	}
+	request, err := uc.supplyRequestRepo.GetByID(ctx, match.SupplyRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if principal.UserID != request.BuyerID && principal.UserID != offer.SupplierID {
+		return nil, domain.ErrForbidden
+	}
 
 	targetType, targetID, err := resolveReviewTarget(req)
 	if err != nil {
@@ -41,9 +77,29 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 		companyID = targetID
 	}
 
-	review, err := domain.NewReview(principal.UserID, targetType, targetID, companyID, req.Rating, req.Comment, now)
+	if targetType == domain.ReviewTargetUser {
+		other := offer.SupplierID
+		if principal.UserID == offer.SupplierID {
+			other = request.BuyerID
+		}
+		if targetID != other {
+			return nil, domain.ErrReviewTargetPartyMismatch
+		}
+	}
+
+	now := uc.timer.Now()
+
+	review, err := domain.NewReview(principal.UserID, targetType, targetID, companyID, req.Rating, req.Comment, now, req.TransactionID)
 	if err != nil {
 		return nil, err
+	}
+
+	exists, err := uc.reviewRepo.ExistsByTransactionAndAuthor(ctx, req.TransactionID, principal.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, domain.ErrReviewAlreadyExists
 	}
 
 	if err := uc.reviewRepo.Save(ctx, review); err != nil {
@@ -127,13 +183,14 @@ var _ primary.ReviewUseCase = (*ReviewUseCaseImpl)(nil)
 
 func reviewToDTO(review *domain.Review) *dto.ReviewDTO {
 	return &dto.ReviewDTO{
-		ID:         review.ID,
-		UserID:     review.AuthorID,
-		CompanyID:  review.CompanyID,
-		Rating:     review.Rating,
-		Comment:    review.Comment,
-		CreatedAt:  review.CreatedAt,
-		TargetType: string(review.TargetType),
-		TargetID:   review.TargetID,
+		ID:            review.ID,
+		UserID:        review.AuthorID,
+		CompanyID:     review.CompanyID,
+		Rating:        review.Rating,
+		Comment:       review.Comment,
+		CreatedAt:     review.CreatedAt,
+		TargetType:    string(review.TargetType),
+		TargetID:      review.TargetID,
+		TransactionID: review.TransactionID,
 	}
 }

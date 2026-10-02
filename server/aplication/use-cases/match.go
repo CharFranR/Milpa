@@ -112,6 +112,15 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 		if err := scope.Transactions.Create(ctx, createdTransaction); err != nil {
 			return err
 		}
+
+		conversation, err := domain.NewConvesation(offer.SupplierID, request.BuyerID, uuid.Nil, &createdMatch.ID, time.Now())
+		if err != nil {
+			return err
+		}
+		if err := scope.Conversations.Save(ctx, conversation); err != nil {
+			return err
+		}
+
 		if err := offer.MarkMatched(); err != nil {
 			return err
 		}

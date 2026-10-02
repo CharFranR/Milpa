@@ -74,6 +74,7 @@ func TestReviewSave(t *testing.T) {
 			Name: "Happy Path",
 			Review: &domain.Review{
 				ID:         testReviewID,
+				TransactionID: uuid.New(),
 				AuthorID:   testReviewUserID,
 				TargetType: domain.ReviewTargetCompany,
 				TargetID:   testReviewCompanyID,
@@ -87,6 +88,7 @@ func TestReviewSave(t *testing.T) {
 			Name: "Happy Path rating 1",
 			Review: &domain.Review{
 				ID:         testReviewID2,
+				TransactionID: uuid.New(),
 				AuthorID:   testReviewUserID2,
 				TargetType: domain.ReviewTargetCompany,
 				TargetID:   testReviewCompanyID,
@@ -124,6 +126,7 @@ func TestReviewFindByCompany(t *testing.T) {
 
 	review1 := &domain.Review{
 		ID:         testReviewID,
+		TransactionID: uuid.New(),
 		AuthorID:   testReviewUserID,
 		TargetType: domain.ReviewTargetCompany,
 		TargetID:   testReviewCompanyID,
@@ -134,6 +137,7 @@ func TestReviewFindByCompany(t *testing.T) {
 	}
 	review2 := &domain.Review{
 		ID:         testReviewID2,
+		TransactionID: uuid.New(),
 		AuthorID:   testReviewUserID2,
 		TargetType: domain.ReviewTargetCompany,
 		TargetID:   testReviewCompanyID,
@@ -213,6 +217,7 @@ func TestReviewFindByUser(t *testing.T) {
 
 	review := &domain.Review{
 		ID:         testReviewID,
+		TransactionID: uuid.New(),
 		AuthorID:   testReviewUserID,
 		TargetType: domain.ReviewTargetCompany,
 		TargetID:   testReviewCompanyID,
@@ -280,7 +285,7 @@ func TestReviewSaveUserTarget(t *testing.T) {
 	db := repository.NewReviewRepository(TestPool)
 	ctx := context.Background()
 
-	saved, err := domain.NewReview(testReviewUserID, domain.ReviewTargetUser, testReviewFarmerID, uuid.Nil, 4, "Reliable delivery", fixedTime)
+	saved, err := domain.NewReview(testReviewUserID, domain.ReviewTargetUser, testReviewFarmerID, uuid.Nil, 4, "Reliable delivery", fixedTime, uuid.New())
 	if err != nil {
 		t.Fatalf("NewReview() error: %v", err)
 	}
@@ -330,6 +335,7 @@ func TestReviewCompanyMirrorIsEnforcedInStorage(t *testing.T) {
 
 	err := db.Save(context.Background(), &domain.Review{
 		ID:         testReviewID,
+		TransactionID: uuid.New(),
 		AuthorID:   testReviewUserID,
 		TargetType: domain.ReviewTargetCompany,
 		TargetID:   testReviewCompanyID,
@@ -351,7 +357,7 @@ func TestReviewOnePerAuthorPerTarget(t *testing.T) {
 	ctx := context.Background()
 
 	first := &domain.Review{
-		ID: testReviewID, AuthorID: testReviewUserID, TargetType: domain.ReviewTargetCompany,
+		ID: testReviewID, TransactionID: uuid.New(), AuthorID: testReviewUserID, TargetType: domain.ReviewTargetCompany,
 		TargetID: testReviewCompanyID, CompanyID: testReviewCompanyID, Rating: 1, Comment: "first", CreatedAt: fixedTime,
 	}
 	if err := db.Save(ctx, first); err != nil {
@@ -371,6 +377,7 @@ func TestReviewOnePerAuthorPerTarget(t *testing.T) {
 	// point of keying on the triple and not on the company.
 	other := first
 	other.ID = uuid.New()
+	other.TransactionID = uuid.New()
 	other.TargetID = testReviewFarmerID
 	other.TargetType = domain.ReviewTargetUser
 	other.CompanyID = uuid.Nil
@@ -386,8 +393,8 @@ func TestReviewAverageRating(t *testing.T) {
 	ctx := context.Background()
 
 	for _, r := range []*domain.Review{
-		{ID: testReviewID, AuthorID: testReviewUserID, TargetType: domain.ReviewTargetCompany, TargetID: testReviewCompanyID, CompanyID: testReviewCompanyID, Rating: 5, Comment: "a", CreatedAt: fixedTime},
-		{ID: testReviewID2, AuthorID: testReviewUserID2, TargetType: domain.ReviewTargetCompany, TargetID: testReviewCompanyID, CompanyID: testReviewCompanyID, Rating: 4, Comment: "b", CreatedAt: fixedTime.Add(time.Minute)},
+		{ID: testReviewID, TransactionID: uuid.New(), AuthorID: testReviewUserID, TargetType: domain.ReviewTargetCompany, TargetID: testReviewCompanyID, CompanyID: testReviewCompanyID, Rating: 5, Comment: "a", CreatedAt: fixedTime},
+		{ID: testReviewID2, TransactionID: uuid.New(), AuthorID: testReviewUserID2, TargetType: domain.ReviewTargetCompany, TargetID: testReviewCompanyID, CompanyID: testReviewCompanyID, Rating: 4, Comment: "b", CreatedAt: fixedTime.Add(time.Minute)},
 	} {
 		if err := db.Save(ctx, r); err != nil {
 			t.Fatalf("Save() review: %v", err)
