@@ -110,7 +110,7 @@ func main() {
 	var companyUC primary.CompanyUseCase = usecases.NewCompanyUseCase(companyRepo, userRepo, categoryRepo, clock)
 	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, transactionRepo, matchRepo, supplyOfferRepo, supplyRequestRepo, companyRepo, clock)
 	var categoryUC primary.CategoryUseCase = usecases.NewCategoryUseCase(categoryRepo)
-	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, clock)
+	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, offeringRepo, clock)
 	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
 
 	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, searchUC.(port.Invalidator))
