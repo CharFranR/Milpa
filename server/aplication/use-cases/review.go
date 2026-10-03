@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -18,16 +19,18 @@ type ReviewUseCaseImpl struct {
 	matchRepo         port.MatchRepository
 	supplyOfferRepo   port.SupplyOfferRepository
 	supplyRequestRepo port.SupplyRequestRepository
+	companyRepo       port.CompanyRepository
 	timer             port.TimeProvider
 }
 
-func NewReviewUseCase(reviewRepo port.ReviewRepository, txRepo port.TransactionRepository, matchRepo port.MatchRepository, supplyOfferRepo port.SupplyOfferRepository, supplyRequestRepo port.SupplyRequestRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
+func NewReviewUseCase(reviewRepo port.ReviewRepository, txRepo port.TransactionRepository, matchRepo port.MatchRepository, supplyOfferRepo port.SupplyOfferRepository, supplyRequestRepo port.SupplyRequestRepository, companyRepo port.CompanyRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
 	return &ReviewUseCaseImpl{
 		reviewRepo:        reviewRepo,
 		txRepo:            txRepo,
 		matchRepo:         matchRepo,
 		supplyOfferRepo:   supplyOfferRepo,
 		supplyRequestRepo: supplyRequestRepo,
+		companyRepo:       companyRepo,
 		timer:             timer,
 	}
 }
@@ -77,13 +80,19 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 		companyID = targetID
 	}
 
-	if targetType == domain.ReviewTargetUser {
-		other := offer.SupplierID
-		if principal.UserID == offer.SupplierID {
-			other = request.BuyerID
-		}
+	other := offer.SupplierID
+	if principal.UserID == offer.SupplierID {
+		other = request.BuyerID
+	}
+
+	switch targetType {
+	case domain.ReviewTargetUser:
 		if targetID != other {
 			return nil, domain.ErrReviewTargetPartyMismatch
+		}
+	case domain.ReviewTargetCompany:
+		if err := uc.checkCompanyTarget(ctx, principal.UserID, other, targetID); err != nil {
+			return nil, err
 		}
 	}
 
@@ -107,6 +116,32 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 	}
 
 	return reviewToDTO(review), nil
+}
+
+// checkCompanyTarget pins a company review to the counterparty's company: the
+// target has to be a company owned by the other party of the transaction, and
+// never one of the author's own companies, which would be reviewing themselves
+// through the company mirror. A counterparty without a company lands on the
+// same error as a wrong target so the reply never reveals whether the other
+// party has a company at all.
+func (uc *ReviewUseCaseImpl) checkCompanyTarget(ctx context.Context, authorID, otherID, targetID uuid.UUID) error {
+	companies, err := uc.companyRepo.FindByOwner(ctx, otherID)
+	if err != nil {
+		return err
+	}
+	if !slices.ContainsFunc(companies, func(company domain.Company) bool { return company.ID == targetID }) {
+		return domain.ErrReviewTargetPartyMismatch
+	}
+
+	authorCompanies, err := uc.companyRepo.FindByOwner(ctx, authorID)
+	if err != nil {
+		return err
+	}
+	if slices.ContainsFunc(authorCompanies, func(company domain.Company) bool { return company.ID == targetID }) {
+		return domain.ErrReviewTargetPartyMismatch
+	}
+
+	return nil
 }
 
 func resolveReviewTarget(req dto.CreateReviewRequest) (domain.ReviewTargetType, uuid.UUID, error) {

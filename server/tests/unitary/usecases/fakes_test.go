@@ -29,6 +29,8 @@ var (
 	testAddressID           = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	testUnitOfMeasureID     = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 	testReviewTransactionID = uuid.MustParse("ffffffff-ffff-4fff-8fff-ffffffffffff")
+
+	testOtherCompanyID = uuid.MustParse("99999999-9999-4999-8999-999999999999")
 )
 
 func principalCtx() context.Context {
@@ -278,7 +280,18 @@ func newFakeCompanyRepo() *fakeCompanyRepo {
 		return company, nil
 	}
 	f.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
-		return []domain.Company{*mustCompany()}, nil
+		company := mustCompany()
+		company.Owner = domain.User{ID: ownerID}
+		switch ownerID {
+		case testUserID:
+			return []domain.Company{*company}, nil
+		case testOtherID:
+			company.ID = testOtherCompanyID
+			company.Name = "Finca La Esperanza"
+			return []domain.Company{*company}, nil
+		default:
+			return nil, nil
+		}
 	}
 	f.save = func(ctx context.Context, company *domain.Company) error {
 		f.saved = append(f.saved, company)

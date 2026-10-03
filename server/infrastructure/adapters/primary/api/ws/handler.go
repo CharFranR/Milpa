@@ -3,6 +3,7 @@ package ws
 import (
 	"log"
 	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
 	"milpa/infrastructure/adapters/primary/api/httpx"
 	"milpa/internal/auth"
@@ -41,9 +42,14 @@ var upgrader = websocket.Upgrader{
 
 func (h *Handler) WSHandler(w http.ResponseWriter, r *http.Request) {
 
-	_, err := auth.RequirePrincipal(r.Context())
+	principal, err := auth.RequirePrincipal(r.Context())
 	if err != nil {
 		httpx.RespondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if principal.Role == domain.RoleAuditor {
+		httpx.RespondError(w, http.StatusForbidden, "an auditor has read-only access")
 		return
 	}
 

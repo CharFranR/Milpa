@@ -108,7 +108,7 @@ func main() {
 
 	var userUC primary.UserUseCase = usecases.NewUserUseCase(userRepo, hasher, jwtProvider, clock)
 	var companyUC primary.CompanyUseCase = usecases.NewCompanyUseCase(companyRepo, userRepo, categoryRepo, clock)
-	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, transactionRepo, matchRepo, supplyOfferRepo, supplyRequestRepo, clock)
+	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, transactionRepo, matchRepo, supplyOfferRepo, supplyRequestRepo, companyRepo, clock)
 	var categoryUC primary.CategoryUseCase = usecases.NewCategoryUseCase(categoryRepo)
 	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, clock)
 	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)

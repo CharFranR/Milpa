@@ -37,10 +37,14 @@ func (s *stubConversationUC) DeleteConversation(ctx context.Context, id uuid.UUI
 }
 
 func wsRequest(t *testing.T, conversationID string) *http.Request {
+	return wsRequestWithRole(t, conversationID, domain.RolePending)
+}
+
+func wsRequestWithRole(t *testing.T, conversationID string, role domain.RoleOptions) *http.Request {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws/"+conversationID, nil)
-	req = req.WithContext(auth.WithPrincipal(req.Context(), auth.Principal{UserID: uuid.New()}))
+	req = req.WithContext(auth.WithPrincipal(req.Context(), auth.Principal{UserID: uuid.New(), Role: role}))
 
 	if conversationID != "" {
 		routeCtx := chi.NewRouteContext()
@@ -88,5 +92,40 @@ func TestWSHandlerAuthorizationStatusCodes(t *testing.T) {
 				t.Fatalf("use case received id %v, want %v", uc.gotID, tt.conversationID)
 			}
 		})
+	}
+}
+
+// An auditor is read-only: the WebSocket is a write channel, so the handler
+// refuses the upgrade before it parses the conversation or looks it up.
+func TestWSHandlerRefusesAuditor(t *testing.T) {
+	t.Parallel()
+
+	uc := &stubConversationUC{}
+	h := NewHandler(NewHub(), nil, uc)
+	rr := httptest.NewRecorder()
+
+	h.WSHandler(rr, wsRequestWithRole(t, uuid.NewString(), domain.RoleAuditor))
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body = %s", rr.Code, http.StatusForbidden, rr.Body.String())
+	}
+	if uc.gotID != uuid.Nil {
+		t.Fatalf("auditor reached the conversation use case with id %v", uc.gotID)
+	}
+}
+
+// A non-auditor gets past the role gate and on to the conversation id parse,
+// which is where the 400 in the table above comes from.
+func TestWSHandlerPassesNonAuditorPastTheRoleGate(t *testing.T) {
+	t.Parallel()
+
+	uc := &stubConversationUC{}
+	h := NewHandler(NewHub(), nil, uc)
+	rr := httptest.NewRecorder()
+
+	h.WSHandler(rr, wsRequestWithRole(t, "nope", domain.RoleAgricultor))
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body = %s", rr.Code, http.StatusBadRequest, rr.Body.String())
 	}
 }

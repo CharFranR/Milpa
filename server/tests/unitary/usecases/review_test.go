@@ -14,8 +14,13 @@ import (
 )
 
 // newTestReviewUC wires a review use case whose transaction is completed,
-// whose buyer is testUserID and whose supplier is testOtherID.
+// whose buyer is testUserID and whose supplier is testOtherID. The supplier
+// owns testOtherCompanyID, so a company review can only target that one.
 func newTestReviewUC(reviewRepo *fakeReviewRepo) *usecases.ReviewUseCaseImpl {
+	return newTestReviewUCWithCompany(reviewRepo, newFakeCompanyRepo())
+}
+
+func newTestReviewUCWithCompany(reviewRepo *fakeReviewRepo, companyRepo *fakeCompanyRepo) *usecases.ReviewUseCaseImpl {
 	txRepo := newFakeTxTransactionRepo()
 	txRepo.stored.Status = domain.TransactionCompleted
 	matchRepo := newFakeTxMatchRepo()
@@ -23,7 +28,7 @@ func newTestReviewUC(reviewRepo *fakeReviewRepo) *usecases.ReviewUseCaseImpl {
 	offerRepo.stored.SupplierID = testOtherID
 	requestRepo := newFakeTxRequestRepo()
 	requestRepo.stored.BuyerID = testUserID
-	return usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, newFakeTimer())
+	return usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, companyRepo, newFakeTimer())
 }
 
 func TestReviewUseCaseCreateReview(t *testing.T) {
@@ -40,11 +45,11 @@ func TestReviewUseCaseCreateReview(t *testing.T) {
 		saveErr    error
 		wantErr    error
 	}{
-		{name: "happy path", ctx: principalCtx(), companyID: testCompanyID, rating: 5, comment: "Great quality"},
+		{name: "happy path", ctx: principalCtx(), companyID: testOtherCompanyID, rating: 5, comment: "Great quality"},
 		{name: "unauthenticated", ctx: context.Background(), companyID: testCompanyID, rating: 5, wantErr: auth.ErrUnauthenticated},
-		{name: "rating too low", ctx: principalCtx(), companyID: testCompanyID, rating: 0, wantErr: domain.ErrInvalidRating},
-		{name: "rating too high", ctx: principalCtx(), companyID: testCompanyID, rating: 6, wantErr: domain.ErrInvalidRating},
-		{name: "save error", ctx: principalCtx(), companyID: testCompanyID, rating: 5, saveErr: errFake, wantErr: errFake},
+		{name: "rating too low", ctx: principalCtx(), companyID: testOtherCompanyID, rating: 0, wantErr: domain.ErrInvalidRating},
+		{name: "rating too high", ctx: principalCtx(), companyID: testOtherCompanyID, rating: 6, wantErr: domain.ErrInvalidRating},
+		{name: "save error", ctx: principalCtx(), companyID: testOtherCompanyID, rating: 5, saveErr: errFake, wantErr: errFake},
 		{name: "no target at all", ctx: principalCtx(), rating: 4, wantErr: domain.ErrTargetRequired},
 		{
 			name: "company and target together is ambiguous", ctx: principalCtx(), companyID: testCompanyID,
@@ -135,17 +140,17 @@ func TestReviewUseCaseCreateReviewTargets(t *testing.T) {
 	}{
 		{
 			name:        "company_id is the company target",
-			req:         dto.CreateReviewRequest{CompanyID: testCompanyID, Rating: 4, TransactionID: txTestTransactID},
+			req:         dto.CreateReviewRequest{CompanyID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID},
 			wantType:    domain.ReviewTargetCompany,
-			wantTarget:  testCompanyID,
-			wantCompany: testCompanyID,
+			wantTarget:  testOtherCompanyID,
+			wantCompany: testOtherCompanyID,
 		},
 		{
 			name:        "explicit company target mirrors the company",
-			req:         dto.CreateReviewRequest{TargetType: "company", TargetID: testCompanyID, Rating: 4, TransactionID: txTestTransactID},
+			req:         dto.CreateReviewRequest{TargetType: "company", TargetID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID},
 			wantType:    domain.ReviewTargetCompany,
-			wantTarget:  testCompanyID,
-			wantCompany: testCompanyID,
+			wantTarget:  testOtherCompanyID,
+			wantCompany: testOtherCompanyID,
 		},
 		{
 			name:       "a user target carries no company",
@@ -195,6 +200,108 @@ func TestReviewUseCaseCreateReviewTargets(t *testing.T) {
 	}
 }
 
+// TestReviewUseCaseCreateReviewCompanyTarget pins the C2 guard: a company
+// review is a claim about the counterparty, so the target has to be a company
+// owned by the other party of the transaction and never the author's own.
+func TestReviewUseCaseCreateReviewCompanyTarget(t *testing.T) {
+	t.Parallel()
+
+	unrelatedCompanyID := uuid.MustParse("12121212-1212-4212-8212-121212121212")
+
+	t.Run("the counterparty's company is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		reviewRepo := newFakeReviewRepo()
+		uc := newTestReviewUC(reviewRepo)
+
+		got, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
+			TargetType: "company", TargetID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.TargetID != testOtherCompanyID || got.CompanyID != testOtherCompanyID {
+			t.Errorf("target/company = %v/%v, want %v", got.TargetID, got.CompanyID, testOtherCompanyID)
+		}
+		if len(reviewRepo.saved) != 1 {
+			t.Fatalf("saved reviews = %d, want 1", len(reviewRepo.saved))
+		}
+	})
+
+	t.Run("a company unrelated to the transaction is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		reviewRepo := newFakeReviewRepo()
+		uc := newTestReviewUC(reviewRepo)
+
+		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
+			TargetType: "company", TargetID: unrelatedCompanyID, Rating: 4, TransactionID: txTestTransactID,
+		})
+		if !errors.Is(err, domain.ErrReviewTargetPartyMismatch) {
+			t.Fatalf("error = %v, want %v", err, domain.ErrReviewTargetPartyMismatch)
+		}
+		if len(reviewRepo.saved) != 0 {
+			t.Fatalf("saved reviews = %d, want 0", len(reviewRepo.saved))
+		}
+	})
+
+	t.Run("the author's own company is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		reviewRepo := newFakeReviewRepo()
+		uc := newTestReviewUC(reviewRepo)
+
+		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
+			CompanyID: testCompanyID, Rating: 4, TransactionID: txTestTransactID,
+		})
+		if !errors.Is(err, domain.ErrReviewTargetPartyMismatch) {
+			t.Fatalf("error = %v, want %v", err, domain.ErrReviewTargetPartyMismatch)
+		}
+		if len(reviewRepo.saved) != 0 {
+			t.Fatalf("saved reviews = %d, want 0", len(reviewRepo.saved))
+		}
+	})
+
+	t.Run("a counterparty without a company answers like a wrong target", func(t *testing.T) {
+		t.Parallel()
+
+		reviewRepo := newFakeReviewRepo()
+		companyRepo := newFakeCompanyRepo()
+		companyRepo.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
+			if ownerID == testOtherID {
+				return nil, nil
+			}
+			return []domain.Company{*mustCompany()}, nil
+		}
+		uc := newTestReviewUCWithCompany(reviewRepo, companyRepo)
+
+		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
+			TargetType: "company", TargetID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID,
+		})
+		if !errors.Is(err, domain.ErrReviewTargetPartyMismatch) {
+			t.Fatalf("error = %v, want %v", err, domain.ErrReviewTargetPartyMismatch)
+		}
+	})
+
+	t.Run("a company lookup failure propagates", func(t *testing.T) {
+		t.Parallel()
+
+		reviewRepo := newFakeReviewRepo()
+		companyRepo := newFakeCompanyRepo()
+		companyRepo.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
+			return nil, errFake
+		}
+		uc := newTestReviewUCWithCompany(reviewRepo, companyRepo)
+
+		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
+			TargetType: "company", TargetID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID,
+		})
+		if !errors.Is(err, errFake) {
+			t.Fatalf("error = %v, want %v", err, errFake)
+		}
+	})
+}
+
 // TestReviewUseCaseCreateReviewGuards pins the transaction-tied invariants:
 // reviewing before completion, a principal outside the match, a user target
 // that is not the other party, and the one-review-per-transaction rule.
@@ -222,7 +329,7 @@ func TestReviewUseCaseCreateReviewGuards(t *testing.T) {
 		offerRepo.stored.SupplierID = testOtherID
 		requestRepo := newFakeTxRequestRepo()
 		requestRepo.stored.BuyerID = testUserID
-		uc := usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, newFakeTimer())
+		uc := usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, newFakeCompanyRepo(), newFakeTimer())
 		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
 			TargetType: "company", TargetID: testCompanyID, Rating: 4, TransactionID: txTestTransactID,
 		})
@@ -243,7 +350,7 @@ func TestReviewUseCaseCreateReviewGuards(t *testing.T) {
 		offerRepo.stored.SupplierID = testOtherID
 		requestRepo := newFakeTxRequestRepo()
 		requestRepo.stored.BuyerID = testUserID
-		uc := usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, newFakeTimer())
+		uc := usecases.NewReviewUseCase(reviewRepo, txRepo, matchRepo, offerRepo, requestRepo, newFakeCompanyRepo(), newFakeTimer())
 		_, err := uc.CreateReview(principalCtx(), dto.CreateReviewRequest{
 			TargetType: "company", TargetID: testCompanyID, Rating: 4, TransactionID: txTestTransactID,
 		})
