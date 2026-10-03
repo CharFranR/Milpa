@@ -66,6 +66,6 @@ func Load() *Config {
 		DatabaseURL: DatabaseURL,
 		ESClient:    ESClient,
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		ServerPort:  envOrDefault("SERVER_PORT", DefaultServerPort),
+		ServerPort:  envOrDefault("SERVER_PORT", envOrDefault("PORT", DefaultServerPort)),
 	}
 }

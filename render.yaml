@@ -19,8 +19,6 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: SERVER_PORT
-        value: "8080"
       - key: REDIS_URL
         fromDatabase:
           name: milpa-redis
