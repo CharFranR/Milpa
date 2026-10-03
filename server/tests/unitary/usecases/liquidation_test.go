@@ -12,9 +12,6 @@ import (
 	domain "milpa/domain/entities"
 )
 
-// TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas is the RF-14
-// restriction: a liquidation the supplier marked private is a mayorista-only
-// listing, so a minorista browsing the open marketplace must not receive it.
 func TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas(t *testing.T) {
 	t.Parallel()
 

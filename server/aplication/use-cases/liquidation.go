@@ -124,9 +124,6 @@ func (uc *LiquidationUseCaseImpl) GetOpen(ctx context.Context) ([]*dto.Liquidati
 	return dtos, nil
 }
 
-// liquidationVisibleTo restates the repository predicate against the entity,
-// so a restricted liquidation never leaves this use case for a caller that is
-// neither its supplier nor a mayorista.
 func liquidationVisibleTo(liq *domain.Liquidation, viewer port.LiquidationViewer) bool {
 	if liq.Visibility == "public" {
 		return true
@@ -135,14 +132,6 @@ func liquidationVisibleTo(liq *domain.Liquidation, viewer port.LiquidationViewer
 }
 
 // liquidationViewer resolves who is asking, for the visibility predicate.
-//
-// The liquidation routes are unauthenticated, so no principal is the normal
-// case and maps to an empty viewer: an anonymous marketplace visitor, who sees
-// public liquidations only. A principal sees public ones plus their own
-// regardless of visibility.
-//
-// SeeRestricted is the mayorista half of RF-14: a liquidation its supplier
-// marked private is offered to the two mayorista roles and to nobody else.
 func liquidationViewer(ctx context.Context) port.LiquidationViewer {
 	principal, ok := auth.FromContext(ctx)
 	if !ok {

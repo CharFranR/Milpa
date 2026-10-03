@@ -28,10 +28,6 @@ const liquidationColumns = `
 	FROM liquidations
 `
 
-// visibilityFilter is the shared predicate for every visibility-filtered read:
-// a public liquidation, the viewer's own, or any restricted one when the viewer
-// belongs to the mayorista roles the restriction targets. $1 is the viewer id
-// and $2 the SeeRestricted flag.
 const visibilityFilter = `(visibility = 'public' OR supplier_id = $1 OR ($2 AND visibility = 'private'))`
 
 func scanLiquidations(rows pgx.Rows) ([]domain.Liquidation, error) {

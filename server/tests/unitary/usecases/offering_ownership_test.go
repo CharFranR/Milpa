@@ -131,10 +131,6 @@ func TestOfferingUseCaseUpdateOfferingOwnership(t *testing.T) {
 	}
 }
 
-// TestModerationDeleteOfferingStillReachesAdminModeration guards the admin
-// carve-out: the moderation endpoint deletes through its own repository rather
-// than through the offering use case, so the farmer-only guard on that use case
-// cannot silently break moderation.
 func TestModerationDeleteOfferingStillReachesAdminModeration(t *testing.T) {
 	t.Parallel()
 

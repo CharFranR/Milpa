@@ -118,12 +118,6 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 	return reviewToDTO(review), nil
 }
 
-// checkCompanyTarget pins a company review to the counterparty's company: the
-// target has to be a company owned by the other party of the transaction, and
-// never one of the author's own companies, which would be reviewing themselves
-// through the company mirror. A counterparty without a company lands on the
-// same error as a wrong target so the reply never reveals whether the other
-// party has a company at all.
 func (uc *ReviewUseCaseImpl) checkCompanyTarget(ctx context.Context, authorID, otherID, targetID uuid.UUID) error {
 	companies, err := uc.companyRepo.FindByOwner(ctx, otherID)
 	if err != nil {

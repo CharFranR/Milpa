@@ -755,9 +755,6 @@ func farmerAt(latitude, longitude float64) *fakeUserRepo {
 	return repo
 }
 
-// newFakeFarmerUserRepo answers FindByID with an agricultor, the role
-// CreateConversation requires of the target farmer. mustUser stays pending
-// because the login and registration cases assert that default.
 func newFakeFarmerUserRepo() *fakeUserRepo {
 	repo := newFakeUserRepo()
 	byID := repo.findByID

@@ -341,8 +341,6 @@ func (uc *ModerationUseCaseImpl) SetUserRole(ctx context.Context, id uuid.UUID, 
 		return domain.ErrForbidden
 	}
 
-	// Admins may only assign the auditor role or a registration role here;
-	// minting admins through this path is intentionally not allowed.
 	if req.Role != domain.RoleAuditor && !domain.IsRegistrationRole(req.Role) {
 		return domain.ErrInvalidInput
 	}

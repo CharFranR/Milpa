@@ -11,10 +11,6 @@ import (
 	domain "milpa/domain/entities"
 )
 
-// TestAuditorIsRefusedOnTheWiredRoutes is the transport-boundary check for the
-// read-only auditor: the middleware runs after authentication, so the auditor
-// token is accepted and then refused before the handler runs, while a business
-// role still reaches it.
 func TestAuditorIsRefusedOnTheWiredRoutes(t *testing.T) {
 	t.Parallel()
 

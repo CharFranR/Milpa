@@ -95,8 +95,6 @@ func TestWSHandlerAuthorizationStatusCodes(t *testing.T) {
 	}
 }
 
-// An auditor is read-only: the WebSocket is a write channel, so the handler
-// refuses the upgrade before it parses the conversation or looks it up.
 func TestWSHandlerRefusesAuditor(t *testing.T) {
 	t.Parallel()
 
@@ -114,8 +112,6 @@ func TestWSHandlerRefusesAuditor(t *testing.T) {
 	}
 }
 
-// A non-auditor gets past the role gate and on to the conversation id parse,
-// which is where the 400 in the table above comes from.
 func TestWSHandlerPassesNonAuditorPastTheRoleGate(t *testing.T) {
 	t.Parallel()
 

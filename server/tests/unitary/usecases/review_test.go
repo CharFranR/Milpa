@@ -13,9 +13,6 @@ import (
 	"milpa/internal/auth"
 )
 
-// newTestReviewUC wires a review use case whose transaction is completed,
-// whose buyer is testUserID and whose supplier is testOtherID. The supplier
-// owns testOtherCompanyID, so a company review can only target that one.
 func newTestReviewUC(reviewRepo *fakeReviewRepo) *usecases.ReviewUseCaseImpl {
 	return newTestReviewUCWithCompany(reviewRepo, newFakeCompanyRepo())
 }
@@ -200,9 +197,6 @@ func TestReviewUseCaseCreateReviewTargets(t *testing.T) {
 	}
 }
 
-// TestReviewUseCaseCreateReviewCompanyTarget pins the C2 guard: a company
-// review is a claim about the counterparty, so the target has to be a company
-// owned by the other party of the transaction and never the author's own.
 func TestReviewUseCaseCreateReviewCompanyTarget(t *testing.T) {
 	t.Parallel()
 
@@ -302,9 +296,6 @@ func TestReviewUseCaseCreateReviewCompanyTarget(t *testing.T) {
 	})
 }
 
-// TestReviewUseCaseCreateReviewGuards pins the transaction-tied invariants:
-// reviewing before completion, a principal outside the match, a user target
-// that is not the other party, and the one-review-per-transaction rule.
 func TestReviewUseCaseCreateReviewGuards(t *testing.T) {
 	t.Parallel()
 

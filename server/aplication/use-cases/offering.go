@@ -313,10 +313,6 @@ func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, 
 	return offeringToDTO(offering), nil
 }
 
-// requireOfferingOwner refuses a caller that does not own the offering. The
-// agricultor guard runs before it in every mutation path, and admin moderation
-// deletes through its own use case, so no role is exempt here either.
-
 func requireOfferingOwner(principal auth.Principal, offering *domain.Offering) error {
 	if offering.UserID != principal.UserID {
 		return domain.ErrForbidden

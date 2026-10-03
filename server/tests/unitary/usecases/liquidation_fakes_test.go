@@ -9,10 +9,6 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-// fakeLiquidationRepo hands the visibility-filtered reads every row it holds,
-// without applying the predicate itself. The repository already refuses the
-// wrong viewer in its own tests; here the use case is the layer under test and
-// has to refuse a restricted liquidation on its own.
 type fakeLiquidationRepo struct {
 	liquidations []domain.Liquidation
 	findOpenErr  error
@@ -86,8 +82,6 @@ func (f *fakeLiquidationRepo) Delete(ctx context.Context, id uuid.UUID) error {
 
 var _ port.LiquidationRepository = (*fakeLiquidationRepo)(nil)
 
-// liquidationFixture builds an open liquidation owned by a supplier other than
-// testUserID, so every case in these tests is decided by the viewer's role.
 func liquidationFixture(name, visibility string) domain.Liquidation {
 	liquidation, err := domain.NewLiquidation(testOtherID, name, 10, "kg", 100, 10, fixedTime)
 	if err != nil {
