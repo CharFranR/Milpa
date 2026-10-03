@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Milpa — Mercado digital agropecuario</title>
+  <meta name="description" content="Milpa conecta a pequeños y medianos agro-productores de frutas y cítricos de Nicaragua con compradores minoristas y mayoristas.">
+  <style>
+    :root {
+      --green-900: #14432a;
+      --green-700: #1d6a41;
+      --green-500: #2e9e5b;
+      --green-100: #e6f4ec;
+      --earth: #b7791f;
+      --ink: #1c2b24;
+      --muted: #5b6b63;
+      --bg: #fbfdfa;
+      --card: #ffffff;
+      --border: #dfe9e3;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    a { color: var(--green-700); }
+    .container { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(251, 253, 250, 0.94);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 0;
+    }
+    .brand {
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--green-900);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .brand span { color: var(--earth); }
+    .nav ul { display: flex; gap: 1.4rem; list-style: none; }
+    .nav a { text-decoration: none; color: var(--muted); font-size: 0.95rem; }
+    .nav a:hover { color: var(--green-700); }
+
+    .hero {
+      padding: 4.5rem 0 3.5rem;
+      text-align: center;
+      background:
+        radial-gradient(ellipse at top, var(--green-100) 0%, transparent 65%),
+        var(--bg);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      color: var(--green-900);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2.2vw, 1.2rem);
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0 auto 2rem;
+    }
+    .cta {
+      display: inline-block;
+      background: var(--green-700);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.85rem 2rem;
+      border-radius: 999px;
+      transition: background 0.15s ease;
+    }
+    .cta:hover { background: var(--green-900); }
+
+    section { padding: 3.25rem 0; }
+    .section-title {
+      font-size: 1.7rem;
+      color: var(--green-900);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .section-sub {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 2.25rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .card h3 { color: var(--green-700); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .card p { color: var(--muted); font-size: 0.95rem; }
+    .icon { font-size: 1.6rem; margin-bottom: 0.6rem; display: block; }
+
+    .flows { background: var(--green-100); }
+    .flow {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      border-left: 4px solid var(--green-500);
+      margin-bottom: 1rem;
+    }
+    .flow h3 { color: var(--green-900); margin-bottom: 0.35rem; }
+    .flow p { color: var(--muted); font-size: 0.95rem; }
+    .flow .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--earth);
+      margin-bottom: 0.4rem;
+    }
+
+    .privacy {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+    }
+    .privacy .doc {
+      max-width: 760px;
+      margin: 0 auto;
+      font-size: 0.95rem;
+      color: var(--ink);
+    }
+    .privacy h3 {
+      color: var(--green-900);
+      font-size: 1.05rem;
+      margin: 1.75rem 0 0.5rem;
+    }
+    .privacy p { margin-bottom: 0.75rem; }
+    .privacy ul { margin: 0 0 0.75rem 1.25rem; }
+    .privacy li { margin-bottom: 0.3rem; }
+    .privacy .effective {
+      font-style: italic;
+      color: var(--muted);
+      margin-top: 1.5rem;
+    }
+
+    footer {
+      background: var(--green-900);
+      color: #cfe4d7;
+      padding: 2rem 0;
+      font-size: 0.9rem;
+    }
+    footer .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer a { color: #fff; }
+
+    @media (max-width: 640px) {
+      .nav ul { display: none; }
+      .hero { padding: 3rem 0 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="#">Mil<span>pa</span></a>
+      <nav>
+        <ul>
+          <li><a href="#funciones">Funciones</a></li>
+          <li><a href="#como-funciona">Cómo funciona</a></li>
+          <li><a href="#privacy">Privacy Policy</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>Del campo a quien lo compra,<br>sin intermediarios</h1>
+        <p>
+          Milpa es el mercado digital agropecuario que conecta a pequeños y medianos
+          productores de frutas y cítricos de Nicaragua con compradores minoristas y
+          mayoristas: catálogo, chat, solicitudes de abastecimiento, matches y reputación.
+        </p>
+        <a class="cta" href="#funciones">Conocé la plataforma</a>
+      </div>
+    </section>
+
+    <section id="funciones">
+      <div class="container">
+        <h2 class="section-title">Funciones principales</h2>
+        <p class="section-sub">Todo lo que necesitás para vender o comprar cosecha en un solo lugar.</p>
+        <div class="grid">
+          <div class="card">
+            <span class="icon">🥕</span>
+            <h3>Catálogo con expiración</h3>
+            <p>Publicaciones con fecha de expiración y geolocalización, porque un cultivo fresco tiene caducidad.</p>
+          </div>
+          <div class="card">
+            <span class="icon">💬</span>
+            <h3>Chat directo</h3>
+            <p>Conversación directa entre comprador minorista y agricultor, y chat habilitado al confirmarse un match.</p>
+          </div>
+          <div class="card">
+            <span class="icon">🤝</span>
+            <h3>Solicitudes y ofertas</h3>
+            <p>Los mayoristas publican lo que necesitan; los agricultores ofertan con precio, cantidad y tiempo de entrega.</p>
+          </div>
+          <div class="card">
+            <span class="icon">⭐</span>
+            <h3>Match y reputación</h3>
+            <p>Comparador tipo Tinder con cercanía geográfica, precio y reputación; calificaciones mutuas al cerrar la transacción.</p>
+          </div>
+          <div class="card">
+            <span class="icon">📦</span>
+            <h3>Ofertas de liquidación</h3>
+            <p>El agricultor con excedente publica lotes a precio preferencial, con visibilidad opcional solo para mayoristas.</p>
+          </div>
+          <div class="card">
+            <span class="icon">📍</span>
+            <h3>Geolocalización</h3>
+            <p>Búsqueda por cercanía para reducir costos de transporte y comprar cosecha fresca de la zona.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="flows">
+      <div class="container">
+        <h2 class="section-title">Cómo funciona</h2>
+        <p class="section-sub">Tres flujos pensados para cada tipo de usuario.</p>
+
+        <div class="flow">
+          <span class="tag">Flujo 1</span>
+          <h3>Venta directa — Comprador Minorista ↔ Agricultor</h3>
+          <p>El minorista navega el catálogo, encuentra el producto y abre un chat directo con el agricultor. Sin match ni intermediación.</p>
+        </div>
+
+        <div class="flow">
+          <span class="tag">Flujo 2</span>
+          <h3>Abastecimiento — Comprador Mayorista → Agricultores</h3>
+          <p>El mayorista publica su solicitud; los agricultores ofertan. Se evalúa por cercanía, precio y reputación; al aceptar se genera el Match y se habilita el chat. Al finalizar, ambas partes se califican.</p>
+        </div>
+
+        <div class="flow">
+          <span class="tag">Flujo 3</span>
+          <h3>Liquidación — Agricultor → Compradores</h3>
+          <p>El agricultor publica un lote con excedente, decide si es para todos o solo para mayoristas, y asigna por orden de llegada o a su criterio.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy" class="privacy">
+      <div class="container">
+        <h2 class="section-title">Privacy Policy</h2>
+        <p class="section-sub">Application Privacy Policy for the Milpa app.</p>
+
+        <div class="doc">
+          <p>This privacy policy applies to the Milpa app for mobile devices, together with any related services operated by Guirilas (collectively, the "Application"). Guirilas is hereby referred to as the "Service Provider".</p>
+
+          <h3>Information Collection and Use</h3>
+          <p>The Application collects information when you download and use it. This information may include information such as</p>
+          <ul>
+            <li>Your device's Internet Protocol address</li>
+            <li>The pages of the Application that you visit, the time and date of your visit, the time spent on those pages</li>
+            <li>The time spent on the Application</li>
+            <li>your mobile operating system you use</li>
+          </ul>
+
+          <h3>Cookies and tracking technologies</h3>
+          <p>The Application or its third-party SDKs may use cookies, SDKs, pixels, and similar technologies to support functionality, analytics, or service delivery. Where required by applicable law, the Service Provider will obtain consent before using non-essential tracking technologies.</p>
+
+          <h3>Location Information</h3>
+          <p>The Application collects your device's location to provide location-based features, improve the Application, and support related services.</p>
+          <ul>
+            <li>Geolocation Services: The Service Provider may use location data to provide location-based features or content.</li>
+            <li>Analytics and Improvements: Aggregated location data may help the Service Provider understand usage patterns and improve performance.</li>
+            <li>Third-Party Services: Location data may be shared with third-party services used to support Application functionality, subject to this privacy policy and applicable law.</li>
+          </ul>
+
+          <h3>Your Rights</h3>
+          <p>You may request access to, correction of, or deletion of your personal data held by the Service Provider. To exercise these rights, or to withdraw consent where processing is based on consent, contact the Service Provider at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>.</p>
+
+          <h3>Your California privacy rights (CCPA/CPRA)</h3>
+          <p>If you are a California resident, you have the right to know what personal information is collected, the right to delete personal information, the right to opt out of the sale or sharing of personal information, and the right to non-discrimination for exercising these rights. To exercise your CCPA/CPRA rights, contact the Service Provider at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>.</p>
+
+          <p>The Service Provider may use the information you provide to send important information, required notices, and, where permitted by law, marketing communications.</p>
+
+          <p>For a better experience while using the Application, the Service Provider may require you to provide certain personally identifiable information, including but not limited to email, FirstName, LastName, PhoneNumber, Address. The information the Service Provider requests will be retained and used as described in this privacy policy.</p>
+
+          <h3>Third Party Access</h3>
+          <p>Only aggregated, anonymized data is periodically transmitted to external services to aid the Service Provider in improving the Application and their service. The Service Provider may share your information with third parties in the ways that are described in this privacy statement.</p>
+
+          <h3>International Data Transfers</h3>
+          <p>The Service Provider or its third-party service providers may transfer personal data to countries outside your country of residence, including outside the European Economic Area (EEA). Where applicable law requires safeguards for international transfers, the Service Provider will use appropriate mechanisms.</p>
+          <ul>
+            <li>Standard Contractual Clauses (SCCs) approved by the European Commission</li>
+            <li>Adequacy decisions or other legally recognized transfer mechanisms</li>
+            <li>Your consent, where required and legally permitted</li>
+          </ul>
+          <p>Data protection laws in other countries may differ from those in your jurisdiction. Where required by law, the Service Provider will apply appropriate safeguards and obtain any consent required for the transfer.</p>
+
+          <p>Please note that the Application utilizes third-party services that have their own Privacy Policy about handling data. Below are the links to the Privacy Policy of the third-party service providers used by the Application:</p>
+          <ul>
+            <li><a href="https://www.google.com/policies/privacy/" target="_blank" rel="noopener noreferrer">Google Play Services</a></li>
+          </ul>
+
+          <p>The Service Provider may disclose User Provided and Automatically Collected Information:</p>
+          <ul>
+            <li>as required by law, such as to comply with a subpoena, or similar legal process;</li>
+            <li>when they believe in good faith that disclosure is necessary to protect their rights, protect your safety or the safety of others, investigate fraud, or respond to a government request;</li>
+            <li>with their trusted services providers who work on their behalf, do not have an independent use of the information the Service Provider discloses to them, and have agreed to adhere to the rules set forth in this privacy statement.</li>
+          </ul>
+
+          <h3>Opt-Out Rights</h3>
+          <p>You can stop further collection of information from your mobile device by uninstalling the Application. Uninstalling will stop the Application from collecting data from your device, but it does not automatically delete information that has already been transmitted to the Service Provider or to third parties.</p>
+
+          <p>To request deletion of your personal data, to withdraw consent, or to exercise any of your rights, contact the Service Provider at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>.</p>
+
+          <h3>Data Retention Policy</h3>
+          <p>The Service Provider retains personal data based on its necessity for the stated purposes:</p>
+          <ul>
+            <li>User Provided Data: Retained for the duration of your use of the Application plus 12 months thereafter, unless longer retention is required by law</li>
+            <li>Automatically Collected Data: Retained for up to 24 months from collection, unless longer retention is required for legal compliance</li>
+            <li>Aggregated and Anonymized Data: Retained indefinitely as it no longer identifies you</li>
+            <li>Data required for legal compliance: Retained as long as required by applicable law</li>
+          </ul>
+          <p>You may request deletion of your personal data, subject to any legal obligation to retain it. If you want the Service Provider to delete User Provided Data submitted through the Application, please contact them at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>. Please note that some User Provided Data may be required for the Application to function properly.</p>
+
+          <h3>Children</h3>
+          <p>The Application is not intended for children under 16 years of age, or such higher age as required by applicable law. The Service Provider does not knowingly solicit data from children or market the Application to them.</p>
+          <p>Where parental or guardian consent is required under applicable law, the Application is not intended for use without that consent. The Service Provider does not knowingly collect personally identifiable information from children under 16 years of age in violation of applicable law. In the event the Service Provider discovers that a child has provided personal information, the Service Provider will immediately delete this from their servers. If you are a parent or guardian and you are aware that your child has provided the Service Provider with personal information, please contact the Service Provider (<a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>) so that they will be able to take the necessary actions.</p>
+
+          <h3>Security</h3>
+          <p>The Service Provider is concerned about safeguarding the confidentiality of your information. The Service Provider provides physical, electronic, and procedural safeguards to protect information the Service Provider processes and maintains.</p>
+
+          <h3>Data Breach Notification</h3>
+          <p>If a data breach occurs that affects your personal data, the Service Provider will notify you in accordance with applicable legal requirements, including, where required, providing information about the nature of the breach and the steps being taken to address it.</p>
+
+          <h3>Changes</h3>
+          <p>The Service Provider may update this Privacy Policy from time to time. The Service Provider will notify you of material changes by posting the updated Privacy Policy with an effective date. Where required by law, the Service Provider will seek your consent to material changes before they take effect.</p>
+          <p>Previous versions of this Privacy Policy will be maintained and made available upon request by contacting the Service Provider at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>.</p>
+          <p class="effective">This privacy policy is effective as of 2026-10-03</p>
+
+          <h3>Your Consent</h3>
+          <p>Where processing is based on consent, you provide that consent by affirmatively opting in to the relevant feature or action. You may withdraw consent at any time without affecting processing carried out before withdrawal. Processing based on other lawful bases is carried out as described above.</p>
+
+          <h3>Contact Us</h3>
+          <p>If you have any questions regarding privacy while using the Application, or have questions about the practices, please contact the Service Provider via email at <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a>.</p>
+
+          <hr>
+          <p>This privacy policy page was generated by <a href="https://app-privacy-policy-generator.nisrulz.com/" target="_blank" rel="noopener noreferrer">App Privacy Policy Generator</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>Milpa — Hackatón Nicaragua 2026</span>
+      <span>Contacto: <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a></span>
+    </div>
+  </footer>
+</body>
+</html>
