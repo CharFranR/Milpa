@@ -4,7 +4,6 @@ import ProducerSidebar from '../components/dashboard/ProducerSidebar'
 import ProducerHome from './producer/ProducerHome'
 import ProducerProducts from './producer/ProducerProducts'
 import ProducerRequests from './producer/ProducerRequests'
-import ProducerMessages from './producer/ProducerMessages'
 import ProducerBusiness from './producer/ProducerBusiness'
 
 export default function ProducerDashboard() {
@@ -21,7 +20,6 @@ export default function ProducerDashboard() {
           {tab === 'resumen' && <ProducerHome />}
           {tab === 'productos' && <ProducerProducts />}
           {tab === 'solicitudes' && <ProducerRequests />}
-          {tab === 'mensajes' && <ProducerMessages />}
           {tab === 'negocio' && <ProducerBusiness />}
         </main>
       </div>

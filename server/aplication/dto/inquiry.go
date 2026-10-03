@@ -9,11 +9,12 @@ import (
 )
 
 type InquiryDTO struct {
-	ID         uuid.UUID            `json:"id"`
-	UserID     uuid.UUID            `json:"user_id"`
-	OfferingID uuid.UUID            `json:"offering_id"`
-	Message    string               `json:"message"`
-	Status     domain.InquiryStatus `json:"status"`
+	ID           uuid.UUID            `json:"id"`
+	UserID       uuid.UUID            `json:"user_id"`
+	OfferingID   uuid.UUID            `json:"offering_id"`
+	OfferingName string               `json:"offering_name"`
+	Message      string               `json:"message"`
+	Status       domain.InquiryStatus `json:"status"`
 
 	CreatedAt time.Time `json:"created_at"`
 }

@@ -1,0 +1,778 @@
+package usecases_test
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+
+	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
+	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
+)
+
+var (
+	errFake        = errors.New("fake error")
+	fixedTime      = time.Date(2026, 8, 12, 10, 0, 0, 0, time.UTC)
+	testUserID     = uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	testCompanyID  = uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	testOfferingID = uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	testReviewID   = uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	testCategoryID = uuid.MustParse("55555555-5555-5555-5555-555555555555")
+	testInquiryID  = uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	testOtherID    = uuid.MustParse("77777777-7777-7777-7777-777777777777")
+
+	testConversationID      = uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	testMessageID           = uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	testAddressID           = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	testUnitOfMeasureID     = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	testReviewTransactionID = uuid.MustParse("ffffffff-ffff-4fff-8fff-ffffffffffff")
+
+	testOtherCompanyID = uuid.MustParse("99999999-9999-4999-8999-999999999999")
+)
+
+func principalCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMinorista})
+}
+
+func principalCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMinorista})
+}
+
+func farmerCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleAgricultor})
+}
+
+func farmerCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleAgricultor})
+}
+
+func mayoristaCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
+func mayoristaCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func floatPtr(f float64) *float64 {
+	return &f
+}
+
+func offeringTypePtr(t domain.OfferingType) *domain.OfferingType {
+	return &t
+}
+
+func withType(req dto.CreateOfferingRequest, offeringType domain.OfferingType) dto.CreateOfferingRequest {
+	req.Type = offeringType
+	return req
+}
+
+func withName(req dto.CreateOfferingRequest, name string) dto.CreateOfferingRequest {
+	req.Name = name
+	return req
+}
+
+func withUser(req dto.CreateOfferingRequest, userID uuid.UUID) dto.CreateOfferingRequest {
+	req.UserID = userID
+	return req
+}
+
+func inquiryStatusPtr(s domain.InquiryStatus) *domain.InquiryStatus {
+	return &s
+}
+
+// mustUser builds a farmer whose profile is complete.
+//
+// The address is set because publishing an offering requires one (RF-03, checked
+// through Address.IsComplete in OfferingUseCaseImpl.CreateOffering). A default
+// fixture that cannot publish would only mean every such test had to re-add the
+// address; tests that want the refusal clear the fields they need cleared.
+func mustUser() *domain.User {
+	user, err := domain.NewUser("user@milpa.com.ni", "John", "Doe", fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	user.ID = testUserID
+	user.Address = domain.Address{
+		ID:           testAddressID,
+		Department:   "Leon",
+		Municipality: "Leon",
+		AddressLine:  "Barrio San Francisco",
+		Latitude:     12.4379,
+		Longitude:    -86.8781,
+	}
+	return user
+}
+
+func mustCompany() *domain.Company {
+	company, err := domain.NewCompany(domain.User{ID: testUserID}, "Milpa S.A.", fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	company.ID = testCompanyID
+	return company
+}
+
+func mustOffering() *domain.Offering {
+	offering, err := domain.NewOffering(testUserID, "Organic Corn", domain.OfferingProduct, fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	offering.ID = testOfferingID
+	offering.Description = "Fresh organic corn"
+	offering.Price = 10.0
+	offering.ImageURL = "http://images.milpa.com/corn.png"
+	offering.Variety = "Cuzqueño"
+	offering.UnitOfMeasureID = &testUnitOfMeasureID
+	offering.QuantityAvailable = 100
+	offering.CategoryID = &testCategoryID
+	return offering
+}
+
+func completeCatalogueRequest() dto.CreateOfferingRequest {
+	unitID := testUnitOfMeasureID
+	categoryID := testCategoryID
+	return dto.CreateOfferingRequest{
+		UserID:            testUserID,
+		Type:              domain.OfferingProduct,
+		Name:              "Organic Corn",
+		Description:       "Fresh corn",
+		Price:             10.5,
+		ImageURL:          "http://img.milpa.com/corn.png",
+		Variety:           "Cuzqueño",
+		UnitOfMeasureID:   &unitID,
+		QuantityAvailable: 100,
+		CategoryID:        &categoryID,
+	}
+}
+
+func mustReview() *domain.Review {
+	review, err := domain.NewReview(testUserID, domain.ReviewTargetCompany, testCompanyID, testCompanyID, 5, "Great quality", fixedTime, testReviewTransactionID)
+	if err != nil {
+		panic(err)
+	}
+	review.ID = testReviewID
+	return review
+}
+
+func mustInquiry() *domain.Inquiry {
+	inquiry, err := domain.NewInquiry(testUserID, testOfferingID, "Is it in stock?", fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	inquiry.ID = testInquiryID
+	return inquiry
+}
+
+func mustCategory() *domain.Category {
+	return &domain.Category{ID: testCategoryID, Name: "Grains", Description: "Grain products", MainCategory: "granos", IsActive: true}
+}
+
+func mustConversation() *domain.Conversation {
+	conversation, err := domain.NewConvesation(testCompanyID, testUserID, testOfferingID, nil, fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	conversation.ID = testConversationID
+	return conversation
+}
+
+func mustMessage() *domain.Message {
+	message, err := domain.NewMessage(testConversationID, testUserID, "Is it still available?", fixedTime)
+	if err != nil {
+		panic(err)
+	}
+	message.ID = testMessageID
+	return message
+}
+
+type fakeUserRepo struct {
+	findByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	findByEmail   func(ctx context.Context, email string) (*domain.User, error)
+	existsByEmail func(ctx context.Context, email string) (bool, error)
+	existsByID    func(ctx context.Context, id string) (bool, error)
+	save          func(ctx context.Context, user *domain.User) (string, error)
+	update        func(ctx context.Context, user *domain.User) error
+	saved         []*domain.User
+	updated       []*domain.User
+	existedEmails []string
+	existedID     []string
+}
+
+func newFakeUserRepo() *fakeUserRepo {
+	f := &fakeUserRepo{}
+	f.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user := mustUser()
+		user.ID = id
+		return user, nil
+	}
+	f.findByEmail = func(ctx context.Context, email string) (*domain.User, error) {
+		user := mustUser()
+		user.Email = email
+		return user, nil
+	}
+	f.existsByEmail = func(ctx context.Context, email string) (bool, error) {
+		f.existedEmails = append(f.existedEmails, email)
+		return false, nil
+	}
+
+	f.existsByID = func(ctx context.Context, id string) (bool, error) {
+		f.existedID = append(f.existedID, id)
+		return false, nil
+	}
+
+	f.save = func(ctx context.Context, user *domain.User) (string, error) {
+		f.saved = append(f.saved, user)
+		return "", nil
+	}
+	f.update = func(ctx context.Context, user *domain.User) error {
+		f.updated = append(f.updated, user)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	return f.findByID(ctx, id)
+}
+
+func (f *fakeUserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return f.findByEmail(ctx, email)
+}
+
+func (f *fakeUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	return f.existsByEmail(ctx, email)
+}
+
+func (f *fakeUserRepo) ExistsByID(ctx context.Context, id string) (bool, error) {
+	return f.existsByEmail(ctx, id)
+}
+
+func (f *fakeUserRepo) Save(ctx context.Context, user *domain.User) (string, error) {
+	return f.save(ctx, user)
+}
+
+func (f *fakeUserRepo) Update(ctx context.Context, user *domain.User) error {
+	return f.update(ctx, user)
+}
+
+type fakeCompanyRepo struct {
+	findByID    func(ctx context.Context, id uuid.UUID) (*domain.Company, error)
+	findByOwner func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error)
+	save        func(ctx context.Context, company *domain.Company) error
+	update      func(ctx context.Context, company *domain.Company) error
+	saved       []*domain.Company
+	updated     []*domain.Company
+}
+
+func newFakeCompanyRepo() *fakeCompanyRepo {
+	f := &fakeCompanyRepo{}
+	f.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Company, error) {
+		company := mustCompany()
+		company.ID = id
+		return company, nil
+	}
+	f.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
+		company := mustCompany()
+		company.Owner = domain.User{ID: ownerID}
+		switch ownerID {
+		case testUserID:
+			return []domain.Company{*company}, nil
+		case testOtherID:
+			company.ID = testOtherCompanyID
+			company.Name = "Finca La Esperanza"
+			return []domain.Company{*company}, nil
+		default:
+			return nil, nil
+		}
+	}
+	f.save = func(ctx context.Context, company *domain.Company) error {
+		f.saved = append(f.saved, company)
+		return nil
+	}
+	f.update = func(ctx context.Context, company *domain.Company) error {
+		f.updated = append(f.updated, company)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeCompanyRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Company, error) {
+	return f.findByID(ctx, id)
+}
+
+func (f *fakeCompanyRepo) FindByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
+	return f.findByOwner(ctx, ownerID)
+}
+
+func (f *fakeCompanyRepo) Save(ctx context.Context, company *domain.Company) error {
+	return f.save(ctx, company)
+}
+
+func (f *fakeCompanyRepo) Update(ctx context.Context, company *domain.Company) error {
+	return f.update(ctx, company)
+}
+
+type fakeOfferingRepo struct {
+	findByID     func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
+	findByUserID func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	save         func(ctx context.Context, offering *domain.Offering) error
+	update       func(ctx context.Context, offering *domain.Offering) error
+	delete       func(ctx context.Context, id uuid.UUID) error
+	saved        []*domain.Offering
+	updated      []*domain.Offering
+	deleted      []uuid.UUID
+}
+
+func newFakeOfferingRepo() *fakeOfferingRepo {
+	f := &fakeOfferingRepo{}
+	f.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
+		offering := mustOffering()
+		offering.ID = id
+		return offering, nil
+	}
+	f.findByUserID = func(ctx context.Context, UserID uuid.UUID) ([]domain.Offering, error) {
+		return []domain.Offering{*mustOffering()}, nil
+	}
+	f.save = func(ctx context.Context, offering *domain.Offering) error {
+		f.saved = append(f.saved, offering)
+		return nil
+	}
+	f.update = func(ctx context.Context, offering *domain.Offering) error {
+		f.updated = append(f.updated, offering)
+		return nil
+	}
+	f.delete = func(ctx context.Context, id uuid.UUID) error {
+		f.deleted = append(f.deleted, id)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
+	return f.findByID(ctx, id)
+}
+
+func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+	return f.findByUserID(ctx, companyID)
+}
+
+func (f *fakeOfferingRepo) Save(ctx context.Context, offering *domain.Offering) error {
+	return f.save(ctx, offering)
+}
+
+func (f *fakeOfferingRepo) Update(ctx context.Context, offering *domain.Offering) error {
+	return f.update(ctx, offering)
+}
+
+func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return f.delete(ctx, id)
+}
+
+type fakeReviewRepo struct {
+	findByCompany  func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
+	findByUser     func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	findByTarget   func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error)
+	save           func(ctx context.Context, review *domain.Review) error
+	averageRating  func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
+	existsByTxAuth func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
+	saved          []*domain.Review
+	averageCalls   []uuid.UUID
+}
+
+func newFakeReviewRepo() *fakeReviewRepo {
+	f := &fakeReviewRepo{}
+	f.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error) {
+		return []domain.Review{*mustReview()}, nil
+	}
+	f.findByUser = func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
+		return []domain.Review{*mustReview()}, nil
+	}
+	f.findByTarget = func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+		return []domain.Review{*mustReview()}, nil
+	}
+	f.save = func(ctx context.Context, review *domain.Review) error {
+		f.saved = append(f.saved, review)
+		return nil
+	}
+	f.averageRating = func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
+		f.averageCalls = append(f.averageCalls, targetID)
+		return 4.5, 2, nil
+	}
+	f.existsByTxAuth = func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+		return false, nil
+	}
+	return f
+}
+
+func (f *fakeReviewRepo) ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+	return f.existsByTxAuth(ctx, transactionID, authorID)
+}
+
+func (f *fakeReviewRepo) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
+	return f.averageRating(ctx, targetType, targetID)
+}
+
+func (f *fakeReviewRepo) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error) {
+	return f.findByCompany(ctx, companyID)
+}
+
+func (f *fakeReviewRepo) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
+	return f.findByUser(ctx, userID)
+}
+
+func (f *fakeReviewRepo) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+	return f.findByTarget(ctx, targetType, targetID)
+}
+
+func (f *fakeReviewRepo) Save(ctx context.Context, review *domain.Review) error {
+	return f.save(ctx, review)
+}
+
+type fakeCategoryRepo struct {
+	findAll  func(ctx context.Context) ([]domain.Category, error)
+	findByID func(ctx context.Context, id uuid.UUID) (*domain.Category, error)
+	save     func(ctx context.Context, category *domain.Category) error
+	saved    []*domain.Category
+}
+
+func newFakeCategoryRepo() *fakeCategoryRepo {
+	f := &fakeCategoryRepo{}
+	f.findAll = func(ctx context.Context) ([]domain.Category, error) {
+		return []domain.Category{*mustCategory()}, nil
+	}
+	f.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
+		category := mustCategory()
+		category.ID = id
+		return category, nil
+	}
+	f.save = func(ctx context.Context, category *domain.Category) error {
+		f.saved = append(f.saved, category)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeCategoryRepo) FindAll(ctx context.Context) ([]domain.Category, error) {
+	return f.findAll(ctx)
+}
+
+func (f *fakeCategoryRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
+	return f.findByID(ctx, id)
+}
+
+func (f *fakeCategoryRepo) Save(ctx context.Context, category *domain.Category) error {
+	return f.save(ctx, category)
+}
+
+type fakeInquiryRepo struct {
+	findByID      func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
+	findByUser    func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
+	findByCompany func(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
+	save          func(ctx context.Context, inquiry *domain.Inquiry) error
+	update        func(ctx context.Context, inquiry *domain.Inquiry) error
+	saved         []*domain.Inquiry
+	updated       []*domain.Inquiry
+}
+
+func newFakeInquiryRepo() *fakeInquiryRepo {
+	f := &fakeInquiryRepo{}
+	f.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error) {
+		inquiry := mustInquiry()
+		inquiry.ID = id
+		return inquiry, nil
+	}
+	f.findByUser = func(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error) {
+		return []domain.Inquiry{*mustInquiry()}, nil
+	}
+	f.findByCompany = func(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error) {
+		return []domain.Inquiry{*mustInquiry()}, nil
+	}
+	f.save = func(ctx context.Context, inquiry *domain.Inquiry) error {
+		f.saved = append(f.saved, inquiry)
+		return nil
+	}
+	f.update = func(ctx context.Context, inquiry *domain.Inquiry) error {
+		f.updated = append(f.updated, inquiry)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeInquiryRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error) {
+	return f.findByID(ctx, id)
+}
+
+func (f *fakeInquiryRepo) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error) {
+	return f.findByUser(ctx, userID)
+}
+
+func (f *fakeInquiryRepo) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error) {
+	return f.findByCompany(ctx, companyID)
+}
+
+func (f *fakeInquiryRepo) Save(ctx context.Context, inquiry *domain.Inquiry) error {
+	return f.save(ctx, inquiry)
+}
+
+func (f *fakeInquiryRepo) Update(ctx context.Context, inquiry *domain.Inquiry) error {
+	return f.update(ctx, inquiry)
+}
+
+type fakeConversationRepo struct {
+	save        func(ctx context.Context, conversation *domain.Conversation) error
+	list        func(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
+	listMessage func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	getByID     func(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	delete      func(ctx context.Context, id uuid.UUID) error
+	saved       []*domain.Conversation
+	listedIDs   []uuid.UUID
+	deleted     []uuid.UUID
+}
+
+func newFakeConversationRepo() *fakeConversationRepo {
+	f := &fakeConversationRepo{}
+	f.save = func(ctx context.Context, conversation *domain.Conversation) error {
+		f.saved = append(f.saved, conversation)
+		return nil
+	}
+	f.list = func(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error) {
+		return []domain.Conversation{*mustConversation()}, nil
+	}
+	f.listMessage = func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+		return []domain.Message{*mustMessage()}, nil
+	}
+	f.getByID = func(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
+		conversation := mustConversation()
+		conversation.ID = id
+		return conversation, nil
+	}
+	f.delete = func(ctx context.Context, id uuid.UUID) error {
+		f.deleted = append(f.deleted, id)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeConversationRepo) Save(ctx context.Context, conversation *domain.Conversation) error {
+	return f.save(ctx, conversation)
+}
+
+func (f *fakeConversationRepo) List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error) {
+	f.listedIDs = append(f.listedIDs, userID)
+	return f.list(ctx, userID)
+}
+
+func (f *fakeConversationRepo) ListMessage(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+	return f.listMessage(ctx, conversationID)
+}
+
+func (f *fakeConversationRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
+	return f.getByID(ctx, id)
+}
+
+func (f *fakeConversationRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return f.delete(ctx, id)
+}
+
+type fakeMessageRepo struct {
+	save                 func(ctx context.Context, message *domain.Message) error
+	bulkSave             func(ctx context.Context, messages *[]domain.Message) error
+	listByConversationID func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	getMessageByID       func(ctx context.Context, id uuid.UUID) (*domain.Message, error)
+	delete               func(ctx context.Context, id uuid.UUID) error
+	saved                []*domain.Message
+	deleted              []uuid.UUID
+}
+
+func newFakeMessageRepo() *fakeMessageRepo {
+	f := &fakeMessageRepo{}
+	f.save = func(ctx context.Context, message *domain.Message) error {
+		f.saved = append(f.saved, message)
+		return nil
+	}
+	f.bulkSave = func(ctx context.Context, messages *[]domain.Message) error {
+		return nil
+	}
+	f.listByConversationID = func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+		return []domain.Message{*mustMessage()}, nil
+	}
+	f.getMessageByID = func(ctx context.Context, id uuid.UUID) (*domain.Message, error) {
+		message := mustMessage()
+		message.ID = id
+		return message, nil
+	}
+	f.delete = func(ctx context.Context, id uuid.UUID) error {
+		f.deleted = append(f.deleted, id)
+		return nil
+	}
+	return f
+}
+
+func (f *fakeMessageRepo) Save(ctx context.Context, message *domain.Message) error {
+	return f.save(ctx, message)
+}
+
+func (f *fakeMessageRepo) BulkSave(ctx context.Context, messages *[]domain.Message) error {
+	return f.bulkSave(ctx, messages)
+}
+
+func (f *fakeMessageRepo) ListByConversationID(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error) {
+	return f.listByConversationID(ctx, conversationID)
+}
+
+func (f *fakeMessageRepo) GetMessageByID(ctx context.Context, id uuid.UUID) (*domain.Message, error) {
+	return f.getMessageByID(ctx, id)
+}
+
+func (f *fakeMessageRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return f.delete(ctx, id)
+}
+
+type fakeHasher struct {
+	hash    func(password string) (string, error)
+	compare func(hash, password string) error
+	hashed  []string
+}
+
+func newFakeHasher() *fakeHasher {
+	f := &fakeHasher{}
+	f.hash = func(password string) (string, error) {
+		f.hashed = append(f.hashed, password)
+		return "hashed-" + password, nil
+	}
+	f.compare = func(hash, password string) error {
+		return nil
+	}
+	return f
+}
+
+func (f *fakeHasher) Hash(password string) (string, error) {
+	return f.hash(password)
+}
+
+func (f *fakeHasher) Compare(hash, password string) error {
+	return f.compare(hash, password)
+}
+
+type fakeJWT struct {
+	generateToken func(userID uuid.UUID, role domain.RoleOptions) (string, error)
+	validateToken func(token string) (*port.JWTClaims, error)
+	tokenUserID   uuid.UUID
+	tokenRole     domain.RoleOptions
+}
+
+func newFakeJWT() *fakeJWT {
+	f := &fakeJWT{}
+	f.generateToken = func(userID uuid.UUID, role domain.RoleOptions) (string, error) {
+		f.tokenUserID = userID
+		f.tokenRole = role
+		return "signed-token", nil
+	}
+	f.validateToken = func(token string) (*port.JWTClaims, error) {
+		return &port.JWTClaims{UserID: testUserID, Role: domain.RolePending}, nil
+	}
+	return f
+}
+
+func (f *fakeJWT) GenerateToken(userID uuid.UUID, role domain.RoleOptions) (string, error) {
+	return f.generateToken(userID, role)
+}
+
+func (f *fakeJWT) ValidateToken(token string) (*port.JWTClaims, error) {
+	return f.validateToken(token)
+}
+
+type fakeTimer struct {
+	now time.Time
+}
+
+func (f fakeTimer) Now() time.Time {
+	return f.now
+}
+
+func newFakeTimer() fakeTimer {
+	return fakeTimer{now: fixedTime}
+}
+
+type fakeFuzzyRetrival struct{}
+
+func (f *fakeFuzzyRetrival) Search(ctx context.Context, query *dto.SearchQuery) (*dto.SearchResponse, error) {
+	return &dto.SearchResponse{}, nil
+}
+
+func (f *fakeFuzzyRetrival) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
+	return nil
+}
+
+func (f *fakeFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexOfferingRequest) error {
+	return nil
+}
+
+func (f *fakeFuzzyRetrival) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+type fakeInvalidator struct {
+	called bool
+}
+
+func (f *fakeInvalidator) InvalidateAll(ctx context.Context) error {
+	f.called = true
+	return nil
+}
+
+type capturingFuzzyRetrival struct {
+	document *dto.IndexOfferingRequest
+}
+
+func (f *capturingFuzzyRetrival) Search(ctx context.Context, query *dto.SearchQuery) (*dto.SearchResponse, error) {
+	return &dto.SearchResponse{}, nil
+}
+
+func (f *capturingFuzzyRetrival) Index(ctx context.Context, p *dto.IndexOfferingRequest) error {
+	f.document = p
+	return nil
+}
+
+func (f *capturingFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexOfferingRequest) error {
+	f.document = p
+	return nil
+}
+
+func (f *capturingFuzzyRetrival) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
+func farmerAt(latitude, longitude float64) *fakeUserRepo {
+	repo := newFakeUserRepo()
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user := mustUser()
+		user.ID = id
+		user.Address.Latitude = latitude
+		user.Address.Longitude = longitude
+		return user, nil
+	}
+	return repo
+}
+
+func newFakeFarmerUserRepo() *fakeUserRepo {
+	repo := newFakeUserRepo()
+	byID := repo.findByID
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user, err := byID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		user.Role = domain.RoleAgricultor
+		return user, nil
+	}
+	return repo
+}

@@ -9,6 +9,7 @@ import (
 	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
 	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
 )
 
 type UserUseCaseImpl struct {
@@ -32,10 +33,10 @@ func NewUserUseCase(
 	}
 }
 
-func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserRequest) (*dto.UserDTO, error) {
+func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserRequest) (*dto.PrivateUserDTO, error) {
 	now := uc.timer.Now()
 
-	if req.Role != domain.RoleMIPYME && req.Role != domain.RoleProvider {
+	if !domain.IsRegistrationRole(req.Role) {
 		return nil, domain.ErrInvalidInput
 	}
 
@@ -65,13 +66,23 @@ func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserReq
 	user.SetPasswordHash(hash)
 
 	user.PhoneNumber = req.PhoneNumber
-	user.Address = domain.Address{AddressLine: req.Address}
+	user.Address = domain.Address{
+		AddressLine:  req.Address,
+		Department:   req.Department,
+		Municipality: req.Municipality,
+		Latitude:     floatOrZero(req.Latitude),
+		Longitude:    floatOrZero(req.Longitude),
+	}
+	if err := user.Address.ValidateCoordinates(); err != nil {
+		return nil, err
+	}
 
 	if _, err := uc.userRepo.Save(ctx, user); err != nil {
 		return nil, err
 	}
 
-	return userToDTO(user), nil
+	// The caller is the user that was just created, so this is the private view.
+	return privateUserDTO(user), nil
 }
 
 func (uc *UserUseCaseImpl) Login(ctx context.Context, req dto.LoginRequest) (*dto.LoginResponse, error) {
@@ -92,23 +103,32 @@ func (uc *UserUseCaseImpl) Login(ctx context.Context, req dto.LoginRequest) (*dt
 	return &dto.LoginResponse{
 		AccessToken: token,
 		ExpiresIn:   86400,
-		User:        *userToDTO(user),
+		User:        *privateUserDTO(user),
 	}, nil
 }
 
-func (uc *UserUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserDTO, error) {
+func (uc *UserUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (dto.UserView, error) {
 	user, err := uc.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return userToDTO(user), nil
+	return userViewFor(ctx, user), nil
 }
 
 func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req dto.UpdateUserRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
 	user, err := uc.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	if user.ID != principal.UserID {
+		return domain.ErrForbidden
 	}
 
 	if req.Email != nil {
@@ -121,7 +141,22 @@ func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req 
 		user.LastName = *req.LastName
 	}
 	if req.Address != nil {
-		user.Address = domain.Address{AddressLine: *req.Address}
+		user.Address.AddressLine = *req.Address
+	}
+	if req.Department != nil {
+		user.Address.Department = *req.Department
+	}
+	if req.Municipality != nil {
+		user.Address.Municipality = *req.Municipality
+	}
+	if req.Latitude != nil {
+		user.Address.Latitude = *req.Latitude
+	}
+	if req.Longitude != nil {
+		user.Address.Longitude = *req.Longitude
+	}
+	if err := user.Address.ValidateCoordinates(); err != nil {
+		return err
 	}
 	if req.PhoneNumber != nil {
 		user.PhoneNumber = *req.PhoneNumber
@@ -134,16 +169,39 @@ func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req 
 
 var _ primary.UserUseCase = (*UserUseCaseImpl)(nil)
 
-func userToDTO(user *domain.User) *dto.UserDTO {
-	return &dto.UserDTO{
-		ID:          user.ID,
-		Email:       user.Email,
-		FirstName:   user.FirstName,
-		LastName:    user.LastName,
-		Address:     user.Address.FullAddress(),
-		PhoneNumber: user.PhoneNumber,
-		Role:        user.Role,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+func floatOrZero(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+func userViewFor(ctx context.Context, user *domain.User) dto.UserView {
+	principal, ok := auth.FromContext(ctx)
+	if ok && (principal.UserID == user.ID || principal.Role == domain.RoleAdmin) {
+		return privateUserDTO(user)
+	}
+	return publicUserDTO(user)
+}
+
+func publicUserDTO(user *domain.User) *dto.PublicUserDTO {
+	return &dto.PublicUserDTO{
+		ID:           user.ID,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		Role:         user.Role,
+		Department:   user.Address.Department,
+		Municipality: user.Address.Municipality,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+	}
+}
+
+func privateUserDTO(user *domain.User) *dto.PrivateUserDTO {
+	return &dto.PrivateUserDTO{
+		PublicUserDTO: *publicUserDTO(user),
+		Email:         user.Email,
+		PhoneNumber:   user.PhoneNumber,
+		AddressLine:   user.Address.AddressLine,
 	}
 }

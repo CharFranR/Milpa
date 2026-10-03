@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -13,14 +14,16 @@ import (
 )
 
 type InquiryUseCaseImpl struct {
-	inquiryRepo port.InquiryRepository
-	timer       port.TimeProvider
+	inquiryRepo  port.InquiryRepository
+	offeringRepo port.OfferingRepository
+	timer        port.TimeProvider
 }
 
-func NewInquiryUseCase(inquiryRepo port.InquiryRepository, timer port.TimeProvider) *InquiryUseCaseImpl {
+func NewInquiryUseCase(inquiryRepo port.InquiryRepository, offeringRepo port.OfferingRepository, timer port.TimeProvider) *InquiryUseCaseImpl {
 	return &InquiryUseCaseImpl{
-		inquiryRepo: inquiryRepo,
-		timer:       timer,
+		inquiryRepo:  inquiryRepo,
+		offeringRepo: offeringRepo,
+		timer:        timer,
 	}
 }
 
@@ -67,9 +70,32 @@ func (uc *InquiryUseCaseImpl) GetByUser(ctx context.Context, userID uuid.UUID) (
 	return dtos, nil
 }
 
+func (uc *InquiryUseCaseImpl) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.InquiryDTO, error) {
+	inquiries, err := uc.inquiryRepo.FindByCompany(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*dto.InquiryDTO, len(inquiries))
+	for i := range inquiries {
+		dtos[i] = inquiryToDTO(&inquiries[i])
+	}
+
+	return dtos, nil
+}
+
 func (uc *InquiryUseCaseImpl) UpdateInquiry(ctx context.Context, id uuid.UUID, req dto.UpdateInquiryRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
 	inquiry, err := uc.inquiryRepo.FindByID(ctx, id)
 	if err != nil {
+		return err
+	}
+
+	if err := uc.authorizeInquiryUpdate(ctx, principal, inquiry); err != nil {
 		return err
 	}
 
@@ -89,15 +115,35 @@ func (uc *InquiryUseCaseImpl) UpdateInquiry(ctx context.Context, id uuid.UUID, r
 	return uc.inquiryRepo.Update(ctx, inquiry)
 }
 
+func (uc *InquiryUseCaseImpl) authorizeInquiryUpdate(ctx context.Context, principal auth.Principal, inquiry *domain.Inquiry) error {
+	if principal.UserID == inquiry.UserID {
+		return nil
+	}
+
+	offering, err := uc.offeringRepo.FindByID(ctx, inquiry.OfferingID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.ErrForbidden
+		}
+		return err
+	}
+	if offering.UserID != principal.UserID {
+		return domain.ErrForbidden
+	}
+
+	return nil
+}
+
 var _ primary.InquiryUseCase = (*InquiryUseCaseImpl)(nil)
 
 func inquiryToDTO(inquiry *domain.Inquiry) *dto.InquiryDTO {
 	return &dto.InquiryDTO{
-		ID:         inquiry.ID,
-		UserID:     inquiry.UserID,
-		OfferingID: inquiry.OfferingID,
-		Message:    inquiry.Message,
-		Status:     inquiry.Status,
-		CreatedAt:  inquiry.CreatedAt,
+		ID:           inquiry.ID,
+		UserID:       inquiry.UserID,
+		OfferingID:   inquiry.OfferingID,
+		OfferingName: inquiry.OfferingName,
+		Message:      inquiry.Message,
+		Status:       inquiry.Status,
+		CreatedAt:    inquiry.CreatedAt,
 	}
 }

@@ -1,8 +1,9 @@
+import { useState, useEffect } from 'react'
 import Icon from '../ui/Icon'
 import StarRating from '../StarRating'
 import CategoryPill from '../CategoryPill'
 import { formatPrice } from '../../lib/format'
-import { categories } from '../../mocks/catalog'
+import { categories } from '../../services/api'
 import { cn } from '../../lib/cn'
 
 export const PRICE_LIMIT = 5000
@@ -15,6 +16,14 @@ const MIN_RATING_OPTIONS = [
 ]
 
 export default function FiltersSidebar({ filters, onChange, onClear }) {
+  const [cats, setCats] = useState([])
+
+  useEffect(() => {
+    categories.getAll()
+      .then((data) => setCats(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5">
       <div className="flex items-center justify-between">
@@ -46,10 +55,10 @@ export default function FiltersSidebar({ filters, onChange, onClear }) {
             <Icon name="apps" size={18} className={filters.category === 'all' ? '' : 'text-brand'} />
             Todas
           </button>
-          {categories.map((category) => (
+          {cats.map((category) => (
             <CategoryPill
               key={category.id}
-              icon={category.icon}
+              icon={category.icon || 'label'}
               name={category.name}
               count={category.count}
               active={filters.category === category.id}

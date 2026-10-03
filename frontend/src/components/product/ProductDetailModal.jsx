@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
+import { inquiries } from '../../services/api'
 
 /**
  * @typedef {Object} ProductDetailModalProps
@@ -15,6 +16,8 @@ import Button from '../ui/Button'
  */
 export default function ProductDetailModal({ isOpen, onClose, product, onSend }) {
   const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
   const textareaRef = useRef(null)
 
   useEffect(() => {
@@ -29,11 +32,24 @@ export default function ProductDetailModal({ isOpen, onClose, product, onSend })
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (message.trim()) {
-      onSend(message.trim())
-      setMessage('')
-      onClose()
-    }
+    if (!message.trim()) return
+
+    setError('')
+    setSending(true)
+
+    inquiries.create({ offering_id: product.id, message: message.trim() })
+      .then(() => {
+        alert('Mensaje enviado correctamente.')
+        setMessage('')
+        onSend(message.trim())
+        onClose()
+      })
+      .catch((err) => {
+        setError(err.message || 'Error al enviar el mensaje.')
+      })
+      .finally(() => {
+        setSending(false)
+      })
   }
 
   function handleWhatsApp() {
@@ -86,14 +102,26 @@ export default function ProductDetailModal({ isOpen, onClose, product, onSend })
             required
             minLength={10}
             maxLength={500}
+            disabled={sending}
           />
 
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+          )}
+
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={sending}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" className="whitespace-nowrap">
-              Enviar mensaje
+            <Button type="submit" variant="primary" className="whitespace-nowrap" disabled={sending}>
+              {sending ? (
+                <>
+                  <Icon name="progress_activity" size={16} className="animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                'Enviar mensaje'
+              )}
             </Button>
           </div>
         </form>
@@ -105,6 +133,7 @@ export default function ProductDetailModal({ isOpen, onClose, product, onSend })
             className="w-full"
             icon={<Icon name="phone_iphone" size={20} />}
             onClick={handleWhatsApp}
+            disabled={sending}
           >
             Contactar por WhatsApp
           </Button>

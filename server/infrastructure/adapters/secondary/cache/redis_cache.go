@@ -72,6 +72,27 @@ func (c *CacheImpl) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (c *CacheImpl) DeleteByPrefix(ctx context.Context, prefix string) error {
+	pattern := prefix + "*"
+	var cursor uint64
+	for {
+		keys, nextCursor, err := c.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := c.client.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+	return nil
+}
+
 func (c *CacheImpl) Remember(ctx context.Context, key string, ttl time.Duration, dest any, loader func() error) (bool, error) {
 
 	found, get_err := c.Get(ctx, key, dest)

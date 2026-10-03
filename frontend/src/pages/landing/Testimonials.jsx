@@ -15,8 +15,8 @@ export default function Testimonials() {
               className="relative flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
             >
               <Icon
-                name="format_quote"
-                size={40}
+                name="Check_Circle"
+                size={30}
                 className="absolute right-5 top-5 text-brand/10"
               />
               <div className="flex gap-0.5 text-amber-400" aria-label="5 de 5 estrellas">

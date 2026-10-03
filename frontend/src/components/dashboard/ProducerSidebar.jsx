@@ -1,19 +1,18 @@
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSessionRole } from '../../lib/session'
-import { producerProfile } from '../../mocks/producer'
+import { clearSession, getUser } from '../../lib/session'
+import { getDisplayName, getInitials } from '../../lib/user'
 
 const TABS = [
   { id: 'resumen', icon: 'home', label: 'Resumen' },
   { id: 'productos', icon: 'inventory_2', label: 'Mis productos' },
   { id: 'solicitudes', icon: 'inbox', label: 'Solicitudes' },
-  { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
   { id: 'negocio', icon: 'storefront', label: 'Mi negocio' },
 ]
 
 function handleLogout() {
-  clearSessionRole()
+  clearSession()
   window.location.hash = '#/'
 }
 
@@ -37,21 +36,25 @@ function TabButton({ tab, active, onSelect, className }) {
 }
 
 export default function ProducerSidebar({ activeTab, onTabChange }) {
+  const user = getUser()
+  const displayName = getDisplayName(user)
+  const initials = getInitials(user)
+
   return (
     <>
       <aside className="hidden w-64 shrink-0 lg:block">
         <div className="sticky top-20 rounded-2xl border border-gray-100 bg-white p-4">
           <div className="flex items-center gap-3 px-2 py-2">
             <span
-              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white"
+              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-white text-sm font-bold"
               role="img"
-              aria-label="María González"
+              aria-label={displayName}
             >
-              <Icon name="agriculture" size={24} />
+              {initials}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">{producerProfile.name}</p>
-              <p className="truncate text-xs text-gray-500">{producerProfile.farm}</p>
+              <p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
+              <p className="truncate text-xs text-gray-500">Productor</p>
             </div>
           </div>
 
@@ -95,11 +98,11 @@ export default function ProducerSidebar({ activeTab, onTabChange }) {
       <div className="sticky top-16 z-30 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
           <span
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-brand text-white"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-brand text-white text-xs font-bold"
             role="img"
-            aria-label="María González"
+            aria-label={displayName}
           >
-            <Icon name="agriculture" size={18} />
+            {initials}
           </span>
           {TABS.map((tab) => (
             <TabButton

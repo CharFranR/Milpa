@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 
 	"milpa/aplication/dto"
+	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
-	"milpa/internal/validate"
 )
 
 type ReviewHandler struct {
@@ -26,10 +26,8 @@ func (h *ReviewHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validate.Request([]validate.Rule{
-		{Field: "company_id", Value: req.CompanyID},
-	}); err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
+	if req.CompanyID == uuid.Nil && req.TargetID == uuid.Nil {
+		respondError(w, http.StatusBadRequest, "provide company_id or target_id")
 		return
 	}
 
@@ -77,5 +75,51 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondError(w, http.StatusBadRequest, "provide company_id or user_id")
+	if targetStr := r.URL.Query().Get("target_type"); targetStr != "" || r.URL.Query().Get("target_id") != "" {
+		targetType := domain.ReviewTargetType(r.URL.Query().Get("target_type"))
+		if !domain.ValidReviewTargetType(targetType) {
+			respondError(w, http.StatusBadRequest, "target_type must be company or user")
+			return
+		}
+
+		targetID, err := uuid.Parse(r.URL.Query().Get("target_id"))
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid target_id")
+			return
+		}
+
+		result, err := h.uc.FindByTarget(r.Context(), targetType, targetID)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		respond(w, http.StatusOK, result)
+		return
+	}
+
+	respondError(w, http.StatusBadRequest, "provide company_id, user_id or target_type with target_id")
+}
+
+func (h *ReviewHandler) Average(w http.ResponseWriter, r *http.Request) {
+	rawTargetType := r.URL.Query().Get("target_type")
+	targetType := domain.ReviewTargetType(rawTargetType)
+	if !domain.ValidReviewTargetType(targetType) {
+		respondError(w, http.StatusBadRequest, "target_type must be company or user")
+		return
+	}
+
+	targetID, err := uuid.Parse(r.URL.Query().Get("target_id"))
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid target_id")
+		return
+	}
+
+	result, err := h.uc.GetAverageRating(r.Context(), targetType, targetID)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
 }

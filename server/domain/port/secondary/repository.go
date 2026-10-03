@@ -3,6 +3,7 @@ package port
 import (
 	"context"
 
+	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
 
 	"github.com/google/uuid"
@@ -26,7 +27,7 @@ type CompanyRepository interface {
 
 type OfferingRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
-	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
 	Save(ctx context.Context, offering *domain.Offering) error
 	Update(ctx context.Context, offering *domain.Offering) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -35,7 +36,10 @@ type OfferingRepository interface {
 type ReviewRepository interface {
 	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error)
 	Save(ctx context.Context, review *domain.Review) error
+	AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
+	ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
 }
 
 type CategoryRepository interface {
@@ -47,6 +51,110 @@ type CategoryRepository interface {
 type InquiryRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)
+	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Inquiry, error)
 	Save(ctx context.Context, inquiry *domain.Inquiry) error
 	Update(ctx context.Context, inquiry *domain.Inquiry) error
+}
+
+type LiquidationViewer struct {
+	ID            uuid.UUID
+	SeeRestricted bool
+}
+
+type LiquidationRepository interface {
+	// FindByID is unfiltered: for paths that authorise against the result.
+	// A publicly reachable read must use FindVisibleByID.
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.Liquidation, error)
+	FindVisibleByID(ctx context.Context, id uuid.UUID, viewer LiquidationViewer) (*domain.Liquidation, error)
+	FindBySupplier(ctx context.Context, supplierID uuid.UUID, viewer LiquidationViewer) ([]domain.Liquidation, error)
+	FindOpen(ctx context.Context, viewer LiquidationViewer) ([]domain.Liquidation, error)
+	Save(ctx context.Context, liquidation *domain.Liquidation) error
+	Update(ctx context.Context, liquidation *domain.Liquidation) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type ReportRepository interface {
+	Save(ctx context.Context, report *domain.Report) error
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.Report, error)
+	FindAll(ctx context.Context, status string, targetType string, page, pageSize int) ([]domain.Report, int, error)
+	Resolve(ctx context.Context, report *domain.Report) error
+	ExistsPendingByTarget(ctx context.Context, reporterID uuid.UUID, targetType domain.ReportTargetType, targetID uuid.UUID) (bool, error)
+}
+
+type AuditLogRepository interface {
+	Save(ctx context.Context, log *domain.AuditLog) error
+	FindAll(ctx context.Context, action string, actorID string, targetType string, page, pageSize int) ([]domain.AuditLog, int, error)
+}
+
+type ImageStore interface {
+	Upload(ctx context.Context, file []byte, filename string) (string, error)
+	Load(ctx context.Context, filename string) (*dto.ImageDataDTO, error)
+	Delete(ctx context.Context, filename string) error
+}
+
+type ConversationRepository interface {
+	Save(ctx context.Context, convesation *domain.Conversation) error
+	List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
+	ListMessage(ctx context.Context, conversastionID uuid.UUID) ([]domain.Message, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type MessageRepository interface {
+	Save(ctx context.Context, message *domain.Message) error
+	BulkSave(ctx context.Context, messages *[]domain.Message) error
+	ListByConversationID(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
+	GetMessageByID(ctx context.Context, id uuid.UUID) (*domain.Message, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type SupplyOfferRepository interface {
+	Create(ctx context.Context, supplyOffer *domain.SupplyOffer) error
+	List(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplyOffer, error)
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.SupplyOffer, error)
+	FindBySupplierAndRequest(ctx context.Context, supplierID, supplyRequestID uuid.UUID) (domain.SupplyOffer, error)
+	GetByID(ctx context.Context, supplyOfferID uuid.UUID) (domain.SupplyOffer, error)
+	Update(ctx context.Context, supplyOffer *domain.SupplyOffer) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type SupplyRequestRepository interface {
+	Create(ctx context.Context, supplyRequest *domain.SupplyRequest) error
+	List(ctx context.Context, buyerID uuid.UUID) ([]domain.SupplyRequest, error)
+	ListOpen(ctx context.Context) ([]domain.SupplyRequest, error)
+	GetByID(ctx context.Context, supplyRequest uuid.UUID) (domain.SupplyRequest, error)
+	Update(ctx context.Context, suplyRequest *domain.SupplyRequest) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type MatchRepository interface {
+	Create(ctx context.Context, match *domain.Match) error
+	ListByOffer(ctx context.Context, supplyOfferID uuid.UUID) ([]domain.Match, error)
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
+	ListActiveByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Match, error)
+	ListActiveBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.Match, error)
+	ExistsActiveByRequest(ctx context.Context, supplyRequestID uuid.UUID) (bool, error)
+	ExistsActiveByOffer(ctx context.Context, supplyOfferID uuid.UUID) (bool, error)
+	GetByID(ctx context.Context, matchID uuid.UUID) (*domain.Match, error)
+	Update(ctx context.Context, match *domain.Match) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type TransactionRepository interface {
+	Create(ctx context.Context, transaction *domain.Transaction) error
+	List(ctx context.Context, matchID uuid.UUID) ([]domain.Transaction, error)
+	ListByRequest(ctx context.Context, supplyRequestID uuid.UUID) ([]domain.Transaction, error)
+	GetByMatch(ctx context.Context, matchID uuid.UUID) (domain.Transaction, error)
+	GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
+	Update(ctx context.Context, transaction *domain.Transaction) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type SupplierInventoryRepository interface {
+	Create(ctx context.Context, inventory *domain.SupplierInventory) error
+	ListBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplierInventory, error)
+	FindBySupplierAndProduct(ctx context.Context, supplierID uuid.UUID, productName string) (domain.SupplierInventory, error)
+	GetByID(ctx context.Context, id uuid.UUID) (domain.SupplierInventory, error)
+	Update(ctx context.Context, inventory *domain.SupplierInventory) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }

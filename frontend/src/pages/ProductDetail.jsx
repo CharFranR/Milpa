@@ -1,39 +1,151 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
-import StarRating from '../components/StarRating'
 import ProductImage from '../components/product/ProductImage'
-import ProductDetailModal from '../components/product/ProductDetailModal'
-import { productById, producerById, categoryById, productsByCategory } from '../mocks/catalog'
+import { offerings, companies, conversations, openChat } from '../services/api'
+import { productById, producerById, categoryById } from '../mocks/catalog'
+import { isAuthenticated } from '../lib/session'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
+import { resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const hash = window.location.hash
   const productId = hash.replace('#/product/', '')
-  const product = productById(productId)
-  const producer = product ? producerById(product.producerId) : null
-  const category = product ? categoryById(product.categoryId) : null
-
+  const [realOffering, setRealOffering] = useState(null)
+  const [realCompany, setRealCompany] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [relatedProducts, setRelatedProducts] = useState([])
+  const [chatError, setChatError] = useState('')
+  const [startingChat, setStartingChat] = useState(false)
+  const [chat, setChat] = useState({ conversationId: null, messages: [], connected: false })
+  const [draft, setDraft] = useState('')
+  const socketRef = useRef(null)
 
   useEffect(() => {
-    if (product) {
-      const related = productsByCategory(product.categoryId)
-        .filter((p) => p.id !== product.id)
-        .slice(0, 3)
-      setRelatedProducts(related)
-    }
-  }, [product])
+    if (!productId) return
+    setLoading(true)
 
-  function handleSendMessage(message) {
-    console.log('Enviar mensaje:', message)
-    alert(`Mensaje enviado a ${producer?.name}: "${message}"`)
+    offerings.getById(productId)
+      .then((data) => {
+        setRealOffering(data)
+        if (data.company_id) {
+          return companies.getById(data.company_id).catch(() => null)
+        }
+        return null
+      })
+      .then((companyData) => {
+        if (companyData) setRealCompany(companyData)
+      })
+      .catch(() => {
+        setRealOffering(null)
+      })
+      .finally(() => setLoading(false))
+  }, [productId])
+
+  useEffect(() => {
+    return () => {
+      socketRef.current?.close()
+      socketRef.current = null
+    }
+  }, [])
+
+  const product = realOffering || productById(productId)
+  // Only the public representation is available to an anonymous visitor, so
+  // this is the location a buyer can be shown and nothing finer.
+  const producer = realCompany
+    ? {
+        name: realCompany.name,
+        city: realCompany.municipality || 'Nicaragua',
+        region: realCompany.department || '',
+        farm: realCompany.description || '',
+        verified: !!realCompany.verified,
+        since: '2025',
+      }
+    : product
+      ? { ...producerById(product.producerId), verified: false }
+      : null
+  const category = product ? (categoryById(product.categoryId) || { name: product.type === 1 ? 'Servicio' : 'Producto' }) : null
+  const farmerId = realOffering?.user_id || null
+
+  const description = product?.description || ''
+  const unitMatch = description.match(/Unit:\s*(\S+)/)
+  const unit = unitMatch?.[1] || 'un'
+  const qtyMatch = description.match(/Qty:\s*(\d+)/)
+  const quantity = qtyMatch?.[1] || null
+  const cleanDescription = description.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+
+  // The direct chat is the only contact path on this page. Post-match chat does
+  // not exist yet, so this opens a conversation immediately instead of waiting
+  // for a match; that is temporary and is the reason no phone number is shown.
+  async function handleContact() {
+    setChatError('')
+
+    if (!isAuthenticated()) {
+      window.location.hash = '#/login'
+      return
+    }
+    if (!farmerId) {
+      setChatError('Este anuncio no tiene un productor registrado todavía.')
+      return
+    }
+
+    setStartingChat(true)
+    try {
+      const conversation = await conversations.create({
+        farmer_id: farmerId,
+        offering_id: product.id,
+      })
+      setIsModalOpen(true)
+      setChat({ conversationId: conversation.id, messages: [], connected: false })
+
+      socketRef.current?.close()
+      const socket = openChat(conversation.id, {
+        onOpen: () => setChat((prev) => ({ ...prev, connected: true })),
+        onMessage: (message) => {
+          setChat((prev) => ({ ...prev, messages: [...prev.messages, message] }))
+        },
+        onClose: () => setChat((prev) => ({ ...prev, connected: false })),
+        onError: () => setChatError('No se pudo conectar el chat.'),
+      })
+      socketRef.current = socket
+    } catch (err) {
+      setChatError(err?.message || 'No se pudo iniciar la conversación.')
+    } finally {
+      setStartingChat(false)
+    }
+  }
+
+  function handleSend(event) {
+    event.preventDefault()
+    const text = draft.trim()
+    if (!text) return
+    socketRef.current?.send(text)
+    setDraft('')
+  }
+
+  function handleSendMessage() {
     setIsModalOpen(false)
+    socketRef.current?.close()
+    socketRef.current = null
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-gray-50">
+        <Navbar />
+        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+          <div className="text-center">
+            <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
+            <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   if (!product || !producer || !category) {
@@ -55,8 +167,8 @@ export default function ProductDetail() {
     )
   }
 
-  const availabilityText = product.available ? 'Disponible ahora' : 'Temporalmente agotado'
-  const availabilityColor = product.available ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+  const availabilityText = realOffering ? 'Disponible ahora' : 'Disponible ahora'
+  const availabilityColor = 'bg-green-100 text-green-700'
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -75,29 +187,10 @@ export default function ProductDetail() {
           <section aria-label="Galería de imágenes" className="lg:col-span-2 space-y-4">
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100">
               <ProductImage
-                productId={product.id}
+                image_url={resolveOfferingImage(realOffering)}
                 name={product.name}
                 className="w-full h-full object-cover"
               />
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {Array.from({ length: 4 }, (_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={cn(
-                    'flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-colors',
-                    i === 0 ? 'border-brand' : 'border-transparent hover:border-brand/40',
-                  )}
-                  aria-label={`Miniatura ${i + 1}`}
-                >
-                  <ProductImage
-                    productId={product.id}
-                    name={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
             </div>
           </section>
 
@@ -115,36 +208,30 @@ export default function ProductDetail() {
 
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{product.name}</h1>
 
-            <div className="flex items-center gap-2">
-              <StarRating rating={product.rating} reviews={product.reviews} size={16} showValue />
-            </div>
-
             <div className="text-3xl font-bold text-brand">
               {formatPrice(product.price)}
-              <span className="text-base font-medium text-gray-400"> / {product.unit}</span>
+              <span className="text-base font-medium text-gray-400"> / {unit}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <span className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium', availabilityColor)}>
-                <Icon name={product.available ? 'check_circle' : 'schedule'} size={12} />
+                <Icon name="check_circle" size={12} />
                 {availabilityText}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                <Icon name="location_on" size={12} />
-                {producer.region}
-              </span>
+              {producer.region && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                  <Icon name="location_on" size={12} />
+                  {producer.region}
+                </span>
+              )}
             </div>
 
             <div className="border-t border-gray-100 pt-6 space-y-2">
-              <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
-              {product.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {product.tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
+              {cleanDescription && (
+                <p className="text-sm text-gray-600 leading-relaxed">{cleanDescription}</p>
+              )}
+              {quantity && (
+                <p className="text-sm text-gray-500">Cantidad disponible: {quantity}</p>
               )}
             </div>
 
@@ -155,25 +242,15 @@ export default function ProductDetail() {
                 size="lg"
                 className="w-full"
                 icon={<Icon name="chat_bubble" size={20} />}
-                onClick={() => setIsModalOpen(true)}
+                disabled={startingChat}
+                onClick={handleContact}
               >
-                Contactar productor
+                {startingChat ? 'Abriendo chat...' : 'Contactar productor'}
               </Button>
 
-              <Button
-                type="button"
-                variant="whatsapp"
-                size="lg"
-                className="w-full"
-                icon={<Icon name="phone_iphone" size={20} />}
-                onClick={() => {
-                  const text = encodeURIComponent(`Hola ${producer.name}, me interesa comprar ${product.name}...`)
-                  const phone = producer.phone.replace(/\D/g, '')
-                  window.open(`https://wa.me/505${phone}?text=${text}`, '_blank')
-                }}
-              >
-                Contactar por WhatsApp
-              </Button>
+              {chatError && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{chatError}</p>
+              )}
             </div>
 
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4">
@@ -183,82 +260,82 @@ export default function ProductDetail() {
                 </span>
                 <div>
                   <p className="font-semibold text-gray-900">{producer.name}</p>
-                  <p className="text-sm text-gray-500">{producer.farm}</p>
+                  {producer.farm && (
+                    <p className="text-sm text-gray-500">{producer.farm}</p>
+                  )}
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Icon name="location_on" size={12} />
-                    {producer.city}, {producer.region} · Miembro desde {producer.since}
+                    {producer.city} · Miembro desde {producer.since}
                   </p>
+                  {producer.verified && (
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <Icon name="check_circle" size={12} />
+                      Productor verificado
+                    </span>
+                  )}
                 </div>
               </div>
-              <a href="#/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark">
-                Ver perfil <Icon name="arrow_forward" size={14} />
-              </a>
             </div>
           </section>
         </div>
-
-        {relatedProducts.length > 0 && (
-          <section aria-label="Productos relacionados" className="mt-12">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Productos relacionados</h2>
-            <div className="grid gap-5 sm:grid-cols-3">
-              {relatedProducts.map((related) => {
-                const relatedProducer = producerById(related.producerId)
-                const relatedCategory = categoryById(related.categoryId)
-                return (
-                  <article
-                    key={related.id}
-                    className="group overflow-hidden rounded-2xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-                  >
-                    <a
-                      href={`#/product/${related.id}`}
-                      className="relative block aspect-[4/3] overflow-hidden bg-gray-100"
-                      aria-label={`Ver ${related.name}`}
-                    >
-                      <ProductImage
-                        productId={related.id}
-                        name={related.name}
-                        className="transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <span className="absolute left-3 top-3">
-                        <Badge tone="brand">{relatedCategory?.name}</Badge>
-                      </span>
-                    </a>
-                    <div className="p-4">
-                      <a href={`#/product/${related.id}`} className="font-semibold text-gray-900 hover:text-brand line-clamp-1">
-                        {related.name}
-                      </a>
-                      <p className="mt-0.5 text-sm text-gray-500 truncate">
-                        {relatedProducer?.name} · {relatedProducer?.city}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <p className="text-lg font-bold text-brand">
-                          {formatPrice(related.price)}
-                          <span className="ml-1 text-sm font-medium text-gray-400">/ {related.unit}</span>
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
       </main>
 
       <Footer />
 
-      <ProductDetailModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        product={{
-          id: product.id,
-          name: product.name,
-          producerName: producer.name,
-          producerPhone: producer.phone,
-        }}
-        onSend={handleSendMessage}
-      />
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in-200"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Chat con ${producer.name}`}
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
+            <header className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">{producer.name}</h3>
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                aria-label="Cerrar"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </header>
+
+            <div className="max-h-80 space-y-2 overflow-y-auto p-5">
+              {chat.messages.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  Escribe tu consulta sobre {product.name}. El productor responderá por aquí.
+                </p>
+              )}
+              {chat.messages.map((message, index) => (
+                <p
+                  key={`${message.id || 'msg'}-${index}`}
+                  className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-800"
+                >
+                  {message.content}
+                </p>
+              ))}
+            </div>
+
+            <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-gray-100 p-4">
+              <label htmlFor="chat-message" className="sr-only">Tu mensaje</label>
+              <input
+                id="chat-message"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Escribe un mensaje..."
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                disabled={!chat.connected}
+                maxLength={2000}
+              />
+              <Button type="submit" variant="primary" disabled={!chat.connected || !draft.trim()}>
+                Enviar
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

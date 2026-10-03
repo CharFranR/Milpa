@@ -2,44 +2,51 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 
 	usecases "milpa/aplication/use-cases"
 	"milpa/domain/port/primary"
+	port "milpa/domain/port/secondary"
 	"milpa/infrastructure/adapters/primary/api"
 	"milpa/infrastructure/adapters/primary/api/handler"
 	"milpa/infrastructure/adapters/primary/api/middleware"
+	"milpa/infrastructure/adapters/primary/api/ws"
 	"milpa/infrastructure/adapters/secondary/auth"
 	"milpa/infrastructure/adapters/secondary/cache"
 	repo "milpa/infrastructure/adapters/secondary/repository"
+	"milpa/infrastructure/adapters/secondary/search"
+	"milpa/infrastructure/adapters/secondary/storage"
 	timepkg "milpa/infrastructure/adapters/secondary/time"
+	"milpa/infrastructure/config"
 	"milpa/infrastructure/database"
+	elasticSsearch "milpa/infrastructure/searchService"
 )
+
+// El mantenedor oficial del wiring es chapi, al developer le da pereza la inyección de dependencias :)
 
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, using system env")
 	}
 
+	cfg := config.Load()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_PORT"),
-		os.Getenv("POSTGRES_DB"),
-		os.Getenv("DB_SSLMODE"),
-	)
+	dsn := cfg.DatabaseURL
+
+	elasticSearchClient, err := elasticSsearch.CreateESClient(cfg.ESClient)
+	if err != nil {
+		log.Fatalf("failed to create elasticsearch client: %v", err)
+	}
 
 	pool, err := database.CreatePool(ctx, dsn)
 	if err != nil {
@@ -51,15 +58,23 @@ func main() {
 	database.MakeMigrations(context.Background(), dsn)
 	log.Println("migrations complete")
 
-	jwtSecret := os.Getenv("JWT_SECRET")
+	// The search index is bootstrapped on boot for the same reason the SQL
+	// migrations are: Elasticsearch infers a mapping from the first document it
+	// sees, which silently mis-types every later document, and an index that
+	// was never created makes every search fail. Running it on an index that
+	// already exists is a no-op and leaves the indexed documents alone.
+	log.Printf("bootstrapping elasticsearch index %q...", cfg.ESClient.Index)
+	if err := search.EnsureIndex(context.Background(), elasticSearchClient, cfg.ESClient.Index); err != nil {
+		log.Fatalf("failed to bootstrap elasticsearch index: %v", err)
+	}
+	log.Println("elasticsearch index ready")
+
+	jwtSecret := cfg.JWTSecret
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET is required")
 	}
 
-	serverPort := os.Getenv("SERVER_PORT")
-	if serverPort == "" {
-		serverPort = "8080"
-	}
+	serverPort := cfg.ServerPort
 
 	hasher := auth.NewBcryptHasher(0)
 	jwtProvider := auth.NewJWTProvider(jwtSecret, 24*time.Hour)
@@ -71,19 +86,48 @@ func main() {
 	reviewRepo := repo.NewReviewRepository(pool)
 	categoryRepo := repo.NewCategoryRepository(pool)
 	inquiryRepo := repo.NewInquiryRepository(pool)
+	liquidationRepo := repo.NewLiquidationRepository(pool)
+	reportRepo := repo.NewReportRepository(pool)
+	auditLogRepo := repo.NewAuditLogRepository(pool)
+	conversationRepo := repo.NewConverationImpl(pool)
+	messageRepo := repo.NewMessageRepositoryImpl(pool)
+	supplyRequestRepo := repo.NewSupplyRequestRepository(pool)
+	supplyOfferRepo := repo.NewSupplyOfferRepository(pool)
+	matchRepo := repo.NewMatchRepository(pool)
+	transactionRepo := repo.NewTransactionRepository(pool)
+	supplierInventoryRepo := repo.NewSupplierInventoryRepository(pool)
+	unitOfWork := repo.NewUnitOfWork(pool)
+
+	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, cfg.ESClient.Index)
 
 	cacheClient := cache.NewCacheImpl(
-		os.Getenv("REDIS_HOST")+":"+os.Getenv("REDIS_PORT"),
+		resolveRedisAddr(),
 		os.Getenv("REDIS_PASSWORD"),
 		0,
 	)
 
 	var userUC primary.UserUseCase = usecases.NewUserUseCase(userRepo, hasher, jwtProvider, clock)
 	var companyUC primary.CompanyUseCase = usecases.NewCompanyUseCase(companyRepo, userRepo, categoryRepo, clock)
-	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, companyRepo, clock)
-	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, clock)
+	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, transactionRepo, matchRepo, supplyOfferRepo, supplyRequestRepo, companyRepo, clock)
 	var categoryUC primary.CategoryUseCase = usecases.NewCategoryUseCase(categoryRepo)
-	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, clock)
+	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, offeringRepo, clock)
+	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
+
+	var offeringUC primary.OfferingUseCase = usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, searchUC.(port.Invalidator))
+	var liquidationUC primary.LiquidationUseCase = usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
+
+	var reportUC primary.ReportUseCase = usecases.NewReportUseCase(reportRepo, auditLogRepo, userRepo, offeringRepo, clock)
+	var moderationUC primary.ModerationUseCase = usecases.NewModerationUseCase(userRepo, offeringRepo, auditLogRepo, clock)
+
+	var conversationUC primary.ConversationUserUseCase = usecases.NewConversationUseCase(conversationRepo, offeringRepo, userRepo, clock)
+	var messageUC primary.MessageUserCase = usecases.NewMessageUseCase(messageRepo, conversationRepo, clock)
+	var transactionUC primary.TransactionUseCase = usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
+
+	var supplyRequestUC primary.SupplyRequestUseCase = usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
+	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
+
+	var recommendationUC primary.RecommendationUseCase = usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
+	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
@@ -91,17 +135,42 @@ func main() {
 	reviewUC = usecases.NewCachedReviewUseCase(reviewUC, cacheClient)
 	inquiryUC = usecases.NewCachedInquiryUseCase(inquiryUC, cacheClient)
 	userUC = usecases.NewCachedUserUseCase(userUC, cacheClient)
+	conversationUC = usecases.NewCachedConversationUseCase(conversationUC, cacheClient)
+	messageUC = usecases.NewCachedMessageUseCase(messageUC, cacheClient)
+
+	imageStore := storage.NewLocalImageStore("./uploads")
 
 	userHandler := handler.NewUserHandler(userUC)
 	companyHandler := handler.NewCompanyHandler(companyUC)
-	offeringHandler := handler.NewOfferingHandler(offeringUC)
+	offeringHandler := handler.NewOfferingHandler(offeringUC, imageStore)
 	reviewHandler := handler.NewReviewHandler(reviewUC)
 	categoryHandler := handler.NewCategoryHandler(categoryUC)
 	inquiryHandler := handler.NewInquiryHandler(inquiryUC)
+	liquidationHandler := handler.NewLiquidationHandler(liquidationUC)
+	imageHandler := handler.NewImageHandler(imageStore)
+	searchHandler := handler.NewSearchHandler(searchUC)
+	reportHandler := handler.NewReportHandler(reportUC)
+	moderationHandler := handler.NewModerationHandler(moderationUC)
+	conversationHandler := handler.NewConversationHandler(conversationUC)
+	messageHandler := handler.NewMessageHandler(messageUC)
+	supplyRequestHandler := handler.NewSupplyRequestHandler(supplyRequestUC)
+	supplyOfferHandler := handler.NewSupplyOfferHandler(supplyOfferUC)
+	var inventoryUC primary.SupplierInventoryUseCase = usecases.NewSupplierInventoryUseCase(supplierInventoryRepo)
+	inventoryHandler := handler.NewSupplierInventoryHandler(inventoryUC)
+	matchHandler := handler.NewMatchHandler(matchUC)
+	recommendationHandler := handler.NewRecommendationHandler(recommendationUC)
+	transactionHandler := handler.NewTransactionHandler(transactionUC)
+
+	hub := ws.NewHub()
+	go hub.Run()
+
+	chatHandler := ws.NewHandler(hub, messageUC, conversationUC)
 
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
+	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, authMW)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, inventoryHandler, matchHandler, recommendationHandler)
+	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{
 		Addr:         ":" + serverPort,
@@ -129,4 +198,18 @@ func main() {
 	if err := srv.Shutdown(shutdown); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
+}
+
+func resolveRedisAddr() string {
+	if url := os.Getenv("REDIS_URL"); url != "" {
+		host := strings.TrimPrefix(url, "redis://")
+		if idx := strings.Index(host, "@"); idx != -1 {
+			host = host[idx+1:]
+		}
+		if idx := strings.Index(host, "/"); idx != -1 {
+			host = host[:idx]
+		}
+		return host
+	}
+	return os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 }

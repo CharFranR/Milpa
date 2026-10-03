@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// Para todos los test se manejó Table Driven Test
+
 func TestNewUser(t *testing.T) {
 	t.Parallel()
 
@@ -118,8 +120,8 @@ func TestUserIsAdmin(t *testing.T) {
 	}{
 		{name: "admin role", role: RoleAdmin, want: true},
 		{name: "pending role", role: RolePending, want: false},
-		{name: "mipyme role", role: RoleMIPYME, want: false},
-		{name: "provider role", role: RoleProvider, want: false},
+		{name: "agricultor role", role: RoleAgricultor, want: false},
+		{name: "auditor role", role: RoleAuditor, want: false},
 	}
 
 	for _, tt := range tests {
@@ -144,7 +146,7 @@ func TestUserHasRole(t *testing.T) {
 		expected RoleOptions
 		want     bool
 	}{
-		{name: "matching role", role: RoleProvider, expected: RoleProvider, want: true},
+		{name: "matching role", role: RoleAgricultor, expected: RoleAgricultor, want: true},
 		{name: "different role", role: RolePending, expected: RoleAdmin, want: false},
 	}
 
@@ -170,8 +172,11 @@ func TestRoleOptionsString(t *testing.T) {
 		want string
 	}{
 		{name: "pending", role: RolePending, want: "pending"},
-		{name: "mipyme", role: RoleMIPYME, want: "mipyme"},
-		{name: "provider", role: RoleProvider, want: "provider"},
+		{name: "agricultor", role: RoleAgricultor, want: "agricultor"},
+		{name: "comprador minorista", role: RoleCompradorMinorista, want: "comprador_minorista"},
+		{name: "comprador mayorista detallista", role: RoleCompradorMayoristaDetallista, want: "comprador_mayorista_detallista"},
+		{name: "comprador mayorista corporativo", role: RoleCompradorMayoristaCorporativo, want: "comprador_mayorista_corporativo"},
+		{name: "auditor", role: RoleAuditor, want: "auditor"},
 		{name: "admin", role: RoleAdmin, want: "admin"},
 		{name: "unknown value", role: RoleOptions(99), want: "unknown"},
 	}
