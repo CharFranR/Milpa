@@ -40,13 +40,15 @@ func TestSupplyRequestUseCaseCreate(t *testing.T) {
 		createErr error
 		wantErr   error
 	}{
-		{name: "happy path", ctx: principalCtx(), req: validReq},
+		{name: "happy path", ctx: mayoristaCtx(), req: validReq},
+		{name: "creator is a minorista", ctx: principalCtx(), req: validReq, wantErr: domain.ErrForbidden},
+		{name: "creator is an agricultor", ctx: farmerCtx(), req: validReq, wantErr: domain.ErrForbidden},
 		{name: "unauthenticated", ctx: context.Background(), req: validReq, wantErr: auth.ErrUnauthenticated},
-		{name: "empty product name", ctx: principalCtx(), req: dto.SupplyRequestDTO{TotalAmount: 100}, wantErr: domain.ErrInvalidInput},
-		{name: "zero total amount", ctx: principalCtx(), req: dto.SupplyRequestDTO{ProductName: "Rice"}, wantErr: domain.ErrInvalidInput},
+		{name: "empty product name", ctx: mayoristaCtx(), req: dto.SupplyRequestDTO{TotalAmount: 100}, wantErr: domain.ErrInvalidInput},
+		{name: "zero total amount", ctx: mayoristaCtx(), req: dto.SupplyRequestDTO{ProductName: "Rice"}, wantErr: domain.ErrInvalidInput},
 		{
 			name: "request deadline after delivery deadline",
-			ctx:  principalCtx(),
+			ctx:  mayoristaCtx(),
 			req: dto.SupplyRequestDTO{
 				ProductName:      "Rice",
 				TotalAmount:      100,
@@ -55,7 +57,7 @@ func TestSupplyRequestUseCaseCreate(t *testing.T) {
 			},
 			wantErr: domain.ErrInvalidInput,
 		},
-		{name: "repo error", ctx: principalCtx(), req: validReq, createErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: mayoristaCtx(), req: validReq, createErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -175,7 +177,7 @@ func TestSupplyRequestUseCaseCreateRequiresUnitAndLocation(t *testing.T) {
 			requestRepo := newSupplyFakeRequestRepo()
 			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), newSupplyFakeMatchRepo(), newFakeTimer())
 
-			got, err := uc.Create(principalCtx(), req)
+			got, err := uc.Create(mayoristaCtx(), req)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -451,17 +453,17 @@ func TestSupplyRequestUseCaseUpdate(t *testing.T) {
 		updateErr error
 		wantErr   error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
+		{name: "happy path", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, wantErr: auth.ErrUnauthenticated},
-		{name: "null id", ctx: principalCtx(), id: uuid.Nil, req: validReq, wantErr: domain.ErrInvalidInput},
-		{name: "not found", ctx: principalCtx(), id: uuid.New(), req: validReq, wantErr: domain.ErrNotFound},
-		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
-		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
-		{name: "empty product name", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyGeneralUpdateDTO{TotalAmount: 80, ActualAmount: 60}, wantErr: domain.ErrInvalidInput},
-		{name: "actual amount above total", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyGeneralUpdateDTO{ProductName: "Maize", TotalAmount: 10, ActualAmount: 20}, wantErr: domain.ErrInvalidInput},
+		{name: "null id", ctx: mayoristaCtx(), id: uuid.Nil, req: validReq, wantErr: domain.ErrInvalidInput},
+		{name: "not found", ctx: mayoristaCtx(), id: uuid.New(), req: validReq, wantErr: domain.ErrNotFound},
+		{name: "non-owner", ctx: mayoristaCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
+		{name: "not open", ctx: mayoristaCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "empty product name", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyGeneralUpdateDTO{TotalAmount: 80, ActualAmount: 60}, wantErr: domain.ErrInvalidInput},
+		{name: "actual amount above total", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyGeneralUpdateDTO{ProductName: "Maize", TotalAmount: 10, ActualAmount: 20}, wantErr: domain.ErrInvalidInput},
 		{
 			name: "deadline order invalid",
-			ctx:  principalCtx(),
+			ctx:  mayoristaCtx(),
 			id:   ownedRequest.ID,
 			seed: &ownedRequest,
 			req: dto.SupplyGeneralUpdateDTO{
@@ -473,7 +475,7 @@ func TestSupplyRequestUseCaseUpdate(t *testing.T) {
 			},
 			wantErr: domain.ErrInvalidInput,
 		},
-		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -555,13 +557,13 @@ func TestSupplyRequestUseCaseUpdateAmounts(t *testing.T) {
 		updateErr error
 		wantErr   error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
+		{name: "happy path", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, wantErr: auth.ErrUnauthenticated},
-		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
-		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
-		{name: "actual amount above total", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyUpdateAmountsDTO{TotalAmount: 10, ActualAmount: 50}, wantErr: domain.ErrInvalidInput},
-		{name: "zero total amount", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyUpdateAmountsDTO{TotalAmount: 0}, wantErr: domain.ErrInvalidInput},
-		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
+		{name: "non-owner", ctx: mayoristaCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
+		{name: "not open", ctx: mayoristaCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "actual amount above total", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyUpdateAmountsDTO{TotalAmount: 10, ActualAmount: 50}, wantErr: domain.ErrInvalidInput},
+		{name: "zero total amount", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: dto.SupplyUpdateAmountsDTO{TotalAmount: 0}, wantErr: domain.ErrInvalidInput},
+		{name: "repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -652,7 +654,7 @@ func TestSupplyRequestUseCaseUpdateRespectsMatchedAmount(t *testing.T) {
 			matchRepo.listActiveByRequestErr = tt.listActiveErr
 			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-			err := uc.Update(principalCtx(), ownedRequest.ID, tt.req)
+			err := uc.Update(mayoristaCtx(), ownedRequest.ID, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -723,7 +725,7 @@ func TestSupplyRequestUseCaseUpdateAmountsRespectsMatchedAmount(t *testing.T) {
 			matchRepo.listActiveByRequestErr = tt.listActiveErr
 			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-			err := uc.UpdateAmounts(principalCtx(), ownedRequest.ID, tt.req)
+			err := uc.UpdateAmounts(mayoristaCtx(), ownedRequest.ID, tt.req)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -774,13 +776,13 @@ func TestSupplyRequestUseCaseUpdateDeadlines(t *testing.T) {
 		updateErr error
 		wantErr   error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
+		{name: "happy path", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, wantErr: auth.ErrUnauthenticated},
-		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
-		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "non-owner", ctx: mayoristaCtx(), id: otherRequest.ID, seed: &otherRequest, req: validReq, wantErr: domain.ErrForbidden},
+		{name: "not open", ctx: mayoristaCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, req: validReq, wantErr: domain.ErrInvalidRequestStatus},
 		{
 			name: "deadline order invalid",
-			ctx:  principalCtx(),
+			ctx:  mayoristaCtx(),
 			id:   ownedRequest.ID,
 			seed: &ownedRequest,
 			req: dto.SupplyUpdateTimeDTO{
@@ -789,7 +791,7 @@ func TestSupplyRequestUseCaseUpdateDeadlines(t *testing.T) {
 			},
 			wantErr: domain.ErrInvalidInput,
 		},
-		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, req: validReq, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -850,15 +852,15 @@ func TestSupplyRequestUseCaseCancel(t *testing.T) {
 		updateErr    error
 		wantErr      error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest},
+		{name: "happy path", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, wantErr: auth.ErrUnauthenticated},
-		{name: "null id", ctx: principalCtx(), id: uuid.Nil, wantErr: domain.ErrInvalidInput},
-		{name: "not found", ctx: principalCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
-		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, wantErr: domain.ErrForbidden},
-		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, wantErr: domain.ErrInvalidRequestStatus},
-		{name: "active match blocks cancel", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsActive: true, wantErr: primary.ErrActiveMatch},
-		{name: "match repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsErr: errFake, wantErr: errFake},
-		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, updateErr: errFake, wantErr: errFake},
+		{name: "null id", ctx: mayoristaCtx(), id: uuid.Nil, wantErr: domain.ErrInvalidInput},
+		{name: "not found", ctx: mayoristaCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
+		{name: "non-owner", ctx: mayoristaCtx(), id: otherRequest.ID, seed: &otherRequest, wantErr: domain.ErrForbidden},
+		{name: "not open", ctx: mayoristaCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "active match blocks cancel", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsActive: true, wantErr: primary.ErrActiveMatch},
+		{name: "match repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -919,14 +921,14 @@ func TestSupplyRequestUseCaseExpire(t *testing.T) {
 		updateErr    error
 		wantErr      error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest},
+		{name: "happy path", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedRequest.ID, seed: &ownedRequest, wantErr: auth.ErrUnauthenticated},
-		{name: "non-owner", ctx: principalCtx(), id: otherRequest.ID, seed: &otherRequest, wantErr: domain.ErrForbidden},
-		{name: "not open", ctx: principalCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, wantErr: domain.ErrInvalidRequestStatus},
-		{name: "not found", ctx: principalCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
-		{name: "active match blocks expire", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsActive: true, wantErr: primary.ErrActiveMatch},
-		{name: "match repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsErr: errFake, wantErr: errFake},
-		{name: "repo error", ctx: principalCtx(), id: ownedRequest.ID, seed: &ownedRequest, updateErr: errFake, wantErr: errFake},
+		{name: "non-owner", ctx: mayoristaCtx(), id: otherRequest.ID, seed: &otherRequest, wantErr: domain.ErrForbidden},
+		{name: "not open", ctx: mayoristaCtx(), id: cancelledRequest.ID, seed: &cancelledRequest, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "not found", ctx: mayoristaCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
+		{name: "active match blocks expire", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsActive: true, wantErr: primary.ErrActiveMatch},
+		{name: "match repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, existsErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: mayoristaCtx(), id: ownedRequest.ID, seed: &ownedRequest, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -984,7 +986,7 @@ func TestSupplyRequestUseCaseExpireRefusesWhileActiveMatchStrandsReservation(t *
 	matchRepo.existsActive = true
 	uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-	err := uc.Expire(principalCtx(), ownedRequest.ID)
+	err := uc.Expire(mayoristaCtx(), ownedRequest.ID)
 	if !errors.Is(err, primary.ErrActiveMatch) {
 		t.Fatalf("error = %v, want %v", err, primary.ErrActiveMatch)
 	}
@@ -1079,7 +1081,7 @@ func TestSupplyRequestUseCaseEditsRefusedOnceOfferAccepted(t *testing.T) {
 				matchRepo.existsActive = tt.activeMatch
 				uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-				err := update.invoke(uc, principalCtx(), ownedRequest.ID)
+				err := update.invoke(uc, mayoristaCtx(), ownedRequest.ID)
 
 				if tt.wantErr != nil {
 					if !errors.Is(err, tt.wantErr) {
@@ -1148,7 +1150,7 @@ func TestSupplyRequestUseCaseEditsPropagateMatchLookupFailure(t *testing.T) {
 			matchRepo.existsErr = errFake
 			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-			err := invoke(uc, principalCtx(), ownedRequest.ID)
+			err := invoke(uc, mayoristaCtx(), ownedRequest.ID)
 
 			if !errors.Is(err, errFake) {
 				t.Fatalf("error = %v, want %v", err, errFake)
@@ -1190,7 +1192,7 @@ func TestSupplyRequestUseCaseCancelAndExpireStayRefusedOnceOfferAccepted(t *test
 			matchRepo.existsActive = true
 			uc := usecases.NewSupplyRequestUseCase(requestRepo, newSupplyFakeOfferRepo(), matchRepo, newFakeTimer())
 
-			err := invoke(uc, principalCtx(), ownedRequest.ID)
+			err := invoke(uc, mayoristaCtx(), ownedRequest.ID)
 
 			if !errors.Is(err, primary.ErrActiveMatch) {
 				t.Fatalf("error = %v, want %v", err, primary.ErrActiveMatch)

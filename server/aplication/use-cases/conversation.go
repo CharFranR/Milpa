@@ -35,6 +35,9 @@ func (uc *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req d
 	if err != nil {
 		return nil, err
 	}
+	if !isBuyer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	if req.FarmerID == principal.UserID {
 		return nil, domain.ErrInvalidInput
@@ -47,11 +50,15 @@ func (uc *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req d
 		return nil, err
 	}
 
-	if _, err := uc.userRepo.FindByID(ctx, req.FarmerID); err != nil {
+	farmer, err := uc.userRepo.FindByID(ctx, req.FarmerID)
+	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return nil, domain.ErrNotFound
 		}
 		return nil, err
+	}
+	if !farmer.HasRole(domain.RoleAgricultor) {
+		return nil, domain.ErrForbidden
 	}
 
 	now := uc.timer.Now()

@@ -201,7 +201,7 @@ func privateUserFixture() *dto.PrivateUserDTO {
 			ID:           piiUserID,
 			FirstName:    "Carlos",
 			LastName:     "Ramirez",
-			Role:         domain.RoleProvider,
+			Role:         domain.RoleAgricultor,
 			Department:   "Leon",
 			Municipality: "Leon",
 		},
@@ -338,7 +338,7 @@ func TestOwnUserGetsContactFields(t *testing.T) {
 
 	router := newPIIRouterWithFixtures(t)
 
-	req := authorizedGet("/api/v1/users/"+piiOwnerID.String(), piiOwnerID, domain.RoleProvider)
+	req := authorizedGet("/api/v1/users/"+piiOwnerID.String(), piiOwnerID, domain.RoleAgricultor)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -391,7 +391,7 @@ func TestThirdAuthenticatedUserGetsNoContactFields(t *testing.T) {
 
 	router := newPIIRouterWithFixtures(t)
 
-	req := authorizedGet("/api/v1/users/"+piiUserID.String(), piiOtherID, domain.RoleMIPYME)
+	req := authorizedGet("/api/v1/users/"+piiUserID.String(), piiOtherID, domain.RoleCompradorMinorista)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -410,7 +410,7 @@ func TestOwnerOfCompanyGetsContactFields(t *testing.T) {
 
 	router := newPIIRouterWithFixtures(t)
 
-	req := authorizedGet("/api/v1/companies/"+piiCompID.String(), piiOwnerID, domain.RoleProvider)
+	req := authorizedGet("/api/v1/companies/"+piiCompID.String(), piiOwnerID, domain.RoleAgricultor)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -439,7 +439,7 @@ func TestThirdUserGetsNoContactFieldsForCompany(t *testing.T) {
 
 	router := newPIIRouterWithFixtures(t)
 
-	req := authorizedGet("/api/v1/companies/"+piiCompID.String(), piiOtherID, domain.RoleMIPYME)
+	req := authorizedGet("/api/v1/companies/"+piiCompID.String(), piiOtherID, domain.RoleCompradorMinorista)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 
@@ -455,7 +455,7 @@ func TestThirdUserGetsNoContactFieldsForCompaniesByOwner(t *testing.T) {
 
 	router := newPIIRouterWithFixtures(t)
 
-	req := authorizedGet("/api/v1/companies/?owner_id="+piiOwnerID.String(), piiOtherID, domain.RoleMIPYME)
+	req := authorizedGet("/api/v1/companies/?owner_id="+piiOwnerID.String(), piiOtherID, domain.RoleCompradorMinorista)
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 

@@ -43,7 +43,7 @@ func TestUserGetByIDAppliesContactBoundary(t *testing.T) {
 		{name: "own user", ctx: principalCtx(), wantPrivt: true},
 		{name: "admin", ctx: reportAdminCtx(), wantPrivt: true},
 		{name: "third authenticated user", ctx: principalCtxFor(testOtherID)},
-		{name: "third party with provider role", ctx: auth.WithPrincipal(context.Background(), auth.Principal{UserID: testOtherID, Role: domain.RoleProvider})},
+		{name: "third party with provider role", ctx: auth.WithPrincipal(context.Background(), auth.Principal{UserID: testOtherID, Role: domain.RoleAgricultor})},
 	}
 
 	for _, tt := range tests {

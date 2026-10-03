@@ -35,7 +35,7 @@ func setupReviewTestData(t *testing.T) {
 		{ID: testReviewUserID3, FirstName: "Third", LastName: "Reviewer", Email: "reviewer-3@example.com"},
 		{ID: testReviewFarmerID, FirstName: "Reviewed", LastName: "Farmer", Email: "farmer@example.com"},
 	} {
-		u.Role = domain.RoleMIPYME
+		u.Role = domain.RoleCompradorMinorista
 		u.PhoneNumber = "0000-0000"
 		u.PasswordHash = "hash"
 		u.CreatedAt = fixedTime

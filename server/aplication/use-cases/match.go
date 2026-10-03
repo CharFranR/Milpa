@@ -45,6 +45,9 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 	if err != nil {
 		return nil, nil, err
 	}
+	if !isBuyer(principal) {
+		return nil, nil, domain.ErrForbidden
+	}
 
 	var (
 		createdMatch       *domain.Match
@@ -162,6 +165,9 @@ func (uc *MatchUseCaseImpl) Pass(ctx context.Context, supplyOfferID uuid.UUID) e
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return err
+	}
+	if !isBuyer(principal) {
+		return domain.ErrForbidden
 	}
 
 	offer, err := uc.offerRepo.GetByID(ctx, supplyOfferID)

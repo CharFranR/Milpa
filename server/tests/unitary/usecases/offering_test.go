@@ -27,13 +27,13 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 	}{
 		{
 			name:      "happy path",
-			ctx:       principalCtx(),
+			ctx:       farmerCtx(),
 			req:       completeCatalogueRequest(),
 			wantPrice: 10.5,
 		},
 		{
 			name: "zero price ignored",
-			ctx:  principalCtx(),
+			ctx:  farmerCtx(),
 			req: func() dto.CreateOfferingRequest {
 				req := completeCatalogueRequest()
 				req.Price = 0
@@ -42,17 +42,17 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 		},
 		{
 			name:    "a service is not an agricultural product",
-			ctx:     principalCtx(),
+			ctx:     farmerCtx(),
 			req:     withType(completeCatalogueRequest(), domain.OfferingService),
 			wantErr: domain.ErrInvalidOfferingType,
 		},
 		{name: "unauthenticated", ctx: context.Background(), req: completeCatalogueRequest(), wantErr: auth.ErrUnauthenticated},
-		{name: "user error", ctx: principalCtx(), req: completeCatalogueRequest(), userErr: errFake, wantErr: errFake},
-		{name: "user not found", ctx: principalCtx(), req: completeCatalogueRequest(), userErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
-		{name: "forbidden", ctx: principalCtx(), req: withUser(completeCatalogueRequest(), testOtherID), wantErr: domain.ErrForbidden},
-		{name: "empty name", ctx: principalCtx(), req: withName(completeCatalogueRequest(), ""), wantErr: domain.ErrNameRequired},
-		{name: "invalid type", ctx: principalCtx(), req: withType(completeCatalogueRequest(), domain.OfferingType(99)), wantErr: domain.ErrInvalidOfferingType},
-		{name: "save error", ctx: principalCtx(), req: completeCatalogueRequest(), saveErr: errFake, wantErr: errFake},
+		{name: "user error", ctx: farmerCtx(), req: completeCatalogueRequest(), userErr: errFake, wantErr: errFake},
+		{name: "user not found", ctx: farmerCtx(), req: completeCatalogueRequest(), userErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "forbidden", ctx: farmerCtx(), req: withUser(completeCatalogueRequest(), testOtherID), wantErr: domain.ErrForbidden},
+		{name: "empty name", ctx: farmerCtx(), req: withName(completeCatalogueRequest(), ""), wantErr: domain.ErrNameRequired},
+		{name: "invalid type", ctx: farmerCtx(), req: withType(completeCatalogueRequest(), domain.OfferingType(99)), wantErr: domain.ErrInvalidOfferingType},
+		{name: "save error", ctx: farmerCtx(), req: completeCatalogueRequest(), saveErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -175,7 +175,7 @@ func TestOfferingUseCaseCreateOfferingRequiresCompleteAddress(t *testing.T) {
 			offeringRepo := newFakeOfferingRepo()
 			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			got, err := uc.CreateOffering(principalCtx(), completeCatalogueRequest())
+			got, err := uc.CreateOffering(farmerCtx(), completeCatalogueRequest())
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -363,10 +363,10 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 	}{
 		{name: "unauthenticated", ctx: context.Background(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantErr: auth.ErrUnauthenticated},
 		{name: "foreign user", ctx: principalCtxFor(testOtherID), req: dto.UpdateOfferingRequest{Name: strPtr("Hijacked")}, wantErr: domain.ErrForbidden},
-		{name: "no fields", ctx: principalCtx(), req: dto.UpdateOfferingRequest{}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "no fields", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
 		{
 			name:      "all fields",
-			ctx:       principalCtx(),
+			ctx:       farmerCtx(),
 			req:       dto.UpdateOfferingRequest{Name: strPtr("Delivery"), Description: strPtr("Fast delivery"), Price: floatPtr(25.0), ImageURL: strPtr("http://img.milpa.com/delivery.png")},
 			wantType:  domain.OfferingProduct,
 			wantName:  "Delivery",
@@ -374,15 +374,15 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 			wantPrice: 25.0,
 			wantImage: "http://img.milpa.com/delivery.png",
 		},
-		{name: "a service is not an agricultural product", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService)}, wantErr: domain.ErrInvalidOfferingType},
-		{name: "name only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantType: domain.OfferingProduct, wantName: "Delivery", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "description only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Description: strPtr("Fast delivery")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fast delivery", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "price only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(25.0)}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 25.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "image only", ctx: principalCtx(), req: dto.UpdateOfferingRequest{ImageURL: strPtr("http://img.milpa.com/delivery.png")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://img.milpa.com/delivery.png"},
-		{name: "admin may update any offering", ctx: reportAdminCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Moderated")}, wantType: domain.OfferingProduct, wantName: "Moderated", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
-		{name: "invalid price", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(0)}, wantErr: domain.ErrInvalidPrice},
-		{name: "repo error", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: errFake, wantErr: errFake},
-		{name: "not found", ctx: principalCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "a service is not an agricultural product", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService)}, wantErr: domain.ErrInvalidOfferingType},
+		{name: "name only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantType: domain.OfferingProduct, wantName: "Delivery", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "description only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Description: strPtr("Fast delivery")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fast delivery", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "price only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(25.0)}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 25.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "image only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{ImageURL: strPtr("http://img.milpa.com/delivery.png")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://img.milpa.com/delivery.png"},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Moderated")}, wantErr: domain.ErrForbidden},
+		{name: "invalid price", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(0)}, wantErr: domain.ErrInvalidPrice},
+		{name: "repo error", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: errFake, wantErr: errFake},
+		{name: "not found", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
 	}
 
 	for _, tt := range tests {
@@ -399,7 +399,7 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 
 			ctx := tt.ctx
 			if ctx == nil {
-				ctx = principalCtx()
+				ctx = farmerCtx()
 			}
 
 			err := uc.UpdateOffering(ctx, testOfferingID, tt.req)

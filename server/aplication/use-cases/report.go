@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -270,7 +269,6 @@ type ModerationUseCaseImpl struct {
 	userRepo     port.UserRepository
 	offeringRepo port.OfferingRepository
 	auditRepo    port.AuditLogRepository
-	offeringUC   primary.OfferingUseCase
 	timer        port.TimeProvider
 }
 
@@ -278,14 +276,12 @@ func NewModerationUseCase(
 	userRepo port.UserRepository,
 	offeringRepo port.OfferingRepository,
 	auditRepo port.AuditLogRepository,
-	offeringUC primary.OfferingUseCase,
 	timer port.TimeProvider,
 ) *ModerationUseCaseImpl {
 	return &ModerationUseCaseImpl{
 		userRepo:     userRepo,
 		offeringRepo: offeringRepo,
 		auditRepo:    auditRepo,
-		offeringUC:   offeringUC,
 		timer:        timer,
 	}
 }
@@ -336,6 +332,36 @@ func (uc *ModerationUseCaseImpl) SuspendUser(ctx context.Context, id uuid.UUID, 
 	return uc.userRepo.Update(ctx, user)
 }
 
+func (uc *ModerationUseCaseImpl) SetUserRole(ctx context.Context, id uuid.UUID, req dto.SetUserRoleRequest) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+	if principal.Role != domain.RoleAdmin {
+		return domain.ErrForbidden
+	}
+
+	if req.Role != domain.RoleAuditor && !domain.IsRegistrationRole(req.Role) {
+		return domain.ErrInvalidInput
+	}
+
+	user, err := uc.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	user.Role = req.Role
+	user.Touch(uc.timer.Now())
+
+	meta, _ := json.Marshal(map[string]any{"user_id": id.String(), "role": req.Role.String()})
+	log := domain.NewAuditLog(principal.UserID, domain.AuditActionUserRoleUpdated, "user", id, meta, uc.timer.Now())
+	if err := uc.auditRepo.Save(ctx, log); err != nil {
+		return err
+	}
+
+	return uc.userRepo.Update(ctx, user)
+}
+
 func (uc *ModerationUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID) error {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
@@ -345,10 +371,12 @@ func (uc *ModerationUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUI
 		return domain.ErrForbidden
 	}
 
-	if err := uc.offeringUC.DeleteOffering(ctx, id); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return err
-		}
+	offering, err := uc.offeringRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := uc.offeringRepo.Delete(ctx, offering.ID); err != nil {
 		return err
 	}
 

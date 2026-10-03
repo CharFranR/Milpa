@@ -36,7 +36,7 @@ func NewUserUseCase(
 func (uc *UserUseCaseImpl) Register(ctx context.Context, req dto.RegisterUserRequest) (*dto.PrivateUserDTO, error) {
 	now := uc.timer.Now()
 
-	if req.Role != domain.RoleMIPYME && req.Role != domain.RoleProvider {
+	if !domain.IsRegistrationRole(req.Role) {
 		return nil, domain.ErrInvalidInput
 	}
 

@@ -35,6 +35,9 @@ func (uc *SupplyRequestUseCaseImpl) Create(ctx context.Context, req dto.SupplyRe
 	if err != nil {
 		return nil, err
 	}
+	if !isMayorista(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	if err := validateSupplyRequestContent(req.ProductName, req.TotalAmount); err != nil {
 		return nil, err
@@ -284,6 +287,9 @@ func (uc *SupplyRequestUseCaseImpl) getOwnedSupplyRequest(ctx context.Context, i
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if !isMayorista(principal) {
+		return nil, domain.ErrForbidden
 	}
 	if id == uuid.Nil {
 		return nil, fmt.Errorf("%w: null supply request id", domain.ErrInvalidInput)

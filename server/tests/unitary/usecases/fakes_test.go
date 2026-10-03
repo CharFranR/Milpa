@@ -29,14 +29,32 @@ var (
 	testAddressID           = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	testUnitOfMeasureID     = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 	testReviewTransactionID = uuid.MustParse("ffffffff-ffff-4fff-8fff-ffffffffffff")
+
+	testOtherCompanyID = uuid.MustParse("99999999-9999-4999-8999-999999999999")
 )
 
 func principalCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMinorista})
 }
 
 func principalCtxFor(userID uuid.UUID) context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMinorista})
+}
+
+func farmerCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleAgricultor})
+}
+
+func farmerCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleAgricultor})
+}
+
+func mayoristaCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
+func mayoristaCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMayoristaDetallista})
 }
 
 func strPtr(s string) *string {
@@ -262,7 +280,18 @@ func newFakeCompanyRepo() *fakeCompanyRepo {
 		return company, nil
 	}
 	f.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
-		return []domain.Company{*mustCompany()}, nil
+		company := mustCompany()
+		company.Owner = domain.User{ID: ownerID}
+		switch ownerID {
+		case testUserID:
+			return []domain.Company{*company}, nil
+		case testOtherID:
+			company.ID = testOtherCompanyID
+			company.Name = "Finca La Esperanza"
+			return []domain.Company{*company}, nil
+		default:
+			return nil, nil
+		}
 	}
 	f.save = func(ctx context.Context, company *domain.Company) error {
 		f.saved = append(f.saved, company)
@@ -721,6 +750,20 @@ func farmerAt(latitude, longitude float64) *fakeUserRepo {
 		user.ID = id
 		user.Address.Latitude = latitude
 		user.Address.Longitude = longitude
+		return user, nil
+	}
+	return repo
+}
+
+func newFakeFarmerUserRepo() *fakeUserRepo {
+	repo := newFakeUserRepo()
+	byID := repo.findByID
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user, err := byID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		user.Role = domain.RoleAgricultor
 		return user, nil
 	}
 	return repo

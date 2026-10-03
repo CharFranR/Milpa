@@ -27,7 +27,7 @@ func setupInquiryTestData(t *testing.T) {
 		ID:           testInquiryUserID,
 		FirstName:    "Inquirer",
 		LastName:     "User",
-		Role:         domain.RoleMIPYME,
+		Role:         domain.RoleCompradorMinorista,
 		Email:        "inquirer@example.com",
 		PhoneNumber:  "0000-0000",
 		PasswordHash: "hash",
