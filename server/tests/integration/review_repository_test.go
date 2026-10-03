@@ -73,29 +73,29 @@ func TestReviewSave(t *testing.T) {
 		{
 			Name: "Happy Path",
 			Review: &domain.Review{
-				ID:         testReviewID,
+				ID:            testReviewID,
 				TransactionID: uuid.New(),
-				AuthorID:   testReviewUserID,
-				TargetType: domain.ReviewTargetCompany,
-				TargetID:   testReviewCompanyID,
-				CompanyID:  testReviewCompanyID,
-				Rating:     5,
-				Comment:    "Excellent service!",
-				CreatedAt:  fixedTime,
+				AuthorID:      testReviewUserID,
+				TargetType:    domain.ReviewTargetCompany,
+				TargetID:      testReviewCompanyID,
+				CompanyID:     testReviewCompanyID,
+				Rating:        5,
+				Comment:       "Excellent service!",
+				CreatedAt:     fixedTime,
 			},
 		},
 		{
 			Name: "Happy Path rating 1",
 			Review: &domain.Review{
-				ID:         testReviewID2,
+				ID:            testReviewID2,
 				TransactionID: uuid.New(),
-				AuthorID:   testReviewUserID2,
-				TargetType: domain.ReviewTargetCompany,
-				TargetID:   testReviewCompanyID,
-				CompanyID:  testReviewCompanyID,
-				Rating:     1,
-				Comment:    "Poor experience",
-				CreatedAt:  fixedTime,
+				AuthorID:      testReviewUserID2,
+				TargetType:    domain.ReviewTargetCompany,
+				TargetID:      testReviewCompanyID,
+				CompanyID:     testReviewCompanyID,
+				Rating:        1,
+				Comment:       "Poor experience",
+				CreatedAt:     fixedTime,
 			},
 		},
 	}
@@ -125,26 +125,26 @@ func TestReviewFindByCompany(t *testing.T) {
 	db := repository.NewReviewRepository(TestPool)
 
 	review1 := &domain.Review{
-		ID:         testReviewID,
+		ID:            testReviewID,
 		TransactionID: uuid.New(),
-		AuthorID:   testReviewUserID,
-		TargetType: domain.ReviewTargetCompany,
-		TargetID:   testReviewCompanyID,
-		CompanyID:  testReviewCompanyID,
-		Rating:     5,
-		Comment:    "Great!",
-		CreatedAt:  fixedTime,
+		AuthorID:      testReviewUserID,
+		TargetType:    domain.ReviewTargetCompany,
+		TargetID:      testReviewCompanyID,
+		CompanyID:     testReviewCompanyID,
+		Rating:        5,
+		Comment:       "Great!",
+		CreatedAt:     fixedTime,
 	}
 	review2 := &domain.Review{
-		ID:         testReviewID2,
+		ID:            testReviewID2,
 		TransactionID: uuid.New(),
-		AuthorID:   testReviewUserID2,
-		TargetType: domain.ReviewTargetCompany,
-		TargetID:   testReviewCompanyID,
-		CompanyID:  testReviewCompanyID,
-		Rating:     3,
-		Comment:    "Okay",
-		CreatedAt:  fixedTime,
+		AuthorID:      testReviewUserID2,
+		TargetType:    domain.ReviewTargetCompany,
+		TargetID:      testReviewCompanyID,
+		CompanyID:     testReviewCompanyID,
+		Rating:        3,
+		Comment:       "Okay",
+		CreatedAt:     fixedTime,
 	}
 
 	if err := db.Save(context.Background(), review1); err != nil {
@@ -216,15 +216,15 @@ func TestReviewFindByUser(t *testing.T) {
 	db := repository.NewReviewRepository(TestPool)
 
 	review := &domain.Review{
-		ID:         testReviewID,
+		ID:            testReviewID,
 		TransactionID: uuid.New(),
-		AuthorID:   testReviewUserID,
-		TargetType: domain.ReviewTargetCompany,
-		TargetID:   testReviewCompanyID,
-		CompanyID:  testReviewCompanyID,
-		Rating:     4,
-		Comment:    "User review",
-		CreatedAt:  fixedTime,
+		AuthorID:      testReviewUserID,
+		TargetType:    domain.ReviewTargetCompany,
+		TargetID:      testReviewCompanyID,
+		CompanyID:     testReviewCompanyID,
+		Rating:        4,
+		Comment:       "User review",
+		CreatedAt:     fixedTime,
 	}
 
 	if err := db.Save(context.Background(), review); err != nil {
@@ -334,15 +334,15 @@ func TestReviewCompanyMirrorIsEnforcedInStorage(t *testing.T) {
 	db := repository.NewReviewRepository(TestPool)
 
 	err := db.Save(context.Background(), &domain.Review{
-		ID:         testReviewID,
+		ID:            testReviewID,
 		TransactionID: uuid.New(),
-		AuthorID:   testReviewUserID,
-		TargetType: domain.ReviewTargetCompany,
-		TargetID:   testReviewCompanyID,
-		CompanyID:  testReviewFarmerID, // the farmer is a user, not the company
-		Rating:     5,
-		Comment:    "mirror does not match the target",
-		CreatedAt:  fixedTime,
+		AuthorID:      testReviewUserID,
+		TargetType:    domain.ReviewTargetCompany,
+		TargetID:      testReviewCompanyID,
+		CompanyID:     testReviewFarmerID, // the farmer is a user, not the company
+		Rating:        5,
+		Comment:       "mirror does not match the target",
+		CreatedAt:     fixedTime,
 	})
 	if err == nil {
 		t.Fatal("Save() with a mismatched company mirror succeeded, want ck_reviews_company_mirror to reject it")
@@ -416,5 +416,43 @@ func TestReviewAverageRating(t *testing.T) {
 	}
 	if average != 0 || count != 0 {
 		t.Errorf("average/count = %v/%d, want 0/0", average, count)
+	}
+}
+
+func TestReviewFindByTarget(t *testing.T) {
+	setupReviewTestData(t)
+	db := repository.NewReviewRepository(TestPool)
+	ctx := context.Background()
+
+	for _, r := range []*domain.Review{
+		{ID: testReviewID, TransactionID: uuid.New(), AuthorID: testReviewUserID, TargetType: domain.ReviewTargetUser, TargetID: testReviewFarmerID, Rating: 5, Comment: "great farmer", CreatedAt: fixedTime},
+		{ID: testReviewID2, TransactionID: uuid.New(), AuthorID: testReviewUserID2, TargetType: domain.ReviewTargetUser, TargetID: testReviewFarmerID, Rating: 3, Comment: "ok farmer", CreatedAt: fixedTime.Add(time.Minute)},
+		{ID: uuid.New(), TransactionID: uuid.New(), AuthorID: testReviewUserID3, TargetType: domain.ReviewTargetUser, TargetID: testReviewUserID2, Rating: 4, Comment: "other target", CreatedAt: fixedTime.Add(2 * time.Minute)},
+	} {
+		if err := db.Save(ctx, r); err != nil {
+			t.Fatalf("Save() review: %v", err)
+		}
+	}
+
+	reviews, err := db.FindByTarget(ctx, domain.ReviewTargetUser, testReviewFarmerID)
+	if err != nil {
+		t.Fatalf("FindByTarget() error: %v", err)
+	}
+	if len(reviews) != 2 {
+		t.Fatalf("FindByTarget() returned %d reviews, want 2", len(reviews))
+	}
+
+	for _, r := range reviews {
+		if r.TargetType != domain.ReviewTargetUser || r.TargetID != testReviewFarmerID {
+			t.Errorf("review target = %v/%v, want user/%v", r.TargetType, r.TargetID, testReviewFarmerID)
+		}
+	}
+
+	none, err := db.FindByTarget(ctx, domain.ReviewTargetCompany, testReviewCompanyID)
+	if err != nil {
+		t.Fatalf("FindByTarget() on an unreviewed target error: %v", err)
+	}
+	if len(none) != 0 {
+		t.Errorf("FindByTarget() on an unreviewed target returned %d reviews, want 0", len(none))
 	}
 }

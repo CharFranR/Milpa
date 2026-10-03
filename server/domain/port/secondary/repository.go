@@ -36,6 +36,7 @@ type OfferingRepository interface {
 type ReviewRepository interface {
 	FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error)
 	Save(ctx context.Context, review *domain.Review) error
 	AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
 	ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)

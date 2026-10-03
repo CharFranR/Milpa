@@ -75,7 +75,30 @@ func (h *ReviewHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondError(w, http.StatusBadRequest, "provide company_id or user_id")
+	if targetStr := r.URL.Query().Get("target_type"); targetStr != "" || r.URL.Query().Get("target_id") != "" {
+		targetType := domain.ReviewTargetType(r.URL.Query().Get("target_type"))
+		if !domain.ValidReviewTargetType(targetType) {
+			respondError(w, http.StatusBadRequest, "target_type must be company or user")
+			return
+		}
+
+		targetID, err := uuid.Parse(r.URL.Query().Get("target_id"))
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "invalid target_id")
+			return
+		}
+
+		result, err := h.uc.FindByTarget(r.Context(), targetType, targetID)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		respond(w, http.StatusOK, result)
+		return
+	}
+
+	respondError(w, http.StatusBadRequest, "provide company_id, user_id or target_type with target_id")
 }
 
 func (h *ReviewHandler) Average(w http.ResponseWriter, r *http.Request) {

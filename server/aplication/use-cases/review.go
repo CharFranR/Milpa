@@ -187,6 +187,27 @@ func (uc *ReviewUseCaseImpl) FindByCompany(ctx context.Context, companyID uuid.U
 	return dtos, nil
 }
 
+func (uc *ReviewUseCaseImpl) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]*dto.ReviewDTO, error) {
+	if !domain.ValidReviewTargetType(targetType) {
+		return nil, domain.ErrInvalidReviewTargetType
+	}
+	if targetID == uuid.Nil {
+		return nil, domain.ErrTargetRequired
+	}
+
+	reviews, err := uc.reviewRepo.FindByTarget(ctx, targetType, targetID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*dto.ReviewDTO, len(reviews))
+	for i := range reviews {
+		dtos[i] = reviewToDTO(&reviews[i])
+	}
+
+	return dtos, nil
+}
+
 func (uc *ReviewUseCaseImpl) GetAverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (*dto.ReviewAverageDTO, error) {
 	if !domain.ValidReviewTargetType(targetType) {
 		return nil, domain.ErrInvalidReviewTargetType

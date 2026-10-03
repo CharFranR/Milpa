@@ -379,6 +379,7 @@ func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
 type fakeReviewRepo struct {
 	findByCompany  func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	findByUser     func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	findByTarget   func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error)
 	save           func(ctx context.Context, review *domain.Review) error
 	averageRating  func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
 	existsByTxAuth func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
@@ -392,6 +393,9 @@ func newFakeReviewRepo() *fakeReviewRepo {
 		return []domain.Review{*mustReview()}, nil
 	}
 	f.findByUser = func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
+		return []domain.Review{*mustReview()}, nil
+	}
+	f.findByTarget = func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
 		return []domain.Review{*mustReview()}, nil
 	}
 	f.save = func(ctx context.Context, review *domain.Review) error {
@@ -422,6 +426,10 @@ func (f *fakeReviewRepo) FindByCompany(ctx context.Context, companyID uuid.UUID)
 
 func (f *fakeReviewRepo) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
 	return f.findByUser(ctx, userID)
+}
+
+func (f *fakeReviewRepo) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+	return f.findByTarget(ctx, targetType, targetID)
 }
 
 func (f *fakeReviewRepo) Save(ctx context.Context, review *domain.Review) error {
