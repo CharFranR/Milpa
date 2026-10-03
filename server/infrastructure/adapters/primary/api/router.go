@@ -99,9 +99,9 @@ func NewRouter(
 			})
 
 			r.Route("/liquidations", func(r chi.Router) {
-				r.Get("/open", liquidation.GetOpen)
-				r.Get("/", liquidation.GetBySupplier)
-				r.Get("/{id}", liquidation.GetByID)
+				r.With(authMW.AuthenticateOptional).Get("/open", liquidation.GetOpen)
+				r.With(authMW.AuthenticateOptional).Get("/", liquidation.GetBySupplier)
+				r.With(authMW.AuthenticateOptional).Get("/{id}", liquidation.GetByID)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/", liquidation.Create)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}", liquidation.Update)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Delete("/{id}", liquidation.Delete)
