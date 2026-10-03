@@ -253,7 +253,8 @@ Exactly one key. Malformed JSON always yields `{"error":"invalid request body"}`
 | `domain.ErrInvalidTransactionTransition` / `ErrAlreadyConfirmed` / `ErrTerminalState` | 409 | `{"error":"participant has already confirmed"}` |
 | Validation errors (`httpx.IsValidationError` list) | 400 | `{"error":"rating must be between 1 and 5"}` |
 | Handler-level input checks (bad UUID, blank field, unparsable body) | 400 | `{"error":"invalid user id"}`, `{"error":"email: cannot be blank"}` |
-| Review guards (`ErrTransactionRequired`, `ErrTransactionNotCompleted`, `ErrReviewTargetPartyMismatch`, `ErrReviewAlreadyExists`, `ErrInvalidReviewTargetType`, `ErrReviewTargetMismatch`) | 500 | `{"error":"internal server error"}` (the sentinel is logged server-side) |
+| Review guards (`ErrTransactionRequired`, `ErrReviewTargetPartyMismatch`, `ErrInvalidReviewTargetType`, `ErrReviewTargetMismatch`) | 400 | the sentinel's own message |
+| `ErrTransactionNotCompleted`, `ErrReviewAlreadyExists` | 409 | the sentinel's own message |
 | Everything else (unknown/`fmt.Errorf` errors) | 500 | `{"error":"internal server error"}` (message logged server-side) |
 
 > The supply-chain handlers do not rely on that table alone: `handleSupplyError` and `handleMatchError` pre-empt `409` for the sentinels above before delegating, and `handleTransactionError` has its own 409 set. That is why an out-of-order state machine step is a `409` and not a `500`. Two consequences worth knowing: the transaction handler's 409 set does **not** include `ErrInsufficientAmount`, and `repository.ErrAmountConstraint` is in no list at all, so both fall through to `500` if they ever reach the boundary. The messages in the 409 rows are the sentinel's own text; the use cases usually wrap them with detail (`"insufficient amount: offer total amount exceeds the remaining amount of the supply request"`).
@@ -301,15 +302,15 @@ Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspen
 
 | Route | Auth | Request | Success | Notable statuses |
 |---|---|---|---|---|
-| `POST /api/v1/auth/register` | Public | JSON: `email`, `first_name`, `last_name`, `password`, `confirm_password`, `role` (1–4); optional `address`, `phone_number` | `201` → `UserDTO` | `400` blank field / bad role (`0`, `5`, `6` or outside `1`–`4`) / password mismatch / bad body; `409` email taken |
+| `POST /api/v1/auth/register` | Public | JSON: `email`, `first_name`, `last_name`, `password`, `confirm_password`, `role` (1–4), `phone_number`; optional `address`, `department`, `municipality` | `201` → `PrivateUserDTO` | `400` blank field / missing phone / bad role (`0`, `5`, `6` or outside `1`–`4`) / password mismatch / bad body; `409` email taken |
 | `POST /api/v1/auth/login` | Public | JSON: `email`, `password` | `200` → `{access_token, expires_in, user}` | `400` blank field/bad body; `404` unknown email; `401` wrong password |
 
 ### Users
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/users/{id}` | Public | path `id` (uuid) | `200` → `UserDTO` | `400` invalid uuid; `404` |
-| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `GET /api/v1/users/{id}` | Public | path `id` (uuid). Self or admin receive the private contact card; everyone else the public profile | `200` → `PrivateUserDTO` or `PublicUserDTO` | `400` invalid uuid; `404` |
+| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
 
 ### Categories
 
@@ -346,7 +347,7 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid). `user_id` lists reviews **authored by** that user | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
+| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid; lists reviews **authored by** that user) **or** `target_type` + `target_id` (lists reviews **received by** that target) | `200` → `[ReviewDTO]` | `400` missing all / invalid uuid / unknown `target_type` |
 | `GET /api/v1/reviews/average` | Public | query `target_type` (`company`\|`user`) and `target_id` (uuid) | `200` → `ReviewAverageDTO` | `400` unknown `target_type` / invalid `target_id` |
 | `POST /api/v1/reviews/` | Bearer | JSON: `rating` (1–5, required), `comment`, `transaction_id` (uuid, required — the transaction being reviewed), and **exactly one** of `company_id` (review a company) or `target_type` + `target_id` (review the other party). Author = token user | `201` → `ReviewDTO` | `400` neither form / rating out of range / bad body; `403` caller is not a party of the transaction; `404` unknown transaction; `500` missing `transaction_id`, transaction not completed, target ≠ other party, company target not owned by the other party, unknown `target_type`, both forms at once, or a second review of the same transaction by this author |
 
@@ -450,7 +451,7 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 | `PATCH /api/v1/liquidations/{id}` | Bearer | path `id`; JSON (all optional): `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `expires_at` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404`; `500` if not open / invalid quantity |
 | `DELETE /api/v1/liquidations/{id}` | Bearer | path `id` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404` |
 
-> The three mutations require role `1` (**agricultor**). The three reads are public — no token — so the visibility filter runs with an anonymous viewer: only `visibility: "public"` liquidations come back, a restricted one is filtered out of `open` and `GET /` and answers `404` on `GET /{id}`. The filter does allow a supplier's own restricted rows and mayorista callers (`3`/`4`) to see them, but none of these routes authenticates, so no caller ever presents that viewer today.
+> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own restricted rows and mayorista callers (`3`/`4`) see them; anonymous callers still get only `visibility: "public"` rows, and a restricted one answers `404` on `GET /{id}`.
 
 ### Reports
 
@@ -499,7 +500,7 @@ Images are uploaded through `POST /api/v1/offerings/create2/` (field `image_url`
 
 | Route | Auth | Query params | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/search` | Public | `term`, `type`, `department`, `municipality`, `price_min`, `price_max`, `farmer_id`, `sort` (`relevance`\|`price_asc`\|`price_desc`\|`proximity`), `lat`, `lng`, `page`, `page_size` | `200` → `{results, total_hits, page, page_size, total_pages}` | `400` `{"error":"Search error"}` on any backend failure |
+| `GET /api/v1/search` | Public | `term`, `type`, `category_id`, `department`, `municipality`, `price_min`, `price_max`, `farmer_id`, `sort` (`relevance`\|`price_asc`\|`price_desc`\|`proximity`), `lat`, `lng`, `page`, `page_size` | `200` → `{results, total_hits, page, page_size, total_pages}` | `400` `{"error":"Search error"}` on any backend failure |
 
 Unparsable numeric params are silently ignored (they are skipped, not rejected).
 
@@ -567,7 +568,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 | DTO | Fields |
 |---|---|
-| `UserDTO` | `id`, `email`, `first_name`, `last_name`, `address`, `phone_number`, `role`, `created_at`, `updated_at` |
+| `PublicUserDTO` | `id`, `first_name`, `last_name`, `role`, `department`, `municipality`, `created_at`, `updated_at` |
+| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`. `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
 | `LoginResponse` | `access_token`, `expires_in`, `user` (`UserDTO`) |
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
@@ -613,9 +615,9 @@ Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in 
 - [ ] **Route count:** `router.go` has **80** route registrations; `chi` resolves them into **79** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **75** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
 - [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:83` and `router.go:84`.
 - [ ] **Offering delete is ownership- and role-checked.** `OfferingUseCase.DeleteOffering` refuses any caller who is not an `agricultor` (`1`) and then refuses anyone who does not own the offering, both with `403`. The admin route `DELETE /admin/offerings/{id}` remains the audited path.
-- [ ] **`PATCH /api/v1/inquiries/{id}` has no ownership check** either — any authenticated user can change any inquiry's status.
-- [ ] **Handler bugs worth knowing:** `OfferingHandler.DeleteOffering` writes a `400` for an invalid uuid but does not `return`, producing a second response write; `POST /api/v1/messages/` and several other creates answer `201` with an empty `{}` body; `DELETE /admin/offerings/{id}` answers `204` while still writing a `{}` body.
-- [ ] **Several domain errors surface as `500`** instead of `400` because they are plain `fmt.Errorf`/unlisted sentinels (report reason length, invalid report/suspend `action`, liquidation quantity/status rules). The transaction-tied review guards are in the same bucket: `ErrTransactionRequired`, `ErrTransactionNotCompleted`, `ErrReviewTargetPartyMismatch`, `ErrReviewAlreadyExists`, `ErrInvalidReviewTargetType` and `ErrReviewTargetMismatch` are absent from `httpx.IsValidationError`, so a missing `transaction_id`, a transaction that is not completed, a target that is not the other party or a duplicate review all answer `500 internal server error`.
+- [ ] **`PATCH /api/v1/inquiries/{id}` now requires ownership**: only the inquiry's author or the offering's owner can change its status — anyone else gets `403`.
+- [ ] **Handler bugs worth knowing:** `OfferingHandler.DeleteOffering` writes a `400` for an invalid uuid but does not `return`, producing a second response write; `POST /api/v1/messages/` and several other creates answer `201` with an empty `{}` body.
+- [ ] **Several domain errors surface as `500`** instead of `400` because they are plain `fmt.Errorf`/unlisted sentinels (report reason length, invalid report/suspend `action`, liquidation quantity/status rules). The transaction-tied review guards were moved into `httpx.IsValidationError`/`StatusCode`: `ErrTransactionRequired`, `ErrReviewTargetPartyMismatch`, `ErrInvalidReviewTargetType` and `ErrReviewTargetMismatch` answer `400`; `ErrTransactionNotCompleted` and `ErrReviewAlreadyExists` answer `409`.
 - [ ] **Breaking change — the supply request JSON keys were renamed.** `dto.SupplyRequestDTO`, `SupplyGeneralUpdateDTO` and `SupplyUpdateAmountsDTO` previously exposed crossed and misspelled keys, and the crossed pair was a duplicate-key bug: `amount_measure` for the enum, `amount_unit` for the per-unit float, `unit_measure`, plus `numer_units`, `Addrres` and `min_amount_provider`. They are now `amount_unit` (the enum), `amount_per_unit`, `number_of_units`, `unit_of_measure`, `address` and `min_amount_per_provider` — the snake_case of the Go field. Clients written against the old contract must be updated; `git show eae0fd8 -- server/aplication/dto/SupplyRequest.go` is the exact diff.
 - [ ] **Known inconsistency — `SupplyOfferDTO` was not renamed with it.** The offer side still carries the crossed keys: `AmountUnit` serializes as `measurement` and `ProposedDeliveryDay` as `delivery_day` (`aplication/dto/SupplyOffer.go:15-16`, and the same pair in `SupplyOfferUpdateDTO` at :25-26). This is documented as-is, not as a bug to expect to be fixed: reading an offer's unit means reading `measurement`, and the request it belongs to uses `amount_unit` for the same enum.
 - [ ] **`address` serializes with Go field names.** `domain.Address` carries no JSON tags and no custom marshaler, so `SupplyRequestDTO.address` is `{"ID","Department","Municipality","AddressLine","Latitude","Longitude"}` — capitalized, unlike every other key here. A client that lowercases keys will silently read an all-zero object.
