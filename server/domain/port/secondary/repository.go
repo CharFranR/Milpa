@@ -55,17 +55,23 @@ type InquiryRepository interface {
 	Update(ctx context.Context, inquiry *domain.Inquiry) error
 }
 
+// LiquidationViewer identifies who is asking for a visibility-filtered read.
+// ID is uuid.Nil for an anonymous caller, and SeeRestricted is set for the
+// mayorista roles a restricted liquidation is offered to.
+type LiquidationViewer struct {
+	ID            uuid.UUID
+	SeeRestricted bool
+}
+
 type LiquidationRepository interface {
 	// FindByID is unfiltered: for paths that authorise against the result.
 	// A publicly reachable read must use FindVisibleByID.
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Liquidation, error)
-	// FindVisibleByID honours the stored visibility. viewerID is uuid.Nil for an
-	// anonymous caller.
-	FindVisibleByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*domain.Liquidation, error)
-	// FindBySupplier and FindOpen honour the stored visibility too; viewerID is
-	// uuid.Nil for an anonymous caller.
-	FindBySupplier(ctx context.Context, supplierID uuid.UUID, viewerID uuid.UUID) ([]domain.Liquidation, error)
-	FindOpen(ctx context.Context, viewerID uuid.UUID) ([]domain.Liquidation, error)
+	// FindVisibleByID honours the stored visibility.
+	FindVisibleByID(ctx context.Context, id uuid.UUID, viewer LiquidationViewer) (*domain.Liquidation, error)
+	// FindBySupplier and FindOpen honour the stored visibility too.
+	FindBySupplier(ctx context.Context, supplierID uuid.UUID, viewer LiquidationViewer) ([]domain.Liquidation, error)
+	FindOpen(ctx context.Context, viewer LiquidationViewer) ([]domain.Liquidation, error)
 	Save(ctx context.Context, liquidation *domain.Liquidation) error
 	Update(ctx context.Context, liquidation *domain.Liquidation) error
 	Delete(ctx context.Context, id uuid.UUID) error

@@ -39,6 +39,22 @@ func principalCtxFor(userID uuid.UUID) context.Context {
 	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMinorista})
 }
 
+func farmerCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleAgricultor})
+}
+
+func farmerCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleAgricultor})
+}
+
+func mayoristaCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
+func mayoristaCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
 func strPtr(s string) *string {
 	return &s
 }
@@ -721,6 +737,23 @@ func farmerAt(latitude, longitude float64) *fakeUserRepo {
 		user.ID = id
 		user.Address.Latitude = latitude
 		user.Address.Longitude = longitude
+		return user, nil
+	}
+	return repo
+}
+
+// newFakeFarmerUserRepo answers FindByID with an agricultor, the role
+// CreateConversation requires of the target farmer. mustUser stays pending
+// because the login and registration cases assert that default.
+func newFakeFarmerUserRepo() *fakeUserRepo {
+	repo := newFakeUserRepo()
+	byID := repo.findByID
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user, err := byID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		user.Role = domain.RoleAgricultor
 		return user, nil
 	}
 	return repo

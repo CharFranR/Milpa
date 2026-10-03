@@ -40,7 +40,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		ID:           testE2EBuyerID,
 		FirstName:    "E2E",
 		LastName:     "Buyer",
-		Role:         domain.RoleCompradorMinorista,
+		Role:         domain.RoleCompradorMayoristaDetallista,
 		Email:        "e2e-buyer@example.com",
 		PhoneNumber:  "4600-0001",
 		PasswordHash: "hash",
@@ -77,7 +77,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 		t.Fatalf("insert fixture supplier inventory: %v", err)
 	}
 
-	buyerCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2EBuyerID, Role: domain.RoleCompradorMinorista})
+	buyerCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2EBuyerID, Role: domain.RoleCompradorMayoristaDetallista})
 	supplierCtx := auth.WithPrincipal(ctx, auth.Principal{UserID: testE2ESupplierID, Role: domain.RoleAgricultor})
 
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(requestRepo, offerRepo, matchRepo, clock)

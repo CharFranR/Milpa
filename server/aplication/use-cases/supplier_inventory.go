@@ -10,6 +10,7 @@ import (
 	domain "milpa/domain/entities"
 	"milpa/domain/port/primary"
 	port "milpa/domain/port/secondary"
+	"milpa/internal/auth"
 
 	"github.com/google/uuid"
 )
@@ -23,6 +24,14 @@ func NewSupplierInventoryUseCase(inventoryRepo port.SupplierInventoryRepository)
 }
 
 func (uc *SupplierInventoryUseCaseImpl) Upsert(ctx context.Context, supplierID uuid.UUID, req dto.UpsertSupplierInventoryRequest) (*dto.SupplierInventoryDTO, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
+
 	productName := strings.TrimSpace(req.ProductName)
 	if productName == "" {
 		return nil, fmt.Errorf("%w: product_name is required", domain.ErrInvalidInput)
@@ -71,6 +80,14 @@ func (uc *SupplierInventoryUseCaseImpl) ListBySupplier(ctx context.Context, supp
 }
 
 func (uc *SupplierInventoryUseCaseImpl) Delete(ctx context.Context, supplierID uuid.UUID, id uuid.UUID) error {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return err
+	}
+	if !isFarmer(principal) {
+		return domain.ErrForbidden
+	}
+
 	inventory, err := uc.inventoryRepo.GetByID(ctx, id)
 	if err != nil {
 		return err

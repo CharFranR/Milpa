@@ -183,7 +183,7 @@ func TestOfferingInvalidatesSearchCache(t *testing.T) {
 				inv,
 			)
 
-			err := tt.action(uc, principalCtx())
+			err := tt.action(uc, farmerCtx())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

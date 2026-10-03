@@ -32,6 +32,9 @@ func (uc *LiquidationUseCaseImpl) CreateLiquidation(ctx context.Context, req dto
 	if err != nil {
 		return nil, err
 	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	// Verify user exists
 	user, err := uc.userRepo.FindByID(ctx, principal.UserID)
@@ -103,40 +106,61 @@ func (uc *LiquidationUseCaseImpl) GetBySupplier(ctx context.Context, supplierID 
 }
 
 func (uc *LiquidationUseCaseImpl) GetOpen(ctx context.Context) ([]*dto.LiquidationDTO, error) {
-	liquidations, err := uc.liquidationRepo.FindOpen(ctx, liquidationViewer(ctx))
+	viewer := liquidationViewer(ctx)
+
+	liquidations, err := uc.liquidationRepo.FindOpen(ctx, viewer)
 	if err != nil {
 		return nil, err
 	}
 
-	dtos := make([]*dto.LiquidationDTO, len(liquidations))
+	dtos := make([]*dto.LiquidationDTO, 0, len(liquidations))
 	for i := range liquidations {
-		dtos[i] = liquidationToDTO(&liquidations[i])
+		if !liquidationVisibleTo(&liquidations[i], viewer) {
+			continue
+		}
+		dtos = append(dtos, liquidationToDTO(&liquidations[i]))
 	}
 
 	return dtos, nil
 }
 
+// liquidationVisibleTo restates the repository predicate against the entity,
+// so a restricted liquidation never leaves this use case for a caller that is
+// neither its supplier nor a mayorista.
+func liquidationVisibleTo(liq *domain.Liquidation, viewer port.LiquidationViewer) bool {
+	if liq.Visibility == "public" {
+		return true
+	}
+	return liq.SupplierID == viewer.ID || viewer.SeeRestricted
+}
+
 // liquidationViewer resolves who is asking, for the visibility predicate.
 //
 // The liquidation routes are unauthenticated, so no principal is the normal
-// case and maps to uuid.Nil: an anonymous marketplace visitor, who sees public
-// liquidations only. A principal sees public ones plus their own regardless of
-// visibility.
+// case and maps to an empty viewer: an anonymous marketplace visitor, who sees
+// public liquidations only. A principal sees public ones plus their own
+// regardless of visibility.
 //
-// The four-way buyer-type restriction the brief also describes is deliberately
-// not here: it depends on the RBAC decision deferred to 4.3.
-func liquidationViewer(ctx context.Context) uuid.UUID {
+// SeeRestricted is the mayorista half of RF-14: a liquidation its supplier
+// marked private is offered to the two mayorista roles and to nobody else.
+func liquidationViewer(ctx context.Context) port.LiquidationViewer {
 	principal, ok := auth.FromContext(ctx)
 	if !ok {
-		return uuid.Nil
+		return port.LiquidationViewer{}
 	}
-	return principal.UserID
+	return port.LiquidationViewer{
+		ID:            principal.UserID,
+		SeeRestricted: isMayorista(principal),
+	}
 }
 
 func (uc *LiquidationUseCaseImpl) UpdateLiquidation(ctx context.Context, id uuid.UUID, req dto.UpdateLiquidationRequest) error {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return err
+	}
+	if !isFarmer(principal) {
+		return domain.ErrForbidden
 	}
 
 	liq, err := uc.liquidationRepo.FindByID(ctx, id)
@@ -194,6 +218,9 @@ func (uc *LiquidationUseCaseImpl) DeleteLiquidation(ctx context.Context, id uuid
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return err
+	}
+	if !isFarmer(principal) {
+		return domain.ErrForbidden
 	}
 
 	liq, err := uc.liquidationRepo.FindByID(ctx, id)

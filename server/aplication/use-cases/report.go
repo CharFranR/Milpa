@@ -3,7 +3,6 @@ package usecases
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -270,7 +269,6 @@ type ModerationUseCaseImpl struct {
 	userRepo     port.UserRepository
 	offeringRepo port.OfferingRepository
 	auditRepo    port.AuditLogRepository
-	offeringUC   primary.OfferingUseCase
 	timer        port.TimeProvider
 }
 
@@ -278,14 +276,12 @@ func NewModerationUseCase(
 	userRepo port.UserRepository,
 	offeringRepo port.OfferingRepository,
 	auditRepo port.AuditLogRepository,
-	offeringUC primary.OfferingUseCase,
 	timer port.TimeProvider,
 ) *ModerationUseCaseImpl {
 	return &ModerationUseCaseImpl{
 		userRepo:     userRepo,
 		offeringRepo: offeringRepo,
 		auditRepo:    auditRepo,
-		offeringUC:   offeringUC,
 		timer:        timer,
 	}
 }
@@ -377,10 +373,12 @@ func (uc *ModerationUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUI
 		return domain.ErrForbidden
 	}
 
-	if err := uc.offeringUC.DeleteOffering(ctx, id); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return err
-		}
+	offering, err := uc.offeringRepo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := uc.offeringRepo.Delete(ctx, offering.ID); err != nil {
 		return err
 	}
 

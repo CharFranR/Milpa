@@ -35,6 +35,9 @@ func (uc *SupplyOfferUseCaseImpl) Create(ctx context.Context, req dto.SupplyOffe
 	if err != nil {
 		return nil, err
 	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	if req.SupplyRequest == nil || *req.SupplyRequest == uuid.Nil {
 		return nil, fmt.Errorf("%w: supply request id is required", domain.ErrInvalidInput)
@@ -226,6 +229,9 @@ func (uc *SupplyOfferUseCaseImpl) getOwnedActionableOffer(ctx context.Context, i
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {
 		return domain.SupplyOffer{}, err
+	}
+	if !isFarmer(principal) {
+		return domain.SupplyOffer{}, domain.ErrForbidden
 	}
 	if id == uuid.Nil {
 		return domain.SupplyOffer{}, fmt.Errorf("%w: null supply offer id", domain.ErrInvalidInput)

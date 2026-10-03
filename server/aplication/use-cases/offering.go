@@ -37,6 +37,9 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 	if err != nil {
 		return nil, err
 	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	if req.Type == domain.OfferingService {
 		return nil, domain.ErrInvalidOfferingType
@@ -131,6 +134,9 @@ func (uc *OfferingUseCaseImpl) UpdateOffering(ctx context.Context, id uuid.UUID,
 	if err != nil {
 		return err
 	}
+	if !isFarmer(principal) {
+		return domain.ErrForbidden
+	}
 
 	if req.Type != nil && *req.Type == domain.OfferingService {
 		return domain.ErrInvalidOfferingType
@@ -219,6 +225,9 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 	if err != nil {
 		return err
 	}
+	if !isFarmer(principal) {
+		return domain.ErrForbidden
+	}
 
 	offering, err := uc.offeringRepo.FindByID(ctx, id)
 	if err != nil {
@@ -251,6 +260,9 @@ func (uc *OfferingUseCaseImpl) DeactivateOffering(ctx context.Context, id uuid.U
 	if err != nil {
 		return nil, err
 	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	offering, err := uc.offeringRepo.FindByID(ctx, id)
 	if err != nil {
@@ -277,6 +289,9 @@ func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, 
 	if err != nil {
 		return nil, err
 	}
+	if !isFarmer(principal) {
+		return nil, domain.ErrForbidden
+	}
 
 	offering, err := uc.offeringRepo.FindByID(ctx, id)
 	if err != nil {
@@ -298,11 +313,12 @@ func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, 
 	return offeringToDTO(offering), nil
 }
 
-// requireOfferingOwner refuses a caller that does not own the offering.
-// An admin is allowed through because the moderation endpoint
+// requireOfferingOwner refuses a caller that does not own the offering. The
+// agricultor guard runs before it in every mutation path, and admin moderation
+// deletes through its own use case, so no role is exempt here either.
 
 func requireOfferingOwner(principal auth.Principal, offering *domain.Offering) error {
-	if offering.UserID != principal.UserID && principal.Role != domain.RoleAdmin {
+	if offering.UserID != principal.UserID {
 		return domain.ErrForbidden
 	}
 	return nil

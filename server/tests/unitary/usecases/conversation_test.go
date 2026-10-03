@@ -17,13 +17,14 @@ func TestConversationUseCaseCreateConversation(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		ctx         context.Context
-		req         dto.CreateConversationDTO
-		offeringErr error
-		userErr     error
-		saveErr     error
-		wantErr     error
+		name            string
+		ctx             context.Context
+		req             dto.CreateConversationDTO
+		offeringErr     error
+		userErr         error
+		nonFarmerTarget bool
+		saveErr         error
+		wantErr         error
 	}{
 		{
 			name: "happy path",
@@ -31,9 +32,11 @@ func TestConversationUseCaseCreateConversation(t *testing.T) {
 			req:  dto.CreateConversationDTO{FarmerID: testCompanyID, BuyerID: testOtherID, OfferingID: testOfferingID},
 		},
 		{name: "unauthenticated", ctx: context.Background(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, wantErr: auth.ErrUnauthenticated},
+		{name: "creator is not a comprador", ctx: farmerCtx(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, wantErr: domain.ErrForbidden},
 		{name: "farmer is principal", ctx: principalCtx(), req: dto.CreateConversationDTO{FarmerID: testUserID, OfferingID: testOfferingID}, wantErr: domain.ErrInvalidInput},
 		{name: "offering not found", ctx: principalCtx(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, offeringErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
 		{name: "farmer user not found", ctx: principalCtx(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, userErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "target is not an agricultor", ctx: principalCtx(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, nonFarmerTarget: true, wantErr: domain.ErrForbidden},
 		{name: "save error", ctx: principalCtx(), req: dto.CreateConversationDTO{FarmerID: testCompanyID, OfferingID: testOfferingID}, saveErr: errFake, wantErr: errFake},
 	}
 
@@ -53,7 +56,10 @@ func TestConversationUseCaseCreateConversation(t *testing.T) {
 					return nil, tt.offeringErr
 				}
 			}
-			userRepo := newFakeUserRepo()
+			userRepo := newFakeFarmerUserRepo()
+			if tt.nonFarmerTarget {
+				userRepo = newFakeUserRepo()
+			}
 			if tt.userErr != nil {
 				userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 					return nil, tt.userErr

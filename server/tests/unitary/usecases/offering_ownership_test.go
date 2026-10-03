@@ -28,12 +28,13 @@ func TestOfferingUseCaseDeleteOfferingOwnership(t *testing.T) {
 		wantDeleted bool
 	}{
 		{name: "unauthenticated", ctx: context.Background(), wantErr: auth.ErrUnauthenticated},
-		{name: "foreign authenticated user", ctx: principalCtxFor(testOtherID), wantErr: domain.ErrForbidden},
-		{name: "owner", ctx: principalCtx(), wantDeleted: true},
-		{name: "admin", ctx: reportAdminCtx(), wantDeleted: true},
-		{name: "offering not found", ctx: principalCtx(), repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
-		{name: "repo error", ctx: principalCtx(), repoErr: errFake, wantErr: errFake},
-		{name: "delete error", ctx: principalCtx(), deleteErr: errFake, wantErr: errFake},
+		{name: "foreign authenticated farmer", ctx: farmerCtxFor(testOtherID), wantErr: domain.ErrForbidden},
+		{name: "owner with a non-farmer role", ctx: principalCtx(), wantErr: domain.ErrForbidden},
+		{name: "owner", ctx: farmerCtx(), wantDeleted: true},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), wantErr: domain.ErrForbidden},
+		{name: "offering not found", ctx: farmerCtx(), repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "repo error", ctx: farmerCtx(), repoErr: errFake, wantErr: errFake},
+		{name: "delete error", ctx: farmerCtx(), deleteErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -92,9 +93,10 @@ func TestOfferingUseCaseUpdateOfferingOwnership(t *testing.T) {
 		wantName string
 	}{
 		{name: "unauthenticated", ctx: context.Background(), wantErr: auth.ErrUnauthenticated},
-		{name: "foreign authenticated user", ctx: principalCtxFor(testOtherID), wantErr: domain.ErrForbidden},
-		{name: "owner", ctx: principalCtx(), wantName: "Renamed by owner"},
-		{name: "admin", ctx: reportAdminCtx(), wantName: "Renamed by admin"},
+		{name: "foreign authenticated farmer", ctx: farmerCtxFor(testOtherID), wantErr: domain.ErrForbidden},
+		{name: "owner with a non-farmer role", ctx: principalCtx(), wantErr: domain.ErrForbidden},
+		{name: "owner", ctx: farmerCtx(), wantName: "Renamed by owner"},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), wantErr: domain.ErrForbidden},
 	}
 
 	for _, tt := range tests {
@@ -129,16 +131,16 @@ func TestOfferingUseCaseUpdateOfferingOwnership(t *testing.T) {
 	}
 }
 
-// TestModerationDeleteOfferingStillReachesAdminModeration guards the carve-out:
-// the admin moderation route delegates to the same use case, so an ownership
-// check that also refused admins would silently break moderation.
+// TestModerationDeleteOfferingStillReachesAdminModeration guards the admin
+// carve-out: the moderation endpoint deletes through its own repository rather
+// than through the offering use case, so the farmer-only guard on that use case
+// cannot silently break moderation.
 func TestModerationDeleteOfferingStillReachesAdminModeration(t *testing.T) {
 	t.Parallel()
 
 	offeringRepo := newFakeOfferingRepo()
-	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 	auditRepo := newFakeAuditLogRepo()
-	moderation := usecases.NewModerationUseCase(newFakeUserRepo(), offeringRepo, auditRepo, offeringUC, newFakeTimer())
+	moderation := usecases.NewModerationUseCase(newFakeUserRepo(), offeringRepo, auditRepo, newFakeTimer())
 
 	err := moderation.DeleteOffering(reportAdminCtx(), testOfferingID)
 	if err != nil {
@@ -153,9 +155,8 @@ func TestModerationDeleteOfferingRefusesNonAdmin(t *testing.T) {
 	t.Parallel()
 
 	offeringRepo := newFakeOfferingRepo()
-	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 	auditRepo := newFakeAuditLogRepo()
-	moderation := usecases.NewModerationUseCase(newFakeUserRepo(), offeringRepo, auditRepo, offeringUC, newFakeTimer())
+	moderation := usecases.NewModerationUseCase(newFakeUserRepo(), offeringRepo, auditRepo, newFakeTimer())
 
 	err := moderation.DeleteOffering(principalCtx(), testOfferingID)
 	if !errors.Is(err, domain.ErrForbidden) {

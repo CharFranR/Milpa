@@ -52,56 +52,57 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 		createErr   error
 		wantErr     error
 	}{
-		{name: "happy path", ctx: principalCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest},
+		{name: "happy path", ctx: farmerCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest},
+		{name: "creator is not an agricultor", ctx: principalCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest, wantErr: domain.ErrForbidden},
 		{name: "unauthenticated", ctx: context.Background(), req: validReq(&baseRequest), seedRequest: &baseRequest, wantErr: auth.ErrUnauthenticated},
-		{name: "missing request id", ctx: principalCtx(), req: dto.SupplyOfferDTO{TotalAmount: 20}, wantErr: domain.ErrInvalidInput},
-		{name: "zero amount", ctx: principalCtx(), req: dto.SupplyOfferDTO{SupplyRequest: &baseRequest.ID}, wantErr: domain.ErrInvalidInput},
+		{name: "missing request id", ctx: farmerCtx(), req: dto.SupplyOfferDTO{TotalAmount: 20}, wantErr: domain.ErrInvalidInput},
+		{name: "zero amount", ctx: farmerCtx(), req: dto.SupplyOfferDTO{SupplyRequest: &baseRequest.ID}, wantErr: domain.ErrInvalidInput},
 		// RF-11 lists the price among the fields the offer must include, so these
 		// are business rejections: a supplier cannot publish an offer without
 		// quoting what it costs. The nullable column is about the rows that
 		// predate it, not about this path.
 		{
 			name:        "missing price",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = nil; return r }(),
 			seedRequest: &baseRequest,
 			wantErr:     domain.ErrInvalidPrice,
 		},
 		{
 			name:        "zero price",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = ptrFloat64(0); return r }(),
 			seedRequest: &baseRequest,
 			wantErr:     domain.ErrInvalidPrice,
 		},
 		{
 			name:        "negative price",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.PricePerUnit = ptrFloat64(-1); return r }(),
 			seedRequest: &baseRequest,
 			wantErr:     domain.ErrInvalidPrice,
 		},
-		{name: "request not found", ctx: principalCtx(), req: validReq(&baseRequest), wantErr: domain.ErrNotFound},
-		{name: "request not open", ctx: principalCtx(), req: validReq(&closedRequest), seedRequest: &closedRequest, wantErr: domain.ErrInvalidRequestStatus},
+		{name: "request not found", ctx: farmerCtx(), req: validReq(&baseRequest), wantErr: domain.ErrNotFound},
+		{name: "request not open", ctx: farmerCtx(), req: validReq(&closedRequest), seedRequest: &closedRequest, wantErr: domain.ErrInvalidRequestStatus},
 		{
 			name:        "buyer cannot offer on own request",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&ownRequest),
 			seedRequest: &ownRequest,
 			wantErr:     domain.ErrForbidden,
 		},
 		{
 			name:        "one offer per supplier per request",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&duplicateRequest),
 			seedRequest: &duplicateRequest,
 			seedOffer:   &duplicateOffer,
 			wantErr:     domain.ErrDuplicate,
 		},
-		{name: "find repo error", ctx: principalCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest, findErr: errFake, wantErr: errFake},
+		{name: "find repo error", ctx: farmerCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest, findErr: errFake, wantErr: errFake},
 		{
 			name:        "single provider with active match",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&singleProviderRequest),
 			seedRequest: &singleProviderRequest,
 			matchActive: true,
@@ -109,33 +110,33 @@ func TestSupplyOfferUseCaseCreate(t *testing.T) {
 		},
 		{
 			name:        "single provider without active match",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&singleProviderRequest),
 			seedRequest: &singleProviderRequest,
 		},
 		{
 			name:        "below minimum per provider",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         func() dto.SupplyOfferDTO { r := validReq(&baseRequest); r.TotalAmount = 5; return r }(),
 			seedRequest: &baseRequest,
 			wantErr:     domain.ErrInvalidInput,
 		},
 		{
 			name:        "exceeds remaining amount",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&lowRemainingRequest),
 			seedRequest: &lowRemainingRequest,
 			wantErr:     domain.ErrInsufficientAmount,
 		},
 		{
 			name:        "repo duplicate on create",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			req:         validReq(&baseRequest),
 			seedRequest: &baseRequest,
 			createErr:   domain.ErrDuplicate,
 			wantErr:     domain.ErrDuplicate,
 		},
-		{name: "repo error", ctx: principalCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest, createErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: farmerCtx(), req: validReq(&baseRequest), seedRequest: &baseRequest, createErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -239,17 +240,17 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 		updateErr   error
 		wantErr     error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq},
+		{name: "happy path", ctx: farmerCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq, wantErr: auth.ErrUnauthenticated},
-		{name: "null id", ctx: principalCtx(), id: uuid.Nil, req: validReq, wantErr: domain.ErrInvalidInput},
-		{name: "not found", ctx: principalCtx(), id: uuid.New(), seedRequest: &request, req: validReq, wantErr: domain.ErrNotFound},
-		{name: "non-owner", ctx: principalCtx(), id: foreignOffer.ID, seedRequest: &request, seedOffer: &foreignOffer, req: validReq, wantErr: domain.ErrForbidden},
-		{name: "not actionable", ctx: principalCtx(), id: matchedOffer.ID, seedRequest: &request, seedOffer: &matchedOffer, req: validReq, wantErr: domain.ErrInvalidOfferStatus},
-		{name: "zero amount", ctx: principalCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: dto.SupplyOfferUpdateDTO{}, wantErr: domain.ErrInvalidInput},
-		{name: "request missing for policy check", ctx: principalCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer, req: validReq, wantErr: domain.ErrNotFound},
+		{name: "null id", ctx: farmerCtx(), id: uuid.Nil, req: validReq, wantErr: domain.ErrInvalidInput},
+		{name: "not found", ctx: farmerCtx(), id: uuid.New(), seedRequest: &request, req: validReq, wantErr: domain.ErrNotFound},
+		{name: "non-owner", ctx: farmerCtx(), id: foreignOffer.ID, seedRequest: &request, seedOffer: &foreignOffer, req: validReq, wantErr: domain.ErrForbidden},
+		{name: "not actionable", ctx: farmerCtx(), id: matchedOffer.ID, seedRequest: &request, seedOffer: &matchedOffer, req: validReq, wantErr: domain.ErrInvalidOfferStatus},
+		{name: "zero amount", ctx: farmerCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: dto.SupplyOfferUpdateDTO{}, wantErr: domain.ErrInvalidInput},
+		{name: "request missing for policy check", ctx: farmerCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer, req: validReq, wantErr: domain.ErrNotFound},
 		{
 			name:        "below minimum per provider",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			id:          lowMinOffer.ID,
 			seedRequest: &lowMinRequest,
 			seedOffer:   &lowMinOffer,
@@ -258,7 +259,7 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 		},
 		{
 			name:        "exceeds remaining amount",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			id:          lowRemainingOffer.ID,
 			seedRequest: &lowRemainingRequest,
 			seedOffer:   &lowRemainingOffer,
@@ -267,7 +268,7 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 		},
 		{
 			name:        "price dropped on update",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			id:          ownedOffer.ID,
 			seedRequest: &request,
 			seedOffer:   &ownedOffer,
@@ -276,14 +277,14 @@ func TestSupplyOfferUseCaseUpdate(t *testing.T) {
 		},
 		{
 			name:        "zero price on update",
-			ctx:         principalCtx(),
+			ctx:         farmerCtx(),
 			id:          ownedOffer.ID,
 			seedRequest: &request,
 			seedOffer:   &ownedOffer,
 			req:         dto.SupplyOfferUpdateDTO{TotalAmount: 30, PricePerUnit: ptrFloat64(0)},
 			wantErr:     domain.ErrInvalidPrice,
 		},
-		{name: "repo error", ctx: principalCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq, updateErr: errFake, wantErr: errFake},
+		{name: "repo error", ctx: farmerCtx(), id: ownedOffer.ID, seedRequest: &request, seedOffer: &ownedOffer, req: validReq, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {
@@ -359,12 +360,12 @@ func TestSupplyOfferUseCaseWithdraw(t *testing.T) {
 		updateErr error
 		wantErr   error
 	}{
-		{name: "happy path", ctx: principalCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer},
+		{name: "happy path", ctx: farmerCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer},
 		{name: "unauthenticated", ctx: context.Background(), id: ownedOffer.ID, seedOffer: &ownedOffer, wantErr: auth.ErrUnauthenticated},
-		{name: "not found", ctx: principalCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
-		{name: "non-owner", ctx: principalCtx(), id: foreignOffer.ID, seedOffer: &foreignOffer, wantErr: domain.ErrForbidden},
-		{name: "matched offer cannot withdraw", ctx: principalCtx(), id: matchedOffer.ID, seedOffer: &matchedOffer, wantErr: domain.ErrInvalidOfferStatus},
-		{name: "repo error", ctx: principalCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer, updateErr: errFake, wantErr: errFake},
+		{name: "not found", ctx: farmerCtx(), id: uuid.New(), wantErr: domain.ErrNotFound},
+		{name: "non-owner", ctx: farmerCtx(), id: foreignOffer.ID, seedOffer: &foreignOffer, wantErr: domain.ErrForbidden},
+		{name: "matched offer cannot withdraw", ctx: farmerCtx(), id: matchedOffer.ID, seedOffer: &matchedOffer, wantErr: domain.ErrInvalidOfferStatus},
+		{name: "repo error", ctx: farmerCtx(), id: ownedOffer.ID, seedOffer: &ownedOffer, updateErr: errFake, wantErr: errFake},
 	}
 
 	for _, tt := range tests {

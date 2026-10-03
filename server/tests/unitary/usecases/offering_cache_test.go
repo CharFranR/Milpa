@@ -62,7 +62,7 @@ func TestCachedOfferingUpdateDropsTheFarmerList(t *testing.T) {
 		t.Fatalf("the farmer list key was never cached: %v", warmed)
 	}
 
-	if err := uc.UpdateOffering(principalCtx(), testOfferingID, dto.UpdateOfferingRequest{
+	if err := uc.UpdateOffering(farmerCtx(), testOfferingID, dto.UpdateOfferingRequest{
 		Name:              strPtr("Maiz dulce"),
 		CategoryID:        &testCategoryID,
 		QuantityAvailable: floatPtr(80),
@@ -89,7 +89,7 @@ func TestCachedOfferingRenewDropsTheOfferingAndTheFarmerList(t *testing.T) {
 
 	newExpiry := fixedTime.Add(15 * 24 * time.Hour)
 
-	renewed, err := uc.RenewOffering(principalCtx(), testOfferingID, dto.RenewOfferingRequest{ExpiresAt: newExpiry})
+	renewed, err := uc.RenewOffering(farmerCtx(), testOfferingID, dto.RenewOfferingRequest{ExpiresAt: newExpiry})
 	if err != nil {
 		t.Fatalf("RenewOffering() error: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestCachedOfferingRenewKeepsEveryEntryWhenTheCallerIsRefused(t *testing.T) 
 
 	warmOfferingCache(t, uc)
 
-	_, err := uc.RenewOffering(principalCtxFor(testOtherID), testOfferingID, dto.RenewOfferingRequest{
+	_, err := uc.RenewOffering(farmerCtxFor(testOtherID), testOfferingID, dto.RenewOfferingRequest{
 		ExpiresAt: fixedTime.Add(15 * 24 * time.Hour),
 	})
 	if !errors.Is(err, domain.ErrForbidden) {
