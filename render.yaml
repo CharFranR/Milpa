@@ -6,13 +6,13 @@ services:
     dockerContext: ./server
     envVars:
       - key: POSTGRES_HOST
-        value: db.pgctvdcgcvkkqpvciesd.supabase.co
+        value: ep-aged-feather-b442b5n0.c-6.us-east-2.aws.neon.tech
       - key: POSTGRES_PORT
         value: "5432"
       - key: POSTGRES_USER
-        value: postgres
+        value: neondb_owner
       - key: POSTGRES_DB
-        value: postgres
+        value: neondb_owner
       - key: DB_SSLMODE
         value: require
       - key: POSTGRES_PASSWORD
