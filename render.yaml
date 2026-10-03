@@ -6,27 +6,17 @@ services:
     dockerContext: ./server
     envVars:
       - key: POSTGRES_HOST
-        fromDatabase:
-          name: milpa-db
-          property: host
+        value: db.pgctvdcgcvkkqpvciesd.supabase.co
       - key: POSTGRES_PORT
-        fromDatabase:
-          name: milpa-db
-          property: port
+        value: "5432"
       - key: POSTGRES_USER
-        fromDatabase:
-          name: milpa-db
-          property: user
-      - key: POSTGRES_PASSWORD
-        fromDatabase:
-          name: milpa-db
-          property: password
+        value: postgres
       - key: POSTGRES_DB
-        fromDatabase:
-          name: milpa-db
-          property: database
+        value: postgres
       - key: DB_SSLMODE
         value: require
+      - key: POSTGRES_PASSWORD
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: SERVER_PORT
@@ -48,7 +38,7 @@ services:
       - key: ESCLIENT_ENDPOINT1
         sync: false
       - key: ESCLIENT_ENDPOINT2
-        sync: false
+        value: ""
       - key: ESCLIENT_MAXID
         value: "10"
       - key: ESCLIENT_INDEX
@@ -57,11 +47,7 @@ services:
     autoDeploy: true
 
 databases:
-  - name: milpa-db
-    plan: free
-    databaseName: milpa
-    ipAllowList: []
-
   - name: milpa-redis
+    type: keyvalue
     plan: free
     ipAllowList: []
