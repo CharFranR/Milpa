@@ -12,7 +12,7 @@ services:
       - key: POSTGRES_USER
         value: neondb_owner
       - key: POSTGRES_DB
-        value: neondb_owner
+        value: neondb
       - key: DB_SSLMODE
         value: require
       - key: POSTGRES_PASSWORD
