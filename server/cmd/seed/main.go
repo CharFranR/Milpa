@@ -92,7 +92,7 @@ func main() {
 	inventoryUC := usecases.NewSupplierInventoryUseCase(supplierInventoryRepo)
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
 	supplyOfferUC := usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
-	recommendationUC := usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
+	recommendationUC := usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, userRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
 	matchUC := usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
 	transactionUC := usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
 	liquidationUC := usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
@@ -164,6 +164,9 @@ func ensureFarmer(ctx context.Context, userRepo *repo.UserRepositoryImpl, userUC
 		return uuid.Nil, false, err
 	}
 
+	farmerLatitude := 12.1167
+	farmerLongitude := -86.1667
+
 	registered, err := userUC.Register(ctx, dto.RegisterUserRequest{
 		Email:           demoFarmerEmail,
 		FirstName:       "María",
@@ -172,6 +175,8 @@ func ensureFarmer(ctx context.Context, userRepo *repo.UserRepositoryImpl, userUC
 		Address:         "Km 8 carretera a Masaya",
 		Department:      "Masaya",
 		Municipality:    "Masate",
+		Latitude:        &farmerLatitude,
+		Longitude:       &farmerLongitude,
 		PhoneNumber:     "+505 8888 0001",
 		Password:        "Password123!",
 		ConfirmPassword: "Password123!",

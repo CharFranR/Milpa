@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/google/uuid"
 )
@@ -42,6 +43,24 @@ func (a Address) FullAddress() string {
 
 func (a Address) HasCoordinates() bool {
 	return a.Latitude != 0 && a.Longitude != 0
+}
+
+func (a Address) DistanceKM(other Address) (float64, bool) {
+	if !a.HasCoordinates() || !other.HasCoordinates() {
+		return 0, false
+	}
+
+	const earthRadiusKM = 6371.0
+
+	lat1 := a.Latitude * math.Pi / 180
+	lat2 := other.Latitude * math.Pi / 180
+	deltaLat := (other.Latitude - a.Latitude) * math.Pi / 180
+	deltaLon := (other.Longitude - a.Longitude) * math.Pi / 180
+
+	h := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
+		math.Cos(lat1)*math.Cos(lat2)*math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+
+	return earthRadiusKM * 2 * math.Atan2(math.Sqrt(h), math.Sqrt(1-h)), true
 }
 
 func (a Address) HasData() bool {

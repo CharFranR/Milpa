@@ -282,6 +282,8 @@ func ensureBuyer(ctx context.Context, userRepo *repo.UserRepositoryImpl, userUC 
 		return uuid.Nil, false, err
 	}
 
+	buyerAddress := demoBuyerAddress()
+
 	registered, err := userUC.Register(ctx, dto.RegisterUserRequest{
 		Email:           demoBuyerEmail,
 		FirstName:       "Óscar",
@@ -290,6 +292,8 @@ func ensureBuyer(ctx context.Context, userRepo *repo.UserRepositoryImpl, userUC 
 		Address:         "Bodega 12, mercado Mayoreo",
 		Department:      "Managua",
 		Municipality:    "Managua",
+		Latitude:        &buyerAddress.Latitude,
+		Longitude:       &buyerAddress.Longitude,
 		PhoneNumber:     "+505 8888 0002",
 		Password:        "Password123!",
 		ConfirmPassword: "Password123!",

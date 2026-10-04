@@ -17,6 +17,7 @@ import (
 type recommendationFixture struct {
 	offers    *fakeMatchSupplyOfferRepo
 	requests  *fakeMatchSupplyRequestRepo
+	users     *fakeUserRepo
 	inventory *fakeMatchInventoryRepo
 	matches   *fakeMatchRepository
 }
@@ -25,13 +26,14 @@ func newRecommendationFixture() *recommendationFixture {
 	return &recommendationFixture{
 		offers:    newFakeMatchSupplyOfferRepo(),
 		requests:  newFakeMatchSupplyRequestRepo(),
+		users:     newFakeUserRepo(),
 		inventory: newFakeMatchInventoryRepo(),
 		matches:   newFakeMatchRepository(),
 	}
 }
 
 func (f *recommendationFixture) useCase(factors []usecases.WeightedScoreFactor) *usecases.RecommendationUseCaseImpl {
-	return usecases.NewRecommendationUseCase(f.offers, f.requests, f.inventory, f.matches, factors)
+	return usecases.NewRecommendationUseCase(f.offers, f.requests, f.users, f.inventory, f.matches, factors)
 }
 
 func (f *recommendationFixture) seedOffer(id, supplierID uuid.UUID, status domain.OfferStatus, createdAt time.Time) {
@@ -385,25 +387,35 @@ func TestRecommendationRankOffers(t *testing.T) {
 			t.Errorf("first offer = %v, want %v", got[0].Offer.ID, matchTestOtherOfferID)
 		}
 		// Availability is normalised against the largest quantity in the set, so
-		// the holder of the most stock scores 1 * 0.35 and the order is unchanged.
+		// the holder of the most stock scores 1 * 0.25 and the order is unchanged.
 		if got[0].AvailableQuantity != 50 {
 			t.Errorf("first available = %v, want 50", got[0].AvailableQuantity)
 		}
 		if got[1].AvailableQuantity != 20 {
 			t.Errorf("second available = %v, want 20", got[1].AvailableQuantity)
 		}
-		if len(got[0].Contributions) != 4 {
-			t.Fatalf("contributions = %d, want 4", len(got[0].Contributions))
+		if len(got[0].Contributions) != 5 {
+			t.Fatalf("contributions = %d, want 5", len(got[0].Contributions))
 		}
-		contribution := got[0].Contributions[0]
+		distance := got[0].Contributions[0]
+		if distance.Factor != "distance" {
+			t.Errorf("factor = %q, want distance", distance.Factor)
+		}
+		if distance.Weight != 0.3 {
+			t.Errorf("weight = %v, want 0.3", distance.Weight)
+		}
+		if distance.Score != 0.5 || distance.WeightedScore != 0.15 {
+			t.Errorf("distance score/weighted = %v/%v, want 0.5/0.15", distance.Score, distance.WeightedScore)
+		}
+		contribution := got[0].Contributions[1]
 		if contribution.Factor != "availability" {
 			t.Errorf("factor = %q, want availability", contribution.Factor)
 		}
-		if contribution.Weight != 0.35 {
-			t.Errorf("weight = %v, want 0.35", contribution.Weight)
+		if contribution.Weight != 0.25 {
+			t.Errorf("weight = %v, want 0.25", contribution.Weight)
 		}
-		if contribution.Score != 1 || contribution.WeightedScore != 0.35 {
-			t.Errorf("contribution score/weighted = %v/%v, want 1/0.35", contribution.Score, contribution.WeightedScore)
+		if contribution.Score != 1 || contribution.WeightedScore != 0.25 {
+			t.Errorf("contribution score/weighted = %v/%v, want 1/0.25", contribution.Score, contribution.WeightedScore)
 		}
 	})
 
@@ -447,8 +459,8 @@ func TestRecommendationRankOffers(t *testing.T) {
 		if got[0].AvailableQuantity != 0 {
 			t.Errorf("available = %v, want 0", got[0].AvailableQuantity)
 		}
-		if got[0].Score != 0.325 {
-			t.Errorf("score = %v, want 0.325 (neutral reputation 0.5 * 0.25)", got[0].Score)
+		if got[0].Score != 0.35 {
+			t.Errorf("score = %v, want 0.35 (neutral distance and reputation)", got[0].Score)
 		}
 	})
 
