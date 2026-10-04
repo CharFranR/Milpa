@@ -10,6 +10,7 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminProducers from './pages/admin/AdminProducers'
 import AdminReports from './pages/admin/AdminReports'
 import AdminUsers from './pages/admin/AdminUsers'
+import BuyerMatchDetail from './pages/buyer/BuyerMatchDetail'
 import BuyerMessages from './pages/buyer/BuyerMessages'
 import BuyerProfile from './pages/buyer/BuyerProfile'
 import BuyerRequestDetail from './pages/buyer/BuyerRequestDetail'
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="requests/new" element={<BuyerRequestForm />} />
         <Route path="requests/:id" element={<BuyerRequestDetail />} />
         <Route path="requests/:id/edit" element={<BuyerRequestForm />} />
+        <Route path="matches/:matchId" element={<BuyerMatchDetail />} />
         <Route path="messages" element={<BuyerMessages />} />
         <Route path="profile" element={<BuyerProfile />} />
         <Route path="marketplace" element={<MarketplaceCatalog />} />
