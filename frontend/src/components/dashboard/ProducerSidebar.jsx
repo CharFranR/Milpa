@@ -8,6 +8,7 @@ const TABS = [
   { id: 'resumen', icon: 'home', label: 'Resumen' },
   { id: 'productos', icon: 'inventory_2', label: 'Mis productos' },
   { id: 'solicitudes', icon: 'inbox', label: 'Solicitudes' },
+  { id: 'mensajes', icon: 'chat', label: 'Mensajes' },
   { id: 'negocio', icon: 'storefront', label: 'Mi negocio' },
 ]
 

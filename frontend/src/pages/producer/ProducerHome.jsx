@@ -11,7 +11,7 @@ import { inquiries } from '../../services/api'
 import { producerRequests } from '../../mocks/producer'
 import { formatPrice } from '../../lib/format'
 
-export default function ProducerHome() {
+export default function ProducerHome({ onNavigate }) {
   const user = getUser()
   const companyId = getCompanyId()
   const { offeringsList } = useOfferings(companyId)
@@ -145,9 +145,13 @@ export default function ProducerHome() {
                         <Badge tone="brand">Disponible</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <a href="#/producer/products" className="text-sm font-semibold text-brand hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('productos')}
+                          className="text-sm font-semibold text-brand hover:underline"
+                        >
                           Ver
-                        </a>
+                        </button>
                       </td>
                     </tr>
                   )

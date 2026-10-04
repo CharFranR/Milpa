@@ -5,6 +5,7 @@ import ProducerHome from './producer/ProducerHome'
 import ProducerProducts from './producer/ProducerProducts'
 import ProducerRequests from './producer/ProducerRequests'
 import ProducerBusiness from './producer/ProducerBusiness'
+import ProducerMessages from './producer/ProducerMessages'
 
 export default function ProducerDashboard() {
   const [tab, setTab] = useState('resumen')
@@ -17,9 +18,10 @@ export default function ProducerDashboard() {
         <ProducerSidebar activeTab={tab} onTabChange={setTab} />
 
         <main className="mt-6 min-w-0 flex-1 lg:mt-0">
-          {tab === 'resumen' && <ProducerHome />}
+          {tab === 'resumen' && <ProducerHome onNavigate={setTab} />}
           {tab === 'productos' && <ProducerProducts />}
           {tab === 'solicitudes' && <ProducerRequests />}
+          {tab === 'mensajes' && <ProducerMessages />}
           {tab === 'negocio' && <ProducerBusiness />}
         </main>
       </div>
