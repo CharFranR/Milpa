@@ -1,6 +1,5 @@
 export const BUYER_TAB_PATHS = {
-  inicio: '/dashboard',
-  favoritos: '/dashboard/favorites',
+  solicitudes: '/dashboard',
   mensajes: '/dashboard/messages',
   perfil: '/dashboard/profile',
   marketplace: '/dashboard/marketplace',

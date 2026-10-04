@@ -7,8 +7,7 @@ import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { cn } from '../../lib/cn'
 
 const TABS = [
-  { id: 'inicio', icon: 'home', label: 'Inicio' },
-  { id: 'favoritos', icon: 'favorite', label: 'Favoritos' },
+  { id: 'solicitudes', icon: 'view_list', label: 'Mis solicitudes' },
   { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
   { id: 'perfil', icon: 'person', label: 'Mi perfil' },
   { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
