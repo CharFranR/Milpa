@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSession, getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getDisplayName, getInitials } from '../../lib/user'
 import { PRODUCER_TAB_PATHS } from '../../lib/routes'
 
@@ -36,7 +36,7 @@ function TabButton({ tab, active, onSelect, className }) {
 export default function ProducerSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const user = getUser()
+  const { user, logout } = useAuth()
   const displayName = getDisplayName(user)
   const initials = getInitials(user)
 
@@ -45,8 +45,8 @@ export default function ProducerSidebar() {
   }
 
   function handleLogout() {
-    clearSession()
     navigate('/')
+    logout()
   }
 
   return (

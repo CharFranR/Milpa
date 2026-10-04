@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import Avatar from '../Avatar'
-import { getUser, clearSession } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getInitials, getDisplayName } from '../../lib/user'
 import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { cn } from '../../lib/cn'
@@ -36,7 +36,7 @@ function TabButton({ tab, active, onSelect, className }) {
 export default function DashboardSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const user = getUser()
+  const { user, logout } = useAuth()
   const displayName = getDisplayName(user)
   const displayRole = user?.role === 'buyer' ? 'Comprador' : user?.role || 'Comprador'
 
@@ -45,8 +45,8 @@ export default function DashboardSidebar() {
   }
 
   function handleLogout() {
-    clearSession()
     navigate('/')
+    logout()
   }
 
   return (

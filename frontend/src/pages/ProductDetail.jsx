@@ -8,13 +8,14 @@ import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
 import { offerings, companies, conversations, openChat } from '../services/api'
 import { productById, producerById, categoryById } from '../mocks/catalog'
-import { isAuthenticated } from '../lib/session'
+import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
 import { resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)

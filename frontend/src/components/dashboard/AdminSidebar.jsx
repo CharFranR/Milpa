@@ -2,7 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSession } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { ADMIN_TAB_PATHS } from '../../lib/routes'
 
 const GESTION_TABS = [
@@ -52,14 +52,15 @@ function TabButton({ tab, active, onSelect, className, showBadge }) {
 export default function AdminSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { logout } = useAuth()
 
   function selectTab(id) {
     navigate(ADMIN_TAB_PATHS[id])
   }
 
   function handleLogout() {
-    clearSession()
     navigate('/')
+    logout()
   }
 
   return (

@@ -3,7 +3,7 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
 import { inquiries } from '../../services/api'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 
 const STATUS_MAP = {
   pending: { label: 'Pendiente', tone: 'amber' },
@@ -13,7 +13,7 @@ const STATUS_MAP = {
 }
 
 export default function BuyerMessages() {
-  const user = getUser()
+  const { user } = useAuth()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

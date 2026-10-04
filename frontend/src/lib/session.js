@@ -2,54 +2,57 @@ const TOKEN_KEY = 'milpa_token'
 const USER_KEY = 'milpa_user'
 const COMPANY_KEY = 'milpa_company_id'
 
+export const LOGOUT_EVENT = 'milpa:logout'
+
+function notify() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(LOGOUT_EVENT))
+}
+
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
+  return localStorage.getItem(TOKEN_KEY)
 }
 
 export function setToken(token) {
   localStorage.setItem(TOKEN_KEY, token)
-  sessionStorage.setItem(TOKEN_KEY, token)
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
-  sessionStorage.removeItem(TOKEN_KEY)
 }
 
 export function getUser() {
-  const data = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY)
+  const data = localStorage.getItem(USER_KEY)
   if (!data) return null
   try { return JSON.parse(data) } catch { return null }
 }
 
 export function setUser(user) {
-  const data = JSON.stringify(user)
-  localStorage.setItem(USER_KEY, data)
-  sessionStorage.setItem(USER_KEY, data)
+  localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
 export function clearUser() {
   localStorage.removeItem(USER_KEY)
-  sessionStorage.removeItem(USER_KEY)
 }
 
 export function getCompanyId() {
-  return localStorage.getItem(COMPANY_KEY) || sessionStorage.getItem(COMPANY_KEY)
+  return localStorage.getItem(COMPANY_KEY)
 }
 
 export function setCompanyId(id) {
-  localStorage.setItem(COMPANY_KEY, id)
-  sessionStorage.setItem(COMPANY_KEY, id)
+  if (id) {
+    localStorage.setItem(COMPANY_KEY, id)
+  } else {
+    localStorage.removeItem(COMPANY_KEY)
+  }
 }
 
 export function clearCompanyId() {
   localStorage.removeItem(COMPANY_KEY)
-  sessionStorage.removeItem(COMPANY_KEY)
 }
 
 export function hasRole(role) {
-  const u = getUser()
-  return u?.role === role
+  return getUser()?.role === role
 }
 
 export function isAuthenticated() {
@@ -60,6 +63,7 @@ export function clearSession() {
   clearToken()
   clearUser()
   clearCompanyId()
+  notify()
 }
 
 export function getSessionRole() {

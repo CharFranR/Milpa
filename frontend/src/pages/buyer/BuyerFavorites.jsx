@@ -1,10 +1,10 @@
 import ProductCard from '../../components/product/ProductCard'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { favoriteProductIds } from '../../mocks/buyer'
 
 export default function BuyerFavorites() {
-  const user = getUser()
+  const { user } = useAuth()
   const displayName = getDisplayName(user)
 
   return (

@@ -4,7 +4,7 @@ import { cn } from '../../lib/cn'
 import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/StatCard'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { useOfferings } from '../../hooks/useOfferings'
 import { getCompanyId } from '../../lib/session'
@@ -14,7 +14,7 @@ import { formatPrice } from '../../lib/format'
 
 export default function ProducerHome() {
   const navigate = useNavigate()
-  const user = getUser()
+  const { user } = useAuth()
   const companyId = getCompanyId()
   const { offeringsList } = useOfferings(companyId)
   const [inquiryCount, setInquiryCount] = useState(0)

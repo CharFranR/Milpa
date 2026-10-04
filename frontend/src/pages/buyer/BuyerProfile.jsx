@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import { useUserProfile } from '../../hooks/useUserProfile'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 
 const SECURITY_ITEMS = [
   { icon: 'lock', label: 'Cambiar contraseña' },
@@ -11,7 +11,7 @@ const SECURITY_ITEMS = [
 ]
 
 export default function BuyerProfile() {
-  const currentUser = getUser()
+  const { user: currentUser } = useAuth()
   const { user, loading, error, updateUser } = useUserProfile(currentUser?.id)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -24,7 +24,7 @@ export default function BuyerProfile() {
       last_name: user?.last_name || '',
       email: user?.email || '',
       phone_number: user?.phone_number || '',
-      address: user?.address || '',
+      address: user?.address_line || '',
     })
     setEditing(true)
     setSuccess('')
@@ -189,7 +189,7 @@ export default function BuyerProfile() {
               <div>
                 <dt className="text-xs font-semibold text-gray-600">Dirección</dt>
                 <dd className="mt-1 rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-900">
-                  {user?.address || 'No registrada'}
+                  {user?.address_line || 'No registrada'}
                 </dd>
               </div>
               <Button type="button" variant="outline" className="mt-5 w-full" onClick={startEdit} icon={<Icon name="edit" size={16} />}>

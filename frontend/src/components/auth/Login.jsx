@@ -1,11 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
-import { setToken, setUser } from '../../lib/session'
-
-const ROLE_MAP = { 0: 'pending', 1: 'buyer', 2: 'producer', 3: 'admin' }
+import { useAuth } from '../../context/AuthContext'
+import { ROLE_MAP } from '../../lib/roles'
 
 const ROLES = [
   {
@@ -56,6 +56,8 @@ const GOOGLE_SVG = (
 )
 
 export default function Login() {
+  const navigate = useNavigate()
+  const { login } = useAuth()
   const [role, setRole] = useState('buyer')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -76,13 +78,12 @@ export default function Login() {
 
     auth.login(email, password)
       .then((data) => {
-        setToken(data.access_token)
         data.user.role = ROLE_MAP[data.user.role] || 'buyer'
-        setUser(data.user)
+        login(data.access_token, data.user)
         if (data.user.role === 'producer') {
-          window.location.hash = '#/producer'
+          navigate('/producer')
         } else {
-          window.location.hash = '#/dashboard'
+          navigate('/dashboard')
         }
       })
       .catch((err) => {

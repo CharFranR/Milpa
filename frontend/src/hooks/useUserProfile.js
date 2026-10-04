@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react'
 import { users } from '../services/api'
-import { setUser as setSessionUser } from '../lib/session'
+import { useAuth } from '../context/AuthContext'
+
+function mergeProfile(prev, data) {
+  const next = { ...prev, ...data }
+  if ('address' in data) {
+    next.address_line = data.address
+    delete next.address
+  }
+  return next
+}
 
 export function useUserProfile(userId) {
+  const { user: sessionUser, updateUser: updateSessionUser } = useAuth()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,11 +27,8 @@ export function useUserProfile(userId) {
 
   function updateUser(data) {
     return users.update(userId, data).then(() => {
-      setUser((prev) => {
-        const updated = { ...prev, ...data }
-        setSessionUser(updated)
-        return updated
-      })
+      setUser((prev) => mergeProfile(prev, data))
+      updateSessionUser(mergeProfile(sessionUser, data))
     })
   }
 

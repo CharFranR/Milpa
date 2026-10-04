@@ -3,7 +3,7 @@ import Icon from '../../components/ui/Icon'
 import StatCard from '../../components/StatCard'
 import ProductImage from '../../components/product/ProductImage'
 import { formatPrice } from '../../lib/format'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { productById, producerById } from '../../mocks/catalog'
@@ -17,7 +17,7 @@ const ACTIVITY_TONES = {
 
 export default function BuyerHome() {
   const navigate = useNavigate()
-  const user = getUser()
+  const { user } = useAuth()
   const displayName = getDisplayName(user)
 
   function goToTab(tab) {
