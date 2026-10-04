@@ -11,6 +11,7 @@ export const PRODUCER_TAB_PATHS = {
   ofertas: '/producer/offers',
   inventario: '/producer/inventory',
   productos: '/producer/products',
+  liquidaciones: '/producer/liquidations',
   solicitudes: '/producer/requests',
   mensajes: '/producer/messages',
   negocio: '/producer/business',

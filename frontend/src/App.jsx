@@ -16,6 +16,7 @@ import BuyerRequestDetail from './pages/buyer/BuyerRequestDetail'
 import BuyerRequestForm from './pages/buyer/BuyerRequestForm'
 import BuyerRequests from './pages/buyer/BuyerRequests'
 import Landing from './pages/Landing'
+import Liquidations from './pages/Liquidations'
 import MatchDetail from './pages/matches/MatchDetail'
 import Marketplace from './pages/Marketplace'
 import ProductDetail from './pages/ProductDetail'
@@ -24,6 +25,7 @@ import ProducerHome from './pages/producer/ProducerHome'
 import ProducerMessages from './pages/producer/ProducerMessages'
 import ProducerInventory from './pages/producer/ProducerInventory'
 import ProducerOfferForm from './pages/producer/ProducerOfferForm'
+import ProducerLiquidations from './pages/producer/ProducerLiquidations'
 import ProducerOffers from './pages/producer/ProducerOffers'
 import ProducerProducts from './pages/producer/ProducerProducts'
 import ProducerRequests from './pages/producer/ProducerRequests'
@@ -38,6 +40,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/liquidations" element={<Liquidations />} />
 
       <Route
         path="/marketplace"
@@ -90,6 +93,7 @@ export default function App() {
         <Route path="matches/:matchId" element={<MatchDetail />} />
         <Route path="inventory" element={<ProducerInventory />} />
         <Route path="products" element={<ProducerProducts />} />
+        <Route path="liquidations" element={<ProducerLiquidations />} />
         <Route path="requests" element={<ProducerRequests />} />
         <Route path="messages" element={<ProducerMessages />} />
         <Route path="business" element={<ProducerBusiness />} />
