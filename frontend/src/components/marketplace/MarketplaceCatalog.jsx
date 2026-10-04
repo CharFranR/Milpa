@@ -1,40 +1,52 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../ui/Icon'
 import ProductCardGrid from '../../components/product/ProductCardGrid'
 import ProductCardList from '../../components/product/ProductCardList'
 import FiltersSidebar, { PRICE_LIMIT } from './FiltersSidebar'
 import Pagination from './Pagination'
 import EmptyResults from './EmptyResults'
-import { useFeaturedOfferings } from '../../hooks/useFeaturedOfferings'
+import { useSearch } from '../../hooks/useSearch'
 import { cn } from '../../lib/cn'
 
 const SORT_OPTIONS = [
-  { value: 'relevant', label: 'Más relevantes' },
-  { value: 'rating', label: 'Mejor valorados' },
-  { value: 'priceAsc', label: 'Precio: menor a mayor' },
-  { value: 'priceDesc', label: 'Precio: mayor a menor' },
+  { value: 'relevance', label: 'Más relevantes' },
+  { value: 'price_asc', label: 'Precio: menor a mayor' },
+  { value: 'price_desc', label: 'Precio: mayor a menor' },
 ]
 
 const DEFAULT_FILTERS = {
   category: 'all',
   maxPrice: PRICE_LIMIT,
-  minRating: 0,
 }
 
 const PAGE_SIZE = 6
 
 export default function MarketplaceCatalog() {
-  const { offeringsList, loading, error } = useFeaturedOfferings()
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('relevant')
+  const [term, setTerm] = useState('')
+  const [sort, setSort] = useState('relevance')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [view, setView] = useState('grid')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
 
-  const visibleProducts = filterAndSortProducts(offeringsList, query, filters, sort)
-  const totalPages = Math.ceil(visibleProducts.length / PAGE_SIZE)
-  const paginatedProducts = paginateProducts(visibleProducts, page)
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(query.trim()), 350)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const { results, totalHits, totalPages, loading, error } = useSearch({
+    term,
+    categoryId: filters.category === 'all' ? '' : filters.category,
+    maxPrice: filters.maxPrice < PRICE_LIMIT ? filters.maxPrice : null,
+    sort,
+    page,
+    pageSize: PAGE_SIZE,
+  })
+
+  const hasActiveSearch =
+    Boolean(term) || filters.category !== 'all' || filters.maxPrice < PRICE_LIMIT
+  const showSkeleton = loading && results.length === 0
 
   function updateFilters(patch) {
     setFilters((current) => ({ ...current, ...patch }))
@@ -43,11 +55,28 @@ export default function MarketplaceCatalog() {
 
   function clearAll() {
     setQuery('')
+    setTerm('')
     setFilters(DEFAULT_FILTERS)
     setPage(1)
   }
 
-  if (loading) {
+  if (error) {
+    return (
+      <>
+        <header className="mt-4">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+            Marketplace
+          </h1>
+        </header>
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <Icon name="error" size={40} className="mx-auto text-red-400" />
+          <p className="mt-3 text-sm text-red-700">{error}</p>
+        </div>
+      </>
+    )
+  }
+
+  if (showSkeleton) {
     return (
       <>
         <header className="mt-4">
@@ -70,23 +99,7 @@ export default function MarketplaceCatalog() {
     )
   }
 
-  if (error) {
-    return (
-      <>
-        <header className="mt-4">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Marketplace
-          </h1>
-        </header>
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <Icon name="error" size={40} className="mx-auto text-red-400" />
-          <p className="mt-3 text-sm text-red-700">{error}</p>
-        </div>
-      </>
-    )
-  }
-
-  if (offeringsList.length === 0) {
+  if (totalHits === 0 && !hasActiveSearch) {
     return (
       <>
         <header className="mt-4">
@@ -95,7 +108,7 @@ export default function MarketplaceCatalog() {
           </h1>
         </header>
         <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
-          <Icon name="storefront" size={48} className="mx-auto text-gray-300" />
+          <Icon name="storefront" size={48} className="mx-auto text-gray-400" />
           <h2 className="mt-4 text-lg font-semibold text-gray-900">No hay productos disponibles</h2>
           <p className="mt-2 max-w-sm mx-auto text-sm text-gray-500">
             Sé el primero en publicar productos en el Marketplace.
@@ -112,7 +125,7 @@ export default function MarketplaceCatalog() {
           Marketplace
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          <span className="font-semibold text-brand">{visibleProducts.length}</span> productos
+          <span className="font-semibold text-brand">{totalHits}</span> productos
           disponibles de productores locales
         </p>
       </header>
@@ -194,20 +207,24 @@ export default function MarketplaceCatalog() {
           </div>
         </aside>
 
-        <section aria-label="Resultados" className="min-w-0 flex-1">
-          {visibleProducts.length === 0 ? (
+        <section aria-label="Resultados" className="min-w-0 flex-1" aria-busy={loading}>
+          {results.length === 0 ? (
             <EmptyResults onClear={clearAll} />
-          ) : view === 'grid' ? (
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {paginatedProducts.map((offering) => (
-                <ProductCardGrid key={offering.id} offering={offering} />
-              ))}
-            </div>
           ) : (
-            <div className="space-y-4">
-              {paginatedProducts.map((offering) => (
-                <ProductCardList key={offering.id} offering={offering} />
-              ))}
+            <div className={cn(loading && 'opacity-60')}>
+              {view === 'grid' ? (
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {results.map((offering) => (
+                    <ProductCardGrid key={offering.id} offering={toCardOffering(offering)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {results.map((offering) => (
+                    <ProductCardList key={offering.id} offering={toCardOffering(offering)} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -218,6 +235,14 @@ export default function MarketplaceCatalog() {
       </div>
     </>
   )
+}
+
+function toCardOffering(result) {
+  return {
+    ...result,
+    type: result.type === 'service' ? 1 : 0,
+    company_name: result.farmer_name || '',
+  }
 }
 
 function ViewToggle({ view, onChange }) {
@@ -253,40 +278,4 @@ function ViewToggle({ view, onChange }) {
       </button>
     </div>
   )
-}
-
-function filterAndSortProducts(allProducts, query, filters, sort) {
-  const normalizedQuery = query.trim().toLowerCase()
-
-  const matching = allProducts.filter((product) => {
-    if (!matchesQuery(product, normalizedQuery)) return false
-    if (product.price > filters.maxPrice) return false
-    return true
-  })
-
-  return sortProducts(matching, sort)
-}
-
-function matchesQuery(product, normalizedQuery) {
-  if (!normalizedQuery) return true
-  const searchableText = `${product.name || ''}`.toLowerCase()
-  return searchableText.includes(normalizedQuery)
-}
-
-function paginateProducts(items, page) {
-  const start = (page - 1) * PAGE_SIZE
-  return items.slice(start, start + PAGE_SIZE)
-}
-
-function sortProducts(items, sort) {
-  switch (sort) {
-    case 'rating':
-      return [...items].sort((a, b) => (b.rating || 0) - (a.rating || 0))
-    case 'priceAsc':
-      return [...items].sort((a, b) => a.price - b.price)
-    case 'priceDesc':
-      return [...items].sort((a, b) => b.price - a.price)
-    default:
-      return items
-  }
 }

@@ -1,5 +1,4 @@
 import { request } from './http'
-import { FEATURED_COMPANY_IDS } from '../config/featuredCompanies'
 
 export const offerings = {
   getByUser: (userId) =>
@@ -23,13 +22,13 @@ export const offerings = {
   renew: (id, expiresAt) =>
     request(`/offerings/${id}/renew`, { method: 'PATCH', body: { expires_at: expiresAt } }),
 
-  getFeatured: async () => {
-    if (FEATURED_COMPANY_IDS.length === 0) return []
-    const results = await Promise.all(
-      FEATURED_COMPANY_IDS.map((id) =>
-        request(`/offerings?company_id=${id}`).catch(() => [])
-      )
-    )
-    return results.flat()
+  search: (params = {}) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return
+      qs.set(key, String(value))
+    })
+    const query = qs.toString()
+    return request(`/search${query ? `?${query}` : ''}`)
   },
 }
