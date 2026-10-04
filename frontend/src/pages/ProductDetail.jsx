@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
@@ -6,7 +6,8 @@ import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
-import { offerings, companies, conversations, openChat } from '../services/api'
+import { offerings, companies, conversations } from '../services/api'
+import ChatPanel from '../components/chat/ChatPanel'
 import { productById, producerById, categoryById } from '../mocks/catalog'
 import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
@@ -23,9 +24,7 @@ export default function ProductDetail() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [chatError, setChatError] = useState('')
   const [startingChat, setStartingChat] = useState(false)
-  const [chat, setChat] = useState({ conversationId: null, messages: [], connected: false })
-  const [draft, setDraft] = useState('')
-  const socketRef = useRef(null)
+  const [chatId, setChatId] = useState(null)
 
   useEffect(() => {
     if (!productId) return
@@ -47,13 +46,6 @@ export default function ProductDetail() {
       })
       .finally(() => setLoading(false))
   }, [productId])
-
-  useEffect(() => {
-    return () => {
-      socketRef.current?.close()
-      socketRef.current = null
-    }
-  }, [])
 
   const product = realOffering || productById(productId)
   // Only the public representation is available to an anonymous visitor, so
@@ -86,7 +78,7 @@ export default function ProductDetail() {
   async function handleContact() {
     setChatError('')
 
-    if (!isAuthenticated()) {
+    if (!isAuthenticated) {
       navigate('/login')
       return
     }
@@ -101,19 +93,8 @@ export default function ProductDetail() {
         farmer_id: farmerId,
         offering_id: product.id,
       })
+      setChatId(conversation.id)
       setIsModalOpen(true)
-      setChat({ conversationId: conversation.id, messages: [], connected: false })
-
-      socketRef.current?.close()
-      const socket = openChat(conversation.id, {
-        onOpen: () => setChat((prev) => ({ ...prev, connected: true })),
-        onMessage: (message) => {
-          setChat((prev) => ({ ...prev, messages: [...prev.messages, message] }))
-        },
-        onClose: () => setChat((prev) => ({ ...prev, connected: false })),
-        onError: () => setChatError('No se pudo conectar el chat.'),
-      })
-      socketRef.current = socket
     } catch (err) {
       setChatError(err?.message || 'No se pudo iniciar la conversación.')
     } finally {
@@ -121,18 +102,8 @@ export default function ProductDetail() {
     }
   }
 
-  function handleSend(event) {
-    event.preventDefault()
-    const text = draft.trim()
-    if (!text) return
-    socketRef.current?.send(text)
-    setDraft('')
-  }
-
-  function handleSendMessage() {
+  function closeModal() {
     setIsModalOpen(false)
-    socketRef.current?.close()
-    socketRef.current = null
   }
 
   if (loading) {
@@ -291,50 +262,13 @@ export default function ProductDetail() {
           aria-modal="true"
           aria-label={`Chat con ${producer.name}`}
         >
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
-            <header className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">{producer.name}</h3>
-              <button
-                type="button"
-                onClick={handleSendMessage}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                aria-label="Cerrar"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </header>
-
-            <div className="max-h-80 space-y-2 overflow-y-auto p-5">
-              {chat.messages.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  Escribe tu consulta sobre {product.name}. El productor responderá por aquí.
-                </p>
-              )}
-              {chat.messages.map((message, index) => (
-                <p
-                  key={`${message.id || 'msg'}-${index}`}
-                  className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-800"
-                >
-                  {message.content}
-                </p>
-              ))}
-            </div>
-
-            <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-gray-100 p-4">
-              <label htmlFor="chat-message" className="sr-only">Tu mensaje</label>
-              <input
-                id="chat-message"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Escribe un mensaje..."
-                className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                disabled={!chat.connected}
-                maxLength={2000}
-              />
-              <Button type="submit" variant="primary" disabled={!chat.connected || !draft.trim()}>
-                Enviar
-              </Button>
-            </form>
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+            <ChatPanel
+              conversationId={chatId}
+              title={producer.name}
+              hint={`Escribe tu consulta sobre ${product.name}. El productor responderá por aquí.`}
+              onClose={closeModal}
+            />
           </div>
         </div>
       )}

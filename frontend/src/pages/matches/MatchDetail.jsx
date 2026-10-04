@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ChatPanel from '../../components/chat/ChatPanel'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import EmptyState from '../../components/ui/EmptyState'
 import ErrorState from '../../components/ui/ErrorState'
 import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
@@ -17,6 +19,7 @@ import {
   measurementLabel,
   transactionStatus,
 } from '../../lib/supplyStatus'
+import { conversations } from '../../services/conversations'
 import { matches } from '../../services/matches'
 import { transactions } from '../../services/transactions'
 
@@ -52,6 +55,7 @@ export default function MatchDetail() {
 
   const [match, setMatch] = useState(null)
   const [transaction, setTransaction] = useState(null)
+  const [conversationId, setConversationId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -64,10 +68,17 @@ export default function MatchDetail() {
     if (!matchId) return
     setLoading(true)
     setError('')
-    Promise.all([matches.getById(matchId), transactions.getByMatch(matchId)])
-      .then(([matchData, transactionData]) => {
+    Promise.all([
+      matches.getById(matchId),
+      transactions.getByMatch(matchId),
+      conversations.list().catch(() => []),
+    ])
+      .then(([matchData, transactionData, conversationList]) => {
         setMatch(matchData)
         setTransaction(transactionData)
+        const list = Array.isArray(conversationList) ? conversationList : []
+        const conversation = list.find((item) => item.match_id === matchId)
+        setConversationId(conversation ? conversation.id : null)
       })
       .catch((err) => setError(err.message || 'No se pudo cargar el match.'))
       .finally(() => setLoading(false))
@@ -187,6 +198,23 @@ export default function MatchDetail() {
         <p className="mt-1 text-sm text-gray-500">
           Reservado de la solicitud. Confirma el inicio cuando el proveedor despache.
         </p>
+      </section>
+
+      <section aria-label="Conversación" className="space-y-3">
+        <h2 className="text-base font-bold text-gray-900">Conversación</h2>
+        {conversationId ? (
+          <ChatPanel
+            conversationId={conversationId}
+            title={isBuyer ? 'Con el proveedor' : 'Con el comprador'}
+            hint="La conversación se creó al confirmar el match. Coordina aquí el despacho."
+          />
+        ) : (
+          <EmptyState
+            icon="chat"
+            title="Sin conversación"
+            description="El chat se crea automáticamente cuando el match queda confirmado."
+          />
+        )}
       </section>
 
       {tx && (
