@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -7,6 +8,7 @@ import ErrorState from '../../components/ui/ErrorState'
 import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
 import Toast from '../../components/ui/Toast'
+import { useMatchIdsForOffers } from '../../hooks/useMatches'
 import { useMyOffers } from '../../hooks/useSupplyOffers'
 import { formatPrice } from '../../lib/format'
 import { formatDateTime, measurementLabel, offerStatus } from '../../lib/supplyStatus'
@@ -19,6 +21,7 @@ function shortId(id) {
 
 export default function ProducerOffers() {
   const { items, loading, error, reload } = useMyOffers()
+  const matchIds = useMatchIdsForOffers(items)
   const [names, setNames] = useState({})
   const [dialog, setDialog] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -132,6 +135,13 @@ export default function ProducerOffers() {
                       >
                         Retirar
                       </Button>
+                    )}
+                    {offer.status === 1 && matchIds[offer.id] && (
+                      <Link to={`/producer/matches/${matchIds[offer.id]}`}>
+                        <Button variant="outline" size="sm">
+                          Ver match
+                        </Button>
+                      </Link>
                     )}
                   </div>
                 </div>

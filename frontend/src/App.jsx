@@ -10,13 +10,13 @@ import AdminProducts from './pages/admin/AdminProducts'
 import AdminProducers from './pages/admin/AdminProducers'
 import AdminReports from './pages/admin/AdminReports'
 import AdminUsers from './pages/admin/AdminUsers'
-import BuyerMatchDetail from './pages/buyer/BuyerMatchDetail'
 import BuyerMessages from './pages/buyer/BuyerMessages'
 import BuyerProfile from './pages/buyer/BuyerProfile'
 import BuyerRequestDetail from './pages/buyer/BuyerRequestDetail'
 import BuyerRequestForm from './pages/buyer/BuyerRequestForm'
 import BuyerRequests from './pages/buyer/BuyerRequests'
 import Landing from './pages/Landing'
+import MatchDetail from './pages/matches/MatchDetail'
 import Marketplace from './pages/Marketplace'
 import ProductDetail from './pages/ProductDetail'
 import ProducerBusiness from './pages/producer/ProducerBusiness'
@@ -69,7 +69,7 @@ export default function App() {
         <Route path="requests/new" element={<BuyerRequestForm />} />
         <Route path="requests/:id" element={<BuyerRequestDetail />} />
         <Route path="requests/:id/edit" element={<BuyerRequestForm />} />
-        <Route path="matches/:matchId" element={<BuyerMatchDetail />} />
+        <Route path="matches/:matchId" element={<MatchDetail />} />
         <Route path="messages" element={<BuyerMessages />} />
         <Route path="profile" element={<BuyerProfile />} />
         <Route path="marketplace" element={<MarketplaceCatalog />} />
@@ -87,6 +87,7 @@ export default function App() {
         <Route path="available" element={<ProducerAvailable />} />
         <Route path="available/:id/offer" element={<ProducerOfferForm />} />
         <Route path="offers" element={<ProducerOffers />} />
+        <Route path="matches/:matchId" element={<MatchDetail />} />
         <Route path="inventory" element={<ProducerInventory />} />
         <Route path="products" element={<ProducerProducts />} />
         <Route path="requests" element={<ProducerRequests />} />

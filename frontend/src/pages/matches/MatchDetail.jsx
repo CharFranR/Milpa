@@ -1,0 +1,297 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import Badge from '../../components/ui/Badge'
+import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import ErrorState from '../../components/ui/ErrorState'
+import Icon from '../../components/ui/Icon'
+import Skeleton from '../../components/ui/Skeleton'
+import Toast from '../../components/ui/Toast'
+import { useAuth } from '../../context/AuthContext'
+import { formatPrice } from '../../lib/format'
+import { friendlyTransactionError } from '../../lib/transactionMessages'
+import {
+  formatDateTime,
+  isZeroTime,
+  matchStatus,
+  measurementLabel,
+  transactionStatus,
+} from '../../lib/supplyStatus'
+import { matches } from '../../services/matches'
+import { transactions } from '../../services/transactions'
+
+const TIMELINE_LABELS = {
+  0: 'Match creado',
+  1: 'En progreso',
+  2: 'Completada',
+  3: 'Cancelada',
+}
+
+function ConfirmRow({ title, buyerAt, supplierAt }) {
+  const buyerDone = !isZeroTime(buyerAt)
+  const supplierDone = !isZeroTime(supplierAt)
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-4 py-2.5">
+      <span className="text-sm font-medium text-gray-700">{title}</span>
+      <span className="flex items-center gap-3 text-xs text-gray-500">
+        <span className={buyerDone ? 'text-green-600' : 'text-gray-400'}>
+          Comprador: {buyerDone ? formatDateTime(buyerAt) : 'pendiente'}
+        </span>
+        <span className={supplierDone ? 'text-green-600' : 'text-gray-400'}>
+          Proveedor: {supplierDone ? formatDateTime(supplierAt) : 'pendiente'}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+export default function MatchDetail() {
+  const { matchId } = useParams()
+  const { role } = useAuth()
+  const isBuyer = role === 'buyer'
+
+  const [match, setMatch] = useState(null)
+  const [transaction, setTransaction] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [reasonError, setReasonError] = useState('')
+  const [toast, setToast] = useState(null)
+
+  const reload = useCallback(() => {
+    if (!matchId) return
+    setLoading(true)
+    setError('')
+    Promise.all([matches.getById(matchId), transactions.getByMatch(matchId)])
+      .then(([matchData, transactionData]) => {
+        setMatch(matchData)
+        setTransaction(transactionData)
+      })
+      .catch((err) => setError(err.message || 'No se pudo cargar el match.'))
+      .finally(() => setLoading(false))
+  }, [matchId])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  async function run(action) {
+    if (!transaction) return
+    setBusy(true)
+    try {
+      if (action === 'start') await transactions.confirmStart(transaction.id)
+      else if (action === 'delivery') await transactions.confirmDelivery(transaction.id)
+      else await transactions.cancel(transaction.id, reason.trim())
+
+      setCancelOpen(false)
+      setReason('')
+      setReasonError('')
+      setToast({
+        message:
+          action === 'start'
+            ? 'Inicio confirmado.'
+            : action === 'delivery'
+              ? 'Entrega confirmada.'
+              : 'Transacción cancelada.',
+        tone: 'success',
+      })
+      reload()
+    } catch (err) {
+      const message = friendlyTransactionError(err)
+      if (action === 'cancel') setReasonError(message)
+      else setToast({ message, tone: 'error' })
+      setCancelOpen(action === 'cancel')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openCancel() {
+    setReason('')
+    setReasonError('')
+    setCancelOpen(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-6 w-40" />
+        <div className="rounded-2xl border border-gray-100 bg-white p-6">
+          <Skeleton className="h-5 w-64" />
+          <Skeleton className="mt-3 h-4 w-48" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <ErrorState message={error} onRetry={reload} />
+        <Link
+          to={isBuyer ? '/dashboard' : '/producer/offers'}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline"
+        >
+          <Icon name="chevron_left" size={16} />
+          Volver
+        </Link>
+      </div>
+    )
+  }
+
+  if (!match) return null
+
+  const mStatus = matchStatus(match.status)
+  const tStatus = transaction ? transactionStatus(transaction.status) : null
+  const tx = transaction
+  const status = tx?.status
+
+  const startMine = isBuyer ? tx?.buyer_start_confirmed_at : tx?.supplier_start_confirmed_at
+  const deliveryMine = isBuyer ? tx?.buyer_delivery_confirmed_at : tx?.supplier_delivery_confirmed_at
+  const canConfirmStart = status === 0 && isZeroTime(startMine)
+  const canConfirmDelivery = status === 1 && isZeroTime(deliveryMine)
+  const canCancel = status === 0 || status === 1
+
+  const backTo = isBuyer
+    ? `/dashboard/requests/${match.supply_request}`
+    : '/producer/offers'
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <Link
+          to={backTo}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline"
+        >
+          <Icon name="chevron_left" size={16} />
+          {isBuyer ? 'Volver a la solicitud' : 'Volver a mis ofertas'}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            Match confirmado
+          </h1>
+          <Badge tone={mStatus.tone}>{mStatus.label}</Badge>
+        </div>
+        <p className="mt-1 text-sm text-gray-500">
+          Creado el {formatDateTime(match.created_at)} · {String(match.id).slice(0, 8)}
+        </p>
+      </header>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-6">
+        <h2 className="text-base font-bold text-gray-900">Monto acordado</h2>
+        <p className="mt-2 text-xl font-semibold text-gray-900">
+          {formatPrice(match.matched_amount)} {measurementLabel(match.amount_unit)}
+        </p>
+        <p className="mt-1 text-sm text-gray-500">
+          Reservado de la solicitud. Confirma el inicio cuando el proveedor despache.
+        </p>
+      </section>
+
+      {tx && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-gray-900">Transacción</h2>
+            <Badge tone={tStatus.tone}>{tStatus.label}</Badge>
+          </div>
+
+          <div className="space-y-2">
+            <ConfirmRow
+              title="Confirmación de inicio"
+              buyerAt={tx.buyer_start_confirmed_at}
+              supplierAt={tx.supplier_start_confirmed_at}
+            />
+            <ConfirmRow
+              title="Confirmación de entrega"
+              buyerAt={tx.buyer_delivery_confirmed_at}
+              supplierAt={tx.supplier_delivery_confirmed_at}
+            />
+          </div>
+
+          {status === 3 && tx.cancel_reason && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              Cancelada: {tx.cancel_reason}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={() => run('start')} disabled={busy || !canConfirmStart}>
+              {busy ? 'Confirmando…' : 'Confirmar inicio'}
+            </Button>
+            <Button onClick={() => run('delivery')} disabled={busy || !canConfirmDelivery}>
+              Confirmar entrega
+            </Button>
+            <Button variant="danger" onClick={openCancel} disabled={busy || !canCancel}>
+              Cancelar transacción
+            </Button>
+          </div>
+
+          {Array.isArray(tx.history) && tx.history.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Historial
+              </h3>
+              <ol className="mt-3 space-y-3 border-l-2 border-gray-100 pl-4">
+                {tx.history.map((entry, index) => {
+                  const entryStatus = transactionStatus(entry.status)
+                  return (
+                    <li key={`${entry.status}-${entry.at}-${index}`} className="relative">
+                      <span
+                        aria-hidden
+                        className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-brand"
+                      />
+                      <p className="text-sm font-medium text-gray-800">
+                        {TIMELINE_LABELS[entry.status] || entryStatus.label}
+                      </p>
+                      <p className="text-xs text-gray-500">{formatDateTime(entry.at)}</p>
+                      {entry.cancel_reason && (
+                        <p className="text-xs text-red-600">{entry.cancel_reason}</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            </div>
+          )}
+        </section>
+      )}
+
+      <ConfirmDialog
+        open={cancelOpen}
+        danger
+        title="¿Cancelar la transacción?"
+        message="Se libera el monto reservado en tu solicitud y la oferta vuelve a estar activa."
+        confirmLabel="Sí, cancelar"
+        loading={busy}
+        onConfirm={() => {
+          if (!reason.trim()) {
+            setReasonError('Indica el motivo de la cancelación.')
+            return
+          }
+          run('cancel')
+        }}
+        onCancel={() => setCancelOpen(false)}
+      >
+        <label htmlFor="cancel_reason" className="block text-xs font-semibold text-gray-600">
+          Motivo
+        </label>
+        <textarea
+          id="cancel_reason"
+          rows={3}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Ej. El proveedor no pudo despachar a tiempo"
+          className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+        />
+        {reasonError && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            {reasonError}
+          </p>
+        )}
+      </ConfirmDialog>
+
+      <Toast message={toast?.message} tone={toast?.tone} onClose={() => setToast(null)} />
+    </div>
+  )
+}
