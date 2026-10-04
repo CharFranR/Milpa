@@ -75,6 +75,13 @@ func main() {
 	offeringRepo := repo.NewOfferingRepository(pool)
 	categoryRepo := repo.NewCategoryRepository(pool)
 	supplierInventoryRepo := repo.NewSupplierInventoryRepository(pool)
+	supplyRequestRepo := repo.NewSupplyRequestRepository(pool)
+	supplyOfferRepo := repo.NewSupplyOfferRepository(pool)
+	matchRepo := repo.NewMatchRepository(pool)
+	transactionRepo := repo.NewTransactionRepository(pool)
+	liquidationRepo := repo.NewLiquidationRepository(pool)
+	reviewRepo := repo.NewReviewRepository(pool)
+	unitOfWork := repo.NewUnitOfWork(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, cfg.ESClient.Index)
 	cacheClient := cache.NewCacheImpl(resolveRedisAddr(), os.Getenv("REDIS_PASSWORD"), 0)
@@ -83,6 +90,12 @@ func main() {
 	cachedSearch := usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
 	offeringUC := usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, cachedSearch)
 	inventoryUC := usecases.NewSupplierInventoryUseCase(supplierInventoryRepo)
+	supplyRequestUC := usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
+	supplyOfferUC := usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
+	recommendationUC := usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
+	matchUC := usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
+	transactionUC := usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
+	liquidationUC := usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
 
 	farmerID, farmerCreated, err := ensureFarmer(ctx, userRepo, userUC)
 	if err != nil {
@@ -115,9 +128,30 @@ func main() {
 	if farmerCreated {
 		farmerState = "created"
 	}
+
+	wholesale, err := seedWholesale(ctx, wholesaleSeedDeps{
+		userRepo:      userRepo,
+		userUC:        userUC,
+		requestRepo:   supplyRequestRepo,
+		requestUC:     supplyRequestUC,
+		offerUC:       supplyOfferUC,
+		matchUC:       matchUC,
+		transactionUC: transactionUC,
+		liquidationUC: liquidationUC,
+		farmerID:      farmerID,
+	})
+	if err != nil {
+		log.Fatalf("failed to seed wholesale flow: %v", err)
+	}
+
 	log.Printf(
 		"seed summary: user=%s (%s, id=%s) offerings_created=%d offerings_skipped=%d inventory_upserted=%d",
 		demoFarmerEmail, farmerState, farmerID, offeringsCreated, offeringsSkipped, inventoryUpserted,
+	)
+	log.Printf(
+		"wholesale summary: buyer=%s (%s, id=%s) requests_created=%d requests_skipped=%d offers_created=%d deals_completed=%d liquidations_created=%d",
+		demoBuyerEmail, wholesale.BuyerState, wholesale.BuyerID, wholesale.RequestsCreated,
+		wholesale.RequestsSkipped, wholesale.OffersCreated, wholesale.DealsCompleted, wholesale.LiquidationsCreated,
 	)
 }
 
