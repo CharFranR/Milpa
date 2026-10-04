@@ -9,6 +9,8 @@ import ErrorState from '../../components/ui/ErrorState'
 import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
 import Toast from '../../components/ui/Toast'
+import ReviewForm from '../../components/reviews/ReviewForm'
+import StarRating from '../../components/StarRating'
 import { useAuth } from '../../context/AuthContext'
 import { formatPrice } from '../../lib/format'
 import { friendlyTransactionError } from '../../lib/transactionMessages'
@@ -20,7 +22,11 @@ import {
   transactionStatus,
 } from '../../lib/supplyStatus'
 import { conversations } from '../../services/conversations'
+import { companies } from '../../services/companies'
 import { matches } from '../../services/matches'
+import { reviews } from '../../services/reviews'
+import { supplyOffers } from '../../services/supplyOffers'
+import { supplyRequests } from '../../services/supplyRequests'
 import { transactions } from '../../services/transactions'
 
 const TIMELINE_LABELS = {
@@ -50,12 +56,15 @@ function ConfirmRow({ title, buyerAt, supplierAt }) {
 
 export default function MatchDetail() {
   const { matchId } = useParams()
-  const { role } = useAuth()
+  const { role, user } = useAuth()
   const isBuyer = role === 'buyer'
 
   const [match, setMatch] = useState(null)
   const [transaction, setTransaction] = useState(null)
   const [conversationId, setConversationId] = useState(null)
+  const [myReviews, setMyReviews] = useState([])
+  const [counterpartyId, setCounterpartyId] = useState(null)
+  const [counterpartyCompany, setCounterpartyCompany] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -72,21 +81,59 @@ export default function MatchDetail() {
       matches.getById(matchId),
       transactions.getByMatch(matchId),
       conversations.list().catch(() => []),
+      user?.id ? reviews.listByUser(user.id).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([matchData, transactionData, conversationList]) => {
+      .then(([matchData, transactionData, conversationList, reviewList]) => {
         setMatch(matchData)
         setTransaction(transactionData)
+        setMyReviews(Array.isArray(reviewList) ? reviewList : [])
         const list = Array.isArray(conversationList) ? conversationList : []
         const conversation = list.find((item) => item.match_id === matchId)
         setConversationId(conversation ? conversation.id : null)
       })
       .catch((err) => setError(err.message || 'No se pudo cargar el match.'))
       .finally(() => setLoading(false))
-  }, [matchId])
+  }, [matchId, user?.id])
 
   useEffect(() => {
     reload()
   }, [reload])
+
+  useEffect(() => {
+    if (!match || transaction?.status !== 2) return undefined
+    let cancelled = false
+
+    Promise.all([
+      supplyRequests.getById(match.supply_request).catch(() => null),
+      supplyOffers.getById(match.supply_offer).catch(() => null),
+    ]).then(([requestData, offerData]) => {
+      if (cancelled) return
+      const myId = user?.id
+      let other = isBuyer ? offerData?.supplier_id : requestData?.buyer_id
+      if (other && other === myId) {
+        other = isBuyer ? requestData?.buyer_id : offerData?.supplier_id
+      }
+      setCounterpartyId(other || null)
+
+      if (!other) {
+        setCounterpartyCompany(null)
+        return
+      }
+      companies.getByOwner(other)
+        .then((list) => {
+          if (cancelled) return
+          setCounterpartyCompany(Array.isArray(list) && list.length > 0 ? list[0] : null)
+        })
+        .catch(() => {
+          if (cancelled) return
+          setCounterpartyCompany(null)
+        })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [match, transaction?.status, isBuyer, user?.id])
 
   async function run(action) {
     if (!transaction) return
@@ -123,6 +170,23 @@ export default function MatchDetail() {
     setReason('')
     setReasonError('')
     setCancelOpen(true)
+  }
+
+  async function submitReview({ rating, comment }) {
+    if (!transaction || !reviewTarget) {
+      throw new Error('Faltan datos para guardar la reseña.')
+    }
+
+    await reviews.create({
+      transaction_id: transaction.id,
+      target_type: reviewTarget.type,
+      target_id: reviewTarget.id,
+      rating,
+      comment,
+    })
+
+    setToast({ message: 'Reseña enviada.', tone: 'success' })
+    reload()
   }
 
   if (loading) {
@@ -164,6 +228,20 @@ export default function MatchDetail() {
   const canConfirmStart = status === 0 && isZeroTime(startMine)
   const canConfirmDelivery = status === 1 && isZeroTime(deliveryMine)
   const canCancel = status === 0 || status === 1
+  const myReview = tx ? myReviews.find((item) => item.transaction_id === tx.id) : null
+  const reviewTarget = counterpartyCompany
+    ? { type: 'company', id: counterpartyCompany.id }
+    : counterpartyId
+      ? { type: 'user', id: counterpartyId }
+      : null
+  const alreadyReviewedTarget = reviewTarget
+    ? myReviews.some((item) => item.target_type === reviewTarget.type && item.target_id === reviewTarget.id)
+    : false
+  const reviewTargetLabel = counterpartyCompany
+    ? `a la empresa ${counterpartyCompany.name}`
+    : isBuyer
+      ? 'al proveedor'
+      : 'al comprador'
 
   const backTo = isBuyer
     ? `/dashboard/requests/${match.supply_request}`
@@ -281,6 +359,43 @@ export default function MatchDetail() {
                 })}
               </ol>
             </div>
+          )}
+        </section>
+      )}
+
+      {status === 2 && (
+        <section aria-label="Reseña" className="rounded-2xl border border-gray-100 bg-white p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-gray-900">Reseña de la transacción</h2>
+            {myReview && <Badge tone="green">Enviada</Badge>}
+          </div>
+
+          {myReview ? (
+            <div className="rounded-xl bg-gray-50 p-4">
+              <StarRating rating={myReview.rating} size={18} showValue />
+              {myReview.comment && (
+                <p className="mt-2 text-sm text-gray-600">{myReview.comment}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-400">
+                Enviada el {formatDateTime(myReview.created_at)}
+              </p>
+            </div>
+          ) : alreadyReviewedTarget ? (
+            <p className="text-sm text-gray-500">
+              {counterpartyCompany
+                ? 'Ya dejaste una reseña a esta empresa en una transacción anterior.'
+                : 'Ya dejaste una reseña a esta parte en una transacción anterior.'}
+            </p>
+          ) : reviewTarget ? (
+            <ReviewForm
+              targetLabel={reviewTargetLabel}
+              onSubmit={submitReview}
+              disabled={busy}
+            />
+          ) : (
+            <p className="text-sm text-gray-500">
+              No se pudo identificar a la otra parte de la transacción para dejar la reseña.
+            </p>
           )}
         </section>
       )}

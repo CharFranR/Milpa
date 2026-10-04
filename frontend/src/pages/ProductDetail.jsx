@@ -6,7 +6,8 @@ import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
-import { offerings, companies, conversations } from '../services/api'
+import StarRating from '../components/StarRating'
+import { offerings, companies, conversations, reviews } from '../services/api'
 import ChatPanel from '../components/chat/ChatPanel'
 import { productById, producerById, categoryById } from '../mocks/catalog'
 import { useAuth } from '../context/AuthContext'
@@ -20,6 +21,7 @@ export default function ProductDetail() {
   const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)
+  const [producerRating, setProducerRating] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [chatError, setChatError] = useState('')
@@ -48,6 +50,35 @@ export default function ProductDetail() {
   }, [productId])
 
   const product = realOffering || productById(productId)
+
+  useEffect(() => {
+    if (!realOffering) return undefined
+    let cancelled = false
+
+    const target = realCompany
+      ? { type: 'company', id: realCompany.id }
+      : realOffering.user_id
+        ? { type: 'user', id: realOffering.user_id }
+        : null
+
+    if (!target) {
+      setProducerRating(null)
+      return undefined
+    }
+
+    reviews.average(target.type, target.id)
+      .then((data) => {
+        if (!cancelled) setProducerRating(data)
+      })
+      .catch(() => {
+        if (!cancelled) setProducerRating(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [realOffering, realCompany])
+
   // Only the public representation is available to an anonymous visitor, so
   // this is the location a buyer can be shown and nothing finer.
   const producer = realCompany
@@ -246,6 +277,18 @@ export default function ProductDetail() {
                       Productor verificado
                     </span>
                   )}
+                  <div className="mt-2">
+                    {producerRating && producerRating.count > 0 ? (
+                      <StarRating
+                        rating={producerRating.average}
+                        reviews={producerRating.count}
+                        size={14}
+                        showValue
+                      />
+                    ) : (
+                      <p className="text-xs text-gray-400">Sin reseñas todavía</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
