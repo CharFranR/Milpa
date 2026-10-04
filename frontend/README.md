@@ -114,8 +114,8 @@ Todas las llamadas pasan por `src/services/api.js`. El wrapper `request()` agreg
 
 | Funcionalidad | Estado | Motivo |
 |---------------|--------|--------|
-| Admin Dashboard | Mock | El backend no tiene endpoints de administración (listar todos los usuarios, moderar productos, reportes agregados) |
-| Chat en tiempo real | No implementado | No hay WebSocket en el backend. "Mensajes" muestra una lista de inquiries con estados, no un chat en vivo |
+| Admin Dashboard | Mock | El backend sí expone moderación (`GET/PATCH /reports`, `PATCH /admin/users/{id}/suspend`, `DELETE /admin/offerings/{id}`, `GET /admin/audit-logs`, `POST/PATCH /admin/categories`), pero no tiene listado global de usuarios ni métricas agregadas para los KPIs |
+| Chat en tiempo real | No implementado | El backend **sí** tiene WebSocket (`GET /api/v1/ws/{conversationID}`); el frontend todavía no lo consume. "Mensajes" muestra una lista de inquiries con estados, no un chat en vivo |
 | Favoritos del comprador | Mock | No hay endpoint `GET /favorites` ni tabla de favoritos en el backend |
 | Valoraciones / Reviews | Mock | El backend tiene tabla `reviews` pero el frontend aún no lo consume |
 | Imágenes de productos | Local | Las imágenes se almacenan como base64 en el campo `description` del offering (no en un almacenamiento externo). El campo `image_url` tiene VARCHAR(2048) en la BD |
