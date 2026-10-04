@@ -264,13 +264,13 @@ Configured in `router.go`:
 | Setting | Value |
 |---|---|
 | `AllowedOrigins` | `*` |
-| `AllowedMethods` | `GET`, `POST`, `PATCH`, `DELETE`, `OPTIONS` |
+| `AllowedMethods` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
 | `AllowedHeaders` | `Accept`, `Authorization`, `Content-Type` |
 | `ExposedHeaders` | `Link` |
 | `AllowCredentials` | `false` |
 | Preflight `MaxAge` | `300` s |
 
-`PUT`/`HEAD` are not in `AllowedMethods`, so browsers will block them cross-origin.
+`HEAD` is not in `AllowedMethods`, so browsers will block it cross-origin.
 
 ### Enumerations (serialized as **integers**, except reports)
 
