@@ -10,6 +10,7 @@ import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
 import Toast from '../../components/ui/Toast'
 import ReviewForm from '../../components/reviews/ReviewForm'
+import ReportForm from '../../components/reports/ReportForm'
 import StarRating from '../../components/StarRating'
 import { useAuth } from '../../context/AuthContext'
 import { formatPrice } from '../../lib/format'
@@ -25,6 +26,7 @@ import { conversations } from '../../services/conversations'
 import { companies } from '../../services/companies'
 import { matches } from '../../services/matches'
 import { reviews } from '../../services/reviews'
+import { reports } from '../../services/reports'
 import { supplyOffers } from '../../services/supplyOffers'
 import { supplyRequests } from '../../services/supplyRequests'
 import { transactions } from '../../services/transactions'
@@ -65,6 +67,8 @@ export default function MatchDetail() {
   const [myReviews, setMyReviews] = useState([])
   const [counterpartyId, setCounterpartyId] = useState(null)
   const [counterpartyCompany, setCounterpartyCompany] = useState(null)
+  const [reporting, setReporting] = useState(false)
+  const [reported, setReported] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -100,7 +104,7 @@ export default function MatchDetail() {
   }, [reload])
 
   useEffect(() => {
-    if (!match || transaction?.status !== 2) return undefined
+    if (!match) return undefined
     let cancelled = false
 
     Promise.all([
@@ -114,26 +118,32 @@ export default function MatchDetail() {
         other = isBuyer ? requestData?.buyer_id : offerData?.supplier_id
       }
       setCounterpartyId(other || null)
-
-      if (!other) {
-        setCounterpartyCompany(null)
-        return
-      }
-      companies.getByOwner(other)
-        .then((list) => {
-          if (cancelled) return
-          setCounterpartyCompany(Array.isArray(list) && list.length > 0 ? list[0] : null)
-        })
-        .catch(() => {
-          if (cancelled) return
-          setCounterpartyCompany(null)
-        })
+      setCounterpartyCompany(null)
     })
 
     return () => {
       cancelled = true
     }
-  }, [match, transaction?.status, isBuyer, user?.id])
+  }, [match, isBuyer, user?.id])
+
+  useEffect(() => {
+    if (!counterpartyId || transaction?.status !== 2) return undefined
+    let cancelled = false
+
+    companies.getByOwner(counterpartyId)
+      .then((list) => {
+        if (cancelled) return
+        setCounterpartyCompany(Array.isArray(list) && list.length > 0 ? list[0] : null)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setCounterpartyCompany(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [counterpartyId, transaction?.status])
 
   async function run(action) {
     if (!transaction) return
@@ -187,6 +197,21 @@ export default function MatchDetail() {
 
     setToast({ message: 'Reseña enviada.', tone: 'success' })
     reload()
+  }
+
+  async function submitUserReport({ reason }) {
+    if (!counterpartyId) {
+      throw new Error('Faltan datos para enviar la denuncia.')
+    }
+
+    await reports.create({
+      target_type: 'user',
+      target_id: counterpartyId,
+      reason,
+    })
+
+    setReporting(false)
+    setReported(true)
   }
 
   if (loading) {
@@ -279,7 +304,36 @@ export default function MatchDetail() {
       </section>
 
       <section aria-label="Conversación" className="space-y-3">
-        <h2 className="text-base font-bold text-gray-900">Conversación</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-gray-900">Conversación</h2>
+          {conversationId && counterpartyId && !reported && (
+            <button
+              type="button"
+              onClick={() => setReporting((value) => !value)}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700"
+            >
+              <Icon name="flag" size={16} />
+              Reportar {isBuyer ? 'al proveedor' : 'al comprador'}
+            </button>
+          )}
+        </div>
+
+        {reported && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Denuncia enviada. El equipo de moderación revisará este caso.
+          </p>
+        )}
+
+        {reporting && !reported && (
+          <div className="rounded-xl border border-gray-100 bg-white p-4">
+            <ReportForm
+              targetLabel={isBuyer ? 'al proveedor' : 'al comprador'}
+              onSubmit={submitUserReport}
+              onCancel={() => setReporting(false)}
+            />
+          </div>
+        )}
+
         {conversationId ? (
           <ChatPanel
             conversationId={conversationId}

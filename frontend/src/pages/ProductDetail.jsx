@@ -6,8 +6,9 @@ import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
+import ReportForm from '../components/reports/ReportForm'
 import StarRating from '../components/StarRating'
-import { offerings, companies, conversations, reviews } from '../services/api'
+import { offerings, companies, conversations, reports, reviews } from '../services/api'
 import ChatPanel from '../components/chat/ChatPanel'
 import { productById, producerById, categoryById } from '../mocks/catalog'
 import { useAuth } from '../context/AuthContext'
@@ -22,6 +23,8 @@ export default function ProductDetail() {
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)
   const [producerRating, setProducerRating] = useState(null)
+  const [reporting, setReporting] = useState(false)
+  const [reported, setReported] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [chatError, setChatError] = useState('')
@@ -135,6 +138,16 @@ export default function ProductDetail() {
 
   function closeModal() {
     setIsModalOpen(false)
+  }
+
+  async function submitOfferingReport({ reason }) {
+    await reports.create({
+      target_type: 'offering',
+      target_id: realOffering?.id || product.id,
+      reason,
+    })
+    setReporting(false)
+    setReported(true)
   }
 
   if (loading) {
@@ -291,6 +304,29 @@ export default function ProductDetail() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              {reported ? (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Denuncia enviada. El equipo de moderación revisará esta publicación.
+                </p>
+              ) : reporting ? (
+                <ReportForm
+                  targetLabel="esta publicación"
+                  onSubmit={submitOfferingReport}
+                  onCancel={() => setReporting(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setReporting(true)}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700"
+                >
+                  <Icon name="flag" size={16} />
+                  Reportar publicación
+                </button>
+              )}
             </div>
           </section>
         </div>
