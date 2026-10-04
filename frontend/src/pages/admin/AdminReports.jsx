@@ -1,6 +1,3 @@
-import { cn } from '../../lib/cn'
-import Icon from '../../components/ui/Icon'
-import Badge from '../../components/ui/Badge'
 import { growthStats, regionRanking, categoryStats } from '../../mocks/admin'
 
 export default function AdminReports() {
