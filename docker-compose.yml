@@ -29,6 +29,19 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  seed:
+    build: ./server
+    entrypoint: ["./seed"]
+    env_file: server/.env
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
   db:
     env_file: "server/.env"
     image: postgres:16-alpine

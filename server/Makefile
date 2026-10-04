@@ -28,10 +28,14 @@ down-clean:
 restart-api:
 	docker compose restart api
 
+seed:
+	docker compose --profile tools build seed
+	docker compose --profile tools run --rm seed
+
 logs-api:
 	docker compose logs -f api
 
 logs-db:
 	docker compose logs -f db
 
-.PHONY: build run test lint clean up down down-clean restart-api logs-api logs-db
+.PHONY: build run test lint clean up down down-clean restart-api logs-api logs-db seed
