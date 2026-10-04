@@ -80,7 +80,6 @@ func NewRouter(
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/status", offering.Deactivate)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}/renew", offering.Renew)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.Update)
-				r.With(authMW.Authenticate, suspensionMW.CheckSuspension).Patch("/{id}", offering.DeleteOffering)
 			})
 
 			r.Route("/reviews", func(r chi.Router) {

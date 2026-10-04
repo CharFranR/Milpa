@@ -143,6 +143,13 @@ func newOwnershipRouter(t *testing.T) (http.Handler, *ownershipOfferingRepo) {
 		t.Fatalf("NewOffering: %v", err)
 	}
 	offering.ID = ownerOfferingID
+	// Publishable fields, so PATCH /{id} (Update) does not trip RequirePublishable.
+	unitID := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	categoryID := uuid.MustParse("55555555-5555-5555-5555-555555555555")
+	offering.Variety = "Criollo"
+	offering.UnitOfMeasureID = &unitID
+	offering.QuantityAvailable = 10
+	offering.CategoryID = &categoryID
 
 	repo := &ownershipOfferingRepo{offering: offering}
 	uc := usecases.NewOfferingUseCase(
@@ -170,9 +177,10 @@ func newOwnershipRouter(t *testing.T) (http.Handler, *ownershipOfferingRepo) {
 }
 
 // TestOfferingMutationRefusesForeignUser is the IDOR at the transport boundary.
-// chi keeps the LAST handler registered for a method+pattern, so
-// PATCH /api/v1/offerings/{id} reaches DeleteOffering, not Update; the route
-// registration is left as it is and both use cases are fixed in their own tests.
+// chi keeps the LAST handler registered for a method+pattern: PATCH
+// /api/v1/offerings/{id} used to reach DeleteOffering (so editing deleted the
+// offering) until the duplicate registration was removed in T30a and the route
+// resolves to Update.
 func TestOfferingMutationRefusesForeignUser(t *testing.T) {
 	t.Parallel()
 
@@ -208,8 +216,11 @@ func TestOfferingMutationAllowsOwner(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 for the owner; body = %s", rr.Code, rr.Body.String())
 	}
-	if len(repo.deleted) != 1 || repo.deleted[0] != ownerOfferingID {
-		t.Errorf("deleted = %v, want [%v]", repo.deleted, ownerOfferingID)
+	if len(repo.deleted) != 0 {
+		t.Errorf("deleted = %v, want nothing: PATCH must edit, not delete", repo.deleted)
+	}
+	if len(repo.updated) != 1 || repo.updated[0].Name != "Renamed" {
+		t.Errorf("updated = %v, want one offering renamed to Renamed", repo.updated)
 	}
 }
 
