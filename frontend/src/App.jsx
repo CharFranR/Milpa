@@ -39,6 +39,6 @@ function resolveRoute(hash) {
   if (hash === '#/dashboard') return hasRole('buyer') ? 'dashboard' : 'auth'
   if (hash.startsWith('#/product/')) return hasRole('buyer') ? 'product' : 'auth'
   if (hash === '#/producer') return hasRole('producer') ? 'producer' : 'auth'
-  if (hash === '#/admin') return 'admin'
+  if (hash === '#/admin') return hasRole('admin') ? 'admin' : 'auth'
   return 'landing'
 }
