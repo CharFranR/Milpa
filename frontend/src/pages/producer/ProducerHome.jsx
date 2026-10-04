@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/StatCard'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { useOfferings } from '../../hooks/useOfferings'
 import { getCompanyId } from '../../lib/session'
@@ -12,7 +13,8 @@ import { producerRequests } from '../../mocks/producer'
 import { formatPrice } from '../../lib/format'
 
 export default function ProducerHome() {
-  const user = getUser()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const companyId = getCompanyId()
   const { offeringsList } = useOfferings(companyId)
   const [inquiryCount, setInquiryCount] = useState(0)
@@ -145,9 +147,13 @@ export default function ProducerHome() {
                         <Badge tone="brand">Disponible</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <a href="#/producer/products" className="text-sm font-semibold text-brand hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => navigate('/producer/products')}
+                          className="text-sm font-semibold text-brand hover:underline"
+                        >
                           Ver
-                        </a>
+                        </button>
                       </td>
                     </tr>
                   )

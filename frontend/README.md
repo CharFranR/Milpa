@@ -12,7 +12,7 @@ Conecta productores agropecuarios con compradores en Nicaragua mediante consulta
 | Estilos | Tailwind CSS v4 (tokens: brand `#075809`, accent `#d2e749`) |
 | Tipografía | Outfit (variable) |
 | Iconos | Material Symbols Rounded |
-| Rutas | Hash routing manual (`#/login`, `#/marketplace`, etc.) — sin librería externa |
+| Rutas | `react-router-dom` (`HashRouter`) — misma notación `#/login`, `#/marketplace`, etc. |
 | Autenticación | JWT en `localStorage`/`sessionStorage` |
 | Linting | oxlint |
 
@@ -50,9 +50,21 @@ npm run build
 | `#/register` | Register | Formulario de registro (comprador o productor) | Público |
 | `#/marketplace` | Marketplace | Catálogo de productos con filtros y búsqueda | Comprador |
 | `#/product/:id` | ProductDetail | Detalle de producto + formulario de consulta | Comprador |
-| `#/dashboard` | BuyerDashboard | Inicio, favoritos, mensajes, perfil del comprador | Comprador |
-| `#/producer` | ProducerDashboard | Resumen, productos, solicitudes, negocio del productor | Productor |
-| `#/admin` | AdminDashboard | Gestión de usuarios, productos, reportes | Administrador |
+| `#/dashboard` | BuyerDashboard → BuyerHome | Inicio del comprador | Comprador |
+| `#/dashboard/favorites` | → BuyerFavorites | Favoritos del comprador | Comprador |
+| `#/dashboard/messages` | → BuyerMessages | Mensajes/consultas del comprador | Comprador |
+| `#/dashboard/profile` | → BuyerProfile | Perfil del comprador | Comprador |
+| `#/dashboard/marketplace` | → MarketplaceCatalog | Catálogo dentro del dashboard | Comprador |
+| `#/producer` | ProducerDashboard → ProducerHome | Resumen del productor | Productor |
+| `#/producer/products` | → ProducerProducts | Alta y edición de productos | Productor |
+| `#/producer/requests` | → ProducerRequests | Consultas recibidas | Productor |
+| `#/producer/messages` | → ProducerMessages | Bandeja de conversaciones | Productor |
+| `#/producer/business` | → ProducerBusiness | Datos de la empresa | Productor |
+| `#/admin` | AdminDashboard → AdminHome | KPIs del administrador | Administrador |
+| `#/admin/users` · `#/admin/producers` · `#/admin/products` | → AdminUsers/Producers/Products | Gestión | Administrador |
+| `#/admin/moderation` · `#/admin/reports` · `#/admin/settings` | → AdminModeration/Reports/Config | Moderación, reportes, configuración | Administrador |
+
+Las rutas hijas están protegidas por `RequireRole` (`src/components/auth/RequireRole.jsx`): sin el rol correcto redirige a `#/login`.
 
 ---
 
@@ -114,8 +126,8 @@ Todas las llamadas pasan por `src/services/api.js`. El wrapper `request()` agreg
 
 | Funcionalidad | Estado | Motivo |
 |---------------|--------|--------|
-| Admin Dashboard | Mock | El backend no tiene endpoints de administración (listar todos los usuarios, moderar productos, reportes agregados) |
-| Chat en tiempo real | No implementado | No hay WebSocket en el backend. "Mensajes" muestra una lista de inquiries con estados, no un chat en vivo |
+| Admin Dashboard | Mock | El backend sí expone moderación (`GET/PATCH /reports`, `PATCH /admin/users/{id}/suspend`, `DELETE /admin/offerings/{id}`, `GET /admin/audit-logs`, `POST/PATCH /admin/categories`), pero no tiene listado global de usuarios ni métricas agregadas para los KPIs |
+| Chat en tiempo real | No implementado | El backend **sí** tiene WebSocket (`GET /api/v1/ws/{conversationID}`); el frontend todavía no lo consume. "Mensajes" muestra una lista de inquiries con estados, no un chat en vivo |
 | Favoritos del comprador | Mock | No hay endpoint `GET /favorites` ni tabla de favoritos en el backend |
 | Valoraciones / Reviews | Mock | El backend tiene tabla `reviews` pero el frontend aún no lo consume |
 | Imágenes de productos | Local | Las imágenes se almacenan como base64 en el campo `description` del offering (no en un almacenamiento externo). El campo `image_url` tiene VARCHAR(2048) en la BD |
@@ -158,7 +170,7 @@ src/
 
 ### Convenciones generales
 
-- **Sin librería de rutas**: se usa hash routing manual en `App.jsx` con `resolveRoute()`
+- **Rutas**: `react-router-dom` con `HashRouter`. La tabla vive en `src/App.jsx`; las pestañas de los dashboards son subrutas (`/producer/products`, `/dashboard/messages`, …) y los mapas tab→ruta en `src/lib/routes.js`
 - **Auth**: el token JWT se guarda en `localStorage` y `sessionStorage`. `session.js` expone `getUser()`, `setUser()`, `hasRole()`, `getCompanyId()`
 - **Nombres de usuario**: el backend usa `first_name`/`last_name` (no `name`). Para mostrar: `lib/user.js` → `getDisplayName(user)`
 - **Localización**: C$ NIO, formato `es-NI`, teléfonos `+505`

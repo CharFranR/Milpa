@@ -1,5 +1,3 @@
-import { cn } from '../../lib/cn'
-import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { adminProducts } from '../../mocks/admin'

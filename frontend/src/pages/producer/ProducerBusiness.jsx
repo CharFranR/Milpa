@@ -4,10 +4,10 @@ import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { useCompany } from '../../hooks/useCompany'
 import { categories } from '../../services/api'
-import { getUser } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 
 export default function ProducerBusiness() {
-  const currentUser = getUser()
+  const { user: currentUser } = useAuth()
   const { company, loading, error, createCompany, updateCompany } = useCompany(currentUser?.id)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)

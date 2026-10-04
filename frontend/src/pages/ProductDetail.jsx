@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import Icon from '../components/ui/Icon'
@@ -7,14 +8,15 @@ import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
 import { offerings, companies, conversations, openChat } from '../services/api'
 import { productById, producerById, categoryById } from '../mocks/catalog'
-import { isAuthenticated } from '../lib/session'
+import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
 import { resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
-  const hash = window.location.hash
-  const productId = hash.replace('#/product/', '')
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -85,7 +87,7 @@ export default function ProductDetail() {
     setChatError('')
 
     if (!isAuthenticated()) {
-      window.location.hash = '#/login'
+      navigate('/login')
       return
     }
     if (!farmerId) {

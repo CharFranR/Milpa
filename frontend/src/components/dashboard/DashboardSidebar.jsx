@@ -1,7 +1,9 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import Avatar from '../Avatar'
-import { getUser, clearSession } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
 import { getInitials, getDisplayName } from '../../lib/user'
+import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { cn } from '../../lib/cn'
 
 const TABS = [
@@ -11,11 +13,6 @@ const TABS = [
   { id: 'perfil', icon: 'person', label: 'Mi perfil' },
   { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
 ]
-
-function handleLogout() {
-  clearSession()
-  window.location.hash = '#/'
-}
 
 function TabButton({ tab, active, onSelect, className }) {
   return (
@@ -36,10 +33,21 @@ function TabButton({ tab, active, onSelect, className }) {
   )
 }
 
-export default function DashboardSidebar({ activeTab, onTabChange }) {
-  const user = getUser()
+export default function DashboardSidebar() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const { user, logout } = useAuth()
   const displayName = getDisplayName(user)
   const displayRole = user?.role === 'buyer' ? 'Comprador' : user?.role || 'Comprador'
+
+  function selectTab(id) {
+    navigate(BUYER_TAB_PATHS[id])
+  }
+
+  function handleLogout() {
+    navigate('/')
+    logout()
+  }
 
   return (
     <>
@@ -60,8 +68,8 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
               <TabButton
                 key={tab.id}
                 tab={tab}
-                active={activeTab === tab.id}
-                onSelect={onTabChange}
+                active={pathname === BUYER_TAB_PATHS[tab.id]}
+                onSelect={selectTab}
                 className="w-full"
               />
             ))}
@@ -87,8 +95,8 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
             <TabButton
               key={tab.id}
               tab={tab}
-              active={activeTab === tab.id}
-              onSelect={onTabChange}
+              active={pathname === BUYER_TAB_PATHS[tab.id]}
+              onSelect={selectTab}
               className="px-3 py-2 text-xs"
             />
           ))}
