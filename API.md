@@ -310,7 +310,8 @@ Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspen
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/users/{id}` | Public | path `id` (uuid). Self or admin receive the private contact card; everyone else the public profile | `200` → `PrivateUserDTO` or `PublicUserDTO` | `400` invalid uuid; `404` |
-| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number`, `latitude`, `longitude`, `photo_url` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `POST /api/v1/users/{id}/photo` | Bearer | path `id`; multipart field `photo` (max 5 MB) | `200` `{}` | `400` invalid uuid, missing `photo` or unreadable file; `401`; `403` if `{id}` ≠ token user; `404` |
 
 ### Categories
 
@@ -569,7 +570,7 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | DTO | Fields |
 |---|---|
 | `PublicUserDTO` | `id`, `first_name`, `last_name`, `role`, `department`, `municipality`, `created_at`, `updated_at` |
-| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`. `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
+| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`, `photo_url` (path under `uploads/`, served by `GET /images/{filename}`; empty when the user never uploaded one). `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
 | `LoginResponse` | `access_token`, `expires_in`, `user` (`UserDTO`) |
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
@@ -612,7 +613,7 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in this document is a route that is not registered there.
 
-- [ ] **Route count:** `router.go` has **80** route registrations; `chi` resolves them into **79** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **75** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
+- [ ] **Route count:** `router.go` has **81** route registrations; `chi` resolves them into **80** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **76** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
 - [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:83` and `router.go:84`.
 - [ ] **Offering delete is ownership- and role-checked.** `OfferingUseCase.DeleteOffering` refuses any caller who is not an `agricultor` (`1`) and then refuses anyone who does not own the offering, both with `403`. The admin route `DELETE /admin/offerings/{id}` remains the audited path.
 - [ ] **`PATCH /api/v1/inquiries/{id}` now requires ownership**: only the inquiry's author or the offering's owner can change its status — anyone else gets `403`.

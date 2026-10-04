@@ -64,6 +64,7 @@ func NewRouter(
 				// what lets the owner and an admin receive the private view.
 				r.With(authMW.AuthenticateOptional).Get("/{id}", user.GetByID)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}", user.UpdateProfile)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/photo", user.UploadPhoto)
 			})
 
 			r.Route("/companies", func(r chi.Router) {

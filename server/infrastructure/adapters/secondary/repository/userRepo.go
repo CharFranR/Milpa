@@ -23,6 +23,7 @@ func NewUserRepository(pool DB) *UserRepositoryImpl {
 const userColumns = `
 	SELECT u.id, u.first_name, u.last_name, u.role, u.created_at, u.updated_at,
 	       u.address_id, u.email, u.phone_number, u.password_hash, u.suspended_at,
+	       u.photo_url,
 	       COALESCE(a.department, ''), COALESCE(a.municipality, ''),
 	       COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
 	FROM users u
@@ -35,6 +36,7 @@ func scanUser(row pgx.Row) (domain.User, error) {
 	err := row.Scan(
 		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt,
 		&user.Address.ID, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.SuspendedAt,
+		&user.PhotoURL,
 		&user.Address.Department, &user.Address.Municipality, &user.Address.AddressLine,
 		&user.Address.Latitude, &user.Address.Longitude,
 	)
@@ -165,12 +167,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 	var id string
 
 	query := `
-		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at, photo_url)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		returning id
 	`
 	err = tx.QueryRow(ctx, query, user.ID, user.FirstName, user.LastName, user.Role, user.CreatedAt, user.UpdatedAt, nullUUID(AddressID), user.Email, user.PhoneNumber,
-		user.PasswordHash, user.SuspendedAt).Scan(&id)
+		user.PasswordHash, user.SuspendedAt, user.PhotoURL).Scan(&id)
 
 	if err != nil {
 		return "", fmt.Errorf("user.Save: insert user: %v", err)
@@ -263,12 +265,12 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 
 	query := `
 		UPDATE users
-		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = COALESCE($5, address_id), email = $6, phone_number = $7, password_hash = $8, suspended_at = $9
-		WHERE id = $10
+		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = COALESCE($5, address_id), email = $6, phone_number = $7, password_hash = $8, suspended_at = $9, photo_url = $10
+		WHERE id = $11
 	`
 
 	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, addressID, user.Email,
-		user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID)
+		user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID)
 
 	if err != nil {
 		return fmt.Errorf("user.Update: %w", err)

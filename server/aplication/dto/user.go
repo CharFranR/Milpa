@@ -28,6 +28,7 @@ type PrivateUserDTO struct {
 	Email       string `json:"email"`
 	PhoneNumber string `json:"phone_number"`
 	AddressLine string `json:"address_line"`
+	PhotoURL    string `json:"photo_url"`
 }
 
 func (PublicUserDTO) userView()  {}
@@ -63,6 +64,7 @@ type UpdateUserRequest struct {
 	Latitude     *float64 `json:"latitude,omitempty"`
 	Longitude    *float64 `json:"longitude,omitempty"`
 	PhoneNumber  *string  `json:"phone_number,omitempty"`
+	PhotoURL     *string  `json:"photo_url,omitempty"`
 }
 
 type LoginResponse struct {

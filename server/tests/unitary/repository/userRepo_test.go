@@ -85,7 +85,7 @@ func TestUserSave(t *testing.T) {
 
 				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
-						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt).WillReturnRows(rows)
+						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt, u.PhotoURL).WillReturnRows(rows)
 
 				m.ExpectCommit()
 			},
@@ -105,7 +105,7 @@ func TestUserSave(t *testing.T) {
 					WillReturnRows(rows)
 
 				m.ExpectQuery(`INSERT INTO users`).
-					WithArgs(u_with_address.ID, u_with_address.FirstName, u_with_address.LastName, u_with_address.Role, u_with_address.CreatedAt, u_with_address.UpdatedAt, &testAddressID, u_with_address.Email, u_with_address.PhoneNumber, u_with_address.PasswordHash, u_with_address.SuspendedAt).
+					WithArgs(u_with_address.ID, u_with_address.FirstName, u_with_address.LastName, u_with_address.Role, u_with_address.CreatedAt, u_with_address.UpdatedAt, &testAddressID, u_with_address.Email, u_with_address.PhoneNumber, u_with_address.PasswordHash, u_with_address.SuspendedAt, u_with_address.PhotoURL).
 					WillReturnRows(rows2)
 
 				m.ExpectCommit()
@@ -129,7 +129,7 @@ func TestUserSave(t *testing.T) {
 					WillReturnRows(addressRows)
 				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u_address_line_only.ID, u_address_line_only.FirstName, u_address_line_only.LastName, u_address_line_only.Role, u_address_line_only.CreatedAt, u_address_line_only.UpdatedAt, &testAddressID,
-						u_address_line_only.Email, u_address_line_only.PhoneNumber, u_address_line_only.PasswordHash, u_address_line_only.SuspendedAt).
+						u_address_line_only.Email, u_address_line_only.PhoneNumber, u_address_line_only.PasswordHash, u_address_line_only.SuspendedAt, u_address_line_only.PhotoURL).
 					WillReturnRows(userRows)
 				m.ExpectCommit()
 			},
@@ -154,7 +154,7 @@ func TestUserSave(t *testing.T) {
 
 				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
-						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt).
+						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt, u.PhotoURL).
 					WillReturnError(errors.New("db write failed"))
 
 				m.ExpectRollback()
@@ -179,7 +179,7 @@ func TestUserSave(t *testing.T) {
 
 				m.ExpectQuery(`INSERT INTO users`).
 					WithArgs(u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, nullID,
-						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt).WillReturnRows(rows)
+						u.Email, u.PhoneNumber, u.PasswordHash, u.SuspendedAt, u.PhotoURL).WillReturnRows(rows)
 
 				m.ExpectCommit().WillReturnError(errors.New("db commit failed"))
 
@@ -281,7 +281,7 @@ func TestUserUpdate(t *testing.T) {
 				m.ExpectQuery("SELECT EXISTS").WithArgs(user.ID.String()).
 					WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 				m.ExpectBegin()
-				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 				m.ExpectCommit()
 
 			},
@@ -296,7 +296,7 @@ func TestUserUpdate(t *testing.T) {
 				m.ExpectBegin()
 				m.ExpectExec("UPDATE addresses").WithArgs(u_with_address.Address.Department, u_with_address.Address.Municipality, u_with_address.Address.AddressLine, u_with_address.Address.Latitude, u_with_address.Address.Longitude, u_with_address.Address.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
-				m.ExpectExec("UPDATE users").WithArgs(u_with_address.FirstName, u_with_address.LastName, u_with_address.Role, u_with_address.UpdatedAt, &testAddressID, u_with_address.Email, u_with_address.PhoneNumber, u_with_address.PasswordHash, u_with_address.SuspendedAt, u_with_address.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+				m.ExpectExec("UPDATE users").WithArgs(u_with_address.FirstName, u_with_address.LastName, u_with_address.Role, u_with_address.UpdatedAt, &testAddressID, u_with_address.Email, u_with_address.PhoneNumber, u_with_address.PasswordHash, u_with_address.SuspendedAt, u_with_address.PhotoURL, u_with_address.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 				m.ExpectCommit()
 			},
@@ -311,7 +311,7 @@ func TestUserUpdate(t *testing.T) {
 				m.ExpectQuery("SELECT EXISTS").WithArgs(user.ID.String()).
 					WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 				m.ExpectBegin()
-				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 				m.ExpectCommit()
 			},
 		},
@@ -328,7 +328,7 @@ func TestUserUpdate(t *testing.T) {
 				m.ExpectQuery("INSERT INTO addresses").
 					WithArgs(pgxmock.AnyArg(), "", "", "Calle Ruben Dario", 0.0, 0.0).
 					WillReturnRows(addressRows)
-				m.ExpectExec("UPDATE users").WithArgs(u_address_line_only.FirstName, u_address_line_only.LastName, u_address_line_only.Role, u_address_line_only.UpdatedAt, &testAddressID, u_address_line_only.Email, u_address_line_only.PhoneNumber, u_address_line_only.PasswordHash, u_address_line_only.SuspendedAt, u_address_line_only.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+				m.ExpectExec("UPDATE users").WithArgs(u_address_line_only.FirstName, u_address_line_only.LastName, u_address_line_only.Role, u_address_line_only.UpdatedAt, &testAddressID, u_address_line_only.Email, u_address_line_only.PhoneNumber, u_address_line_only.PasswordHash, u_address_line_only.SuspendedAt, u_address_line_only.PhotoURL, u_address_line_only.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 				m.ExpectCommit()
 			},
 		},
@@ -351,7 +351,7 @@ func TestUserUpdate(t *testing.T) {
 					WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 				m.ExpectBegin()
 
-				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID).WillReturnError(errors.New("update user failed"))
+				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID).WillReturnError(errors.New("update user failed"))
 
 				m.ExpectRollback()
 
@@ -379,7 +379,7 @@ func TestUserUpdate(t *testing.T) {
 				m.ExpectQuery("SELECT EXISTS").WithArgs(user.ID.String()).
 					WillReturnRows(pgxmock.NewRows([]string{"exists"}).AddRow(true))
 				m.ExpectBegin()
-				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+				m.ExpectExec("UPDATE users").WithArgs(user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullID, user.Email, user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID).WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 				m.ExpectCommit().WillReturnError(errors.New("db commit failed"))
 				m.ExpectRollback()
@@ -424,11 +424,11 @@ func TestUserUpdate(t *testing.T) {
 func userRow(u *domain.User, addressID any, a domain.Address) *pgxmock.Rows {
 	return pgxmock.NewRows([]string{
 		"id", "first_name", "last_name", "role", "created_at", "updated_at", "address_id",
-		"email", "phone_number", "password_hash", "suspended_at",
+		"email", "phone_number", "password_hash", "suspended_at", "photo_url",
 		"department", "municipality", "address_line", "latitude", "longitude",
 	}).AddRow(
 		u.ID, u.FirstName, u.LastName, u.Role, u.CreatedAt, u.UpdatedAt, addressID,
-		u.Email, u.PhoneNumber, u.PasswordHash, nil,
+		u.Email, u.PhoneNumber, u.PasswordHash, nil, u.PhotoURL,
 		a.Department, a.Municipality, a.AddressLine, a.Latitude, a.Longitude,
 	)
 }

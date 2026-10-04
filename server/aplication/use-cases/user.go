@@ -155,6 +155,9 @@ func (uc *UserUseCaseImpl) UpdateProfile(ctx context.Context, id uuid.UUID, req 
 	if req.Longitude != nil {
 		user.Address.Longitude = *req.Longitude
 	}
+	if req.PhotoURL != nil {
+		user.PhotoURL = *req.PhotoURL
+	}
 	if err := user.Address.ValidateCoordinates(); err != nil {
 		return err
 	}
@@ -203,5 +206,6 @@ func privateUserDTO(user *domain.User) *dto.PrivateUserDTO {
 		Email:         user.Email,
 		PhoneNumber:   user.PhoneNumber,
 		AddressLine:   user.Address.AddressLine,
+		PhotoURL:      user.PhotoURL,
 	}
 }

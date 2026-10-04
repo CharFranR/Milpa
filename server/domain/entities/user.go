@@ -31,6 +31,7 @@ type User struct {
 	PhoneNumber  string
 	PasswordHash string
 	SuspendedAt  *time.Time
+	PhotoURL     string
 }
 
 // Builder

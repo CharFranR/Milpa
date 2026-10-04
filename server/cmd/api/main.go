@@ -140,7 +140,7 @@ func main() {
 
 	imageStore := storage.NewLocalImageStore("./uploads")
 
-	userHandler := handler.NewUserHandler(userUC)
+	userHandler := handler.NewUserHandler(userUC, imageStore)
 	companyHandler := handler.NewCompanyHandler(companyUC)
 	offeringHandler := handler.NewOfferingHandler(offeringUC, imageStore)
 	reviewHandler := handler.NewReviewHandler(reviewUC)
