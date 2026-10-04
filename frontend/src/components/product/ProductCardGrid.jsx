@@ -9,7 +9,7 @@ export default function ProductCardGrid({ offering }) {
 
   const description = offering.description || ''
   const unitMatch = description.match(/Unit:\s*(\S+)/)
-  const unit = unitMatch?.[1] || 'un'
+  const unit = unitMatch?.[1] || null
   const imageUrl = resolveOfferingImage(offering)
 
   return (
@@ -36,7 +36,7 @@ export default function ProductCardGrid({ offering }) {
         <div className="mt-3 flex items-center justify-between pt-1">
           <p className="text-lg font-bold text-brand">
             {formatPrice(offering.price)}
-            <span className="ml-1 text-sm font-medium text-gray-400">/ {unit}</span>
+            {unit && <span className="ml-1 text-sm font-medium text-gray-400">/ {unit}</span>}
           </p>
           <a
             href={`#/product/${offering.id}`}

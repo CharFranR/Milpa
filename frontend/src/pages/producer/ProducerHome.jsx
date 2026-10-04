@@ -7,7 +7,6 @@ import StatCard from '../../components/StatCard'
 import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { useOfferings } from '../../hooks/useOfferings'
-import { getCompanyId } from '../../lib/session'
 import { inquiries } from '../../services/api'
 import { producerRequests } from '../../mocks/producer'
 import { formatPrice } from '../../lib/format'
@@ -15,8 +14,7 @@ import { formatPrice } from '../../lib/format'
 export default function ProducerHome() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const companyId = getCompanyId()
-  const { offeringsList } = useOfferings(companyId)
+  const { offeringsList } = useOfferings(user?.id)
   const [inquiryCount, setInquiryCount] = useState(0)
 
   useEffect(() => {
