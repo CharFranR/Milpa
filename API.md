@@ -284,7 +284,7 @@ Configured in `router.go`:
 | `type` (offering) | `0` product, `1` service |
 | `status` (inquiry) | `0` pending, `1` read, `2` replied, `3` closed |
 | `status` (liquidation) | `0` open, `1` closed, `2` expired, `3` assigned |
-| `allocation_method` | `0` manual |
+| `allocation_method` | `0` manual, `1` first_come |
 | `amount_unit` / `unit_of_measure` / `measurement` (offer) | `0` Kg, `1` Lb, `2` Tn — one `MeasurementOptions` enum reused by all three keys |
 | `status` (supply request) | `0` open, `1` cancelled, `2` completed, `3` expired |
 | `status` (supply offer) | `0` active, `1` matched, `2` rejected, `3` withdrawn |
@@ -451,8 +451,13 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 | `POST /api/v1/liquidations/` | Bearer | JSON: `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price` (all required); optional `delivery_time`, `location_id`, `visibility`, `expires_at`. Supplier = token user | `201` → `LiquidationDTO` | `400` blank field; `401`; `403` caller not `agricultor` |
 | `PATCH /api/v1/liquidations/{id}` | Bearer | path `id`; JSON (all optional): `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `expires_at` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404`; `500` if not open / invalid quantity |
 | `DELETE /api/v1/liquidations/{id}` | Bearer | path `id` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404` |
+| `POST /api/v1/liquidations/{id}/interest` | Bearer | path `id`; no body. Caller must be a comprador (roles `2`–`4`), and the liquidation must be visible to them and open | `201` `{}` | `400`; `401`; `403` caller not a comprador; `404` missing or invisible; `409` already interested or not open |
+| `GET /api/v1/liquidations/{id}/interests` | Bearer | path `id`. Supplier only | `200` → `[LiquidationInterestDTO]` | `401`; `403` not the supplier; `404` |
+| `POST /api/v1/liquidations/{id}/assign` | Bearer | path `id`; JSON with optional `buyer_id` (uuid). Supplier only. With `allocation_method: 0` (`manual`) an interested `buyer_id` is required; with `1` (`first_come`) the earliest interest by `created_at` is assigned and `buyer_id` is ignored | `200` `{}` | `400`; `401`; `403` not the supplier; `404`; `409` not open or already assigned, buyer did not express interest, or no interest to assign |
 
-> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own restricted rows and mayorista callers (`3`/`4`) see them; anonymous callers still get only `visibility: "public"` rows, and a restricted one answers `404` on `GET /{id}`.
+> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own rows and the matching buyer level see them; anonymous callers still get only `visibility: "public"` rows, and an invisible one answers `404` on `GET /{id}`.
+>
+> `visibility` has four buyer-facing levels: `public` (everyone, including anonymous), `wholesale` (roles `3` and `4`), `wholesale_retail` (role `3` only), `wholesale_corporate` (role `4` only). The supplier always sees their own. `allocation_method` is `0` manual (the supplier picks an interested buyer) or `1` first_come (the earliest interest wins).
 
 ### Reports
 
@@ -578,7 +583,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `transaction_id`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
 | `ReviewAverageDTO` (`GET /reviews/average`) | `target_type`, `target_id`, `average`, `count`. A target with no reviews is `average: 0, count: 0` |
 | `InquiryDTO` | `id`, `user_id`, `offering_id`, `offering_name`, `message`, `status`, `created_at` |
-| `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `created_at`, `updated_at` |
+| `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `assigned_buyer_id?`, `created_at`, `updated_at` |
+| `LiquidationInterestDTO` | `id`, `liquidation_id`, `buyer_id`, `buyer_name`, `created_at` |
 | `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `match_id?`, `visibility`, `created_at`, `updated_at`. `match_id` is omitted unless the conversation was opened by a match, and `offering_id` is then the zero uuid |
 | `MessageDTO` | `id`, `conversation_id`, `sender_id`, `content`, `visibility`, `created_at` |
 | `ReportResponse` | `id`, `reporter` (`{id,name,email}`), `target_type`, `target` (`{id,name}`), `reason`, `status`, `resolved_by?`, `resolved_at?`, `created_at` |

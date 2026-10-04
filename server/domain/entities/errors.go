@@ -30,12 +30,15 @@ var (
 	ErrCategoryRequired = errors.New("category is required")
 
 	// Liquidation errors
-	ErrProductNameRequired     = errors.New("product name is required")
-	ErrInvalidQuantity         = errors.New("quantity must be greater than zero")
-	ErrUnitOfMeasureRequired   = errors.New("unit of measure is required")
-	ErrLiquidationNotOpen      = errors.New("liquidation is not open")
-	ErrLiquidationCannotAssign = errors.New("liquidation cannot be assigned in current status")
-	ErrInvalidVisibility       = errors.New("visibility must be public or private")
+	ErrProductNameRequired        = errors.New("product name is required")
+	ErrInvalidQuantity            = errors.New("quantity must be greater than zero")
+	ErrUnitOfMeasureRequired      = errors.New("unit of measure is required")
+	ErrLiquidationNotOpen         = errors.New("liquidation is not open")
+	ErrLiquidationCannotAssign    = errors.New("liquidation cannot be assigned in current status")
+	ErrInvalidVisibility          = errors.New("visibility must be public, wholesale, wholesale_retail or wholesale_corporate")
+	ErrInterestAlreadyExists      = errors.New("buyer has already expressed interest in this liquidation")
+	ErrNoInterestToAssign         = errors.New("there is no interest to assign")
+	ErrBuyerDidNotExpressInterest = errors.New("buyer has not expressed interest in this liquidation")
 
 	// Report errors
 	ErrReporterRequired        = errors.New("reporter is required")

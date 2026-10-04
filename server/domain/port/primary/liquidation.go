@@ -15,4 +15,7 @@ type LiquidationUseCase interface {
 	GetOpen(ctx context.Context) ([]*dto.LiquidationDTO, error)
 	UpdateLiquidation(ctx context.Context, id uuid.UUID, req dto.UpdateLiquidationRequest) error
 	DeleteLiquidation(ctx context.Context, id uuid.UUID) error
+	ExpressInterest(ctx context.Context, liquidationID uuid.UUID) error
+	ListInterests(ctx context.Context, liquidationID uuid.UUID) ([]*dto.LiquidationInterestDTO, error)
+	AssignLiquidation(ctx context.Context, liquidationID uuid.UUID, buyerID *uuid.UUID) error
 }

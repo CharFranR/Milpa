@@ -368,6 +368,7 @@ func TestLiquidationAssign(t *testing.T) {
 
 	now := time.Now()
 	earlier := now.Add(-time.Hour)
+	buyerID := uuid.New()
 
 	tests := []struct {
 		name    string
@@ -386,7 +387,7 @@ func TestLiquidationAssign(t *testing.T) {
 
 			liq := &Liquidation{Status: tt.status, UpdatedAt: earlier}
 
-			err := liq.Assign(now)
+			err := liq.Assign(buyerID, now)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -406,6 +407,9 @@ func TestLiquidationAssign(t *testing.T) {
 			}
 			if liq.Status != LiquidationAssigned {
 				t.Errorf("status = %v, want %v", liq.Status, LiquidationAssigned)
+			}
+			if liq.AssignedBuyerID == nil || *liq.AssignedBuyerID != buyerID {
+				t.Errorf("assigned_buyer_id = %v, want %v", liq.AssignedBuyerID, buyerID)
 			}
 			// assigned is terminal, so it must stamp closed_at exactly like Close
 			// and Expire do. Without it a terminal lot is left with closed_at IS
@@ -437,7 +441,10 @@ func TestLiquidationUpdateVisibility(t *testing.T) {
 		wantErr    error
 	}{
 		{name: "set public", visibility: "public", wantErr: nil},
-		{name: "set private", visibility: "private", wantErr: nil},
+		{name: "set wholesale", visibility: "wholesale", wantErr: nil},
+		{name: "set wholesale_retail", visibility: "wholesale_retail", wantErr: nil},
+		{name: "set wholesale_corporate", visibility: "wholesale_corporate", wantErr: nil},
+		{name: "legacy private is rejected", visibility: "private", wantErr: ErrInvalidVisibility},
 		{name: "invalid visibility", visibility: "invalid", wantErr: ErrInvalidVisibility},
 	}
 
@@ -507,6 +514,7 @@ func TestAllocationMethodString(t *testing.T) {
 		want   string
 	}{
 		{name: "manual", method: AllocationManual, want: "manual"},
+		{name: "first come", method: AllocationFirstCome, want: "first_come"},
 		{name: "unknown", method: AllocationMethod(99), want: "unknown"},
 	}
 
@@ -576,6 +584,7 @@ func TestAllocationMethodScan(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "manual", src: "manual", want: AllocationManual},
+		{name: "first come", src: "first_come", want: AllocationFirstCome},
 		{name: "bytes", src: []byte("manual"), want: AllocationManual},
 		{name: "unknown text", src: "auction", wantErr: true},
 		{name: "wrong type", src: true, wantErr: true},
@@ -620,7 +629,7 @@ func TestLiquidationEnumRoundTrip(t *testing.T) {
 		}
 	}
 
-	for _, method := range []AllocationMethod{AllocationManual} {
+	for _, method := range []AllocationMethod{AllocationManual, AllocationFirstCome} {
 		var got AllocationMethod
 		if err := got.Scan(method.String()); err != nil {
 			t.Errorf("Scan(%q) error: %v", method.String(), err)

@@ -106,6 +106,9 @@ func NewRouter(
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/", liquidation.Create)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}", liquidation.Update)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Delete("/{id}", liquidation.Delete)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/interest", liquidation.ExpressInterest)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/{id}/interests", liquidation.ListInterests)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/assign", liquidation.Assign)
 			})
 
 			r.Get("/images/{filename}", image.Get)

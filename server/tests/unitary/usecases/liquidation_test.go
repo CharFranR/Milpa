@@ -10,26 +10,58 @@ import (
 	"milpa/aplication/dto"
 	usecases "milpa/aplication/use-cases"
 	domain "milpa/domain/entities"
+	"milpa/internal/auth"
 )
 
-func TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas(t *testing.T) {
+func corporateCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMayoristaCorporativo})
+}
+
+func TestLiquidationUseCaseGetOpenHonoursVisibility(t *testing.T) {
 	t.Parallel()
 
 	public := liquidationFixture("Public corn", "public")
-	restricted := liquidationFixture("Restricted corn", "private")
+	wholesale := liquidationFixture("Wholesale corn", "wholesale")
+	retailOnly := liquidationFixture("Retail-only corn", "wholesale_retail")
+	corporateOnly := liquidationFixture("Corporate-only corn", "wholesale_corporate")
 
 	tests := []struct {
-		name           string
-		ctx            context.Context
-		findOpenErr    error
-		wantRestricted bool
-		wantErr        error
+		name        string
+		ctx         context.Context
+		findOpenErr error
+		want        map[uuid.UUID]bool
+		wantErr     error
 	}{
-		{name: "anonymous sees only the public one", ctx: context.Background()},
-		{name: "minorista does not see the restricted one", ctx: principalCtx()},
-		{name: "an agricultor browsing the market does not see it", ctx: farmerCtx()},
-		{name: "mayorista detallista sees it", ctx: mayoristaCtx(), wantRestricted: true},
-		{name: "the owning supplier sees its own", ctx: farmerCtxFor(testOtherID), wantRestricted: true},
+		{
+			name: "anonymous sees only the public one",
+			ctx:  context.Background(),
+			want: map[uuid.UUID]bool{public.ID: true},
+		},
+		{
+			name: "minorista sees only the public one",
+			ctx:  principalCtx(),
+			want: map[uuid.UUID]bool{public.ID: true},
+		},
+		{
+			name: "an agricultor browsing the market sees only the public one",
+			ctx:  farmerCtx(),
+			want: map[uuid.UUID]bool{public.ID: true},
+		},
+		{
+			name: "mayorista detallista sees wholesale and wholesale_retail but not wholesale_corporate",
+			ctx:  mayoristaCtx(),
+			want: map[uuid.UUID]bool{public.ID: true, wholesale.ID: true, retailOnly.ID: true},
+		},
+		{
+			name: "mayorista corporativo sees wholesale and wholesale_corporate but not wholesale_retail",
+			ctx:  corporateCtx(),
+			want: map[uuid.UUID]bool{public.ID: true, wholesale.ID: true, corporateOnly.ID: true},
+		},
+		{
+			name: "the owning supplier sees its own regardless of level",
+			ctx:  farmerCtxFor(testOtherID),
+			want: map[uuid.UUID]bool{public.ID: true, wholesale.ID: true, retailOnly.ID: true, corporateOnly.ID: true},
+		},
 		{name: "a repository failure is propagated", ctx: principalCtx(), findOpenErr: errFake, wantErr: errFake},
 	}
 
@@ -37,7 +69,7 @@ func TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := newFakeLiquidationRepo(public, restricted)
+			repo := newFakeLiquidationRepo(public, wholesale, retailOnly, corporateOnly)
 			repo.findOpenErr = tt.findOpenErr
 			uc := usecases.NewLiquidationUseCase(repo, newFakeUserRepo(), newFakeTimer())
 
@@ -56,11 +88,10 @@ func TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas(t *testing.T)
 			for _, liquidation := range got {
 				seen[liquidation.ID] = true
 			}
-			if !seen[public.ID] {
-				t.Errorf("GetOpen() = %v, want the public liquidation", seen)
-			}
-			if seen[restricted.ID] != tt.wantRestricted {
-				t.Errorf("restricted liquidation visible = %v, want %v", seen[restricted.ID], tt.wantRestricted)
+			for _, liquidation := range []domain.Liquidation{public, wholesale, retailOnly, corporateOnly} {
+				if seen[liquidation.ID] != tt.want[liquidation.ID] {
+					t.Errorf("liquidation %s (%s) visible = %v, want %v", liquidation.ID, liquidation.Visibility, seen[liquidation.ID], tt.want[liquidation.ID])
+				}
 			}
 		})
 	}
@@ -69,7 +100,7 @@ func TestLiquidationUseCaseGetOpenHidesRestrictedFromNonMayoristas(t *testing.T)
 func TestLiquidationMutationsRequireANonFarmerToBeRefused(t *testing.T) {
 	t.Parallel()
 
-	ownedByOther := liquidationFixture("Restricted corn", "private")
+	ownedByOther := liquidationFixture("Restricted corn", "wholesale")
 
 	tests := []struct {
 		name    string

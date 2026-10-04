@@ -57,8 +57,25 @@ type InquiryRepository interface {
 }
 
 type LiquidationViewer struct {
-	ID            uuid.UUID
-	SeeRestricted bool
+	ID   uuid.UUID
+	Role domain.RoleOptions
+}
+
+func (v LiquidationViewer) SeesWholesale() bool {
+	switch v.Role {
+	case domain.RoleCompradorMayoristaDetallista, domain.RoleCompradorMayoristaCorporativo:
+		return true
+	default:
+		return false
+	}
+}
+
+func (v LiquidationViewer) SeesWholesaleRetail() bool {
+	return v.Role == domain.RoleCompradorMayoristaDetallista
+}
+
+func (v LiquidationViewer) SeesWholesaleCorporate() bool {
+	return v.Role == domain.RoleCompradorMayoristaCorporativo
 }
 
 type LiquidationRepository interface {
@@ -71,6 +88,9 @@ type LiquidationRepository interface {
 	Save(ctx context.Context, liquidation *domain.Liquidation) error
 	Update(ctx context.Context, liquidation *domain.Liquidation) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	SaveInterest(ctx context.Context, interest *domain.LiquidationInterest) error
+	FindInterests(ctx context.Context, liquidationID uuid.UUID) ([]domain.LiquidationInterest, error)
+	InterestExists(ctx context.Context, liquidationID, buyerID uuid.UUID) (bool, error)
 }
 
 type ReportRepository interface {
