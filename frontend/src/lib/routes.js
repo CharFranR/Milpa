@@ -9,6 +9,7 @@ export const PRODUCER_TAB_PATHS = {
   resumen: '/producer',
   disponibles: '/producer/available',
   ofertas: '/producer/offers',
+  inventario: '/producer/inventory',
   productos: '/producer/products',
   solicitudes: '/producer/requests',
   mensajes: '/producer/messages',

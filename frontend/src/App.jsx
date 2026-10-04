@@ -21,6 +21,7 @@ import ProductDetail from './pages/ProductDetail'
 import ProducerBusiness from './pages/producer/ProducerBusiness'
 import ProducerHome from './pages/producer/ProducerHome'
 import ProducerMessages from './pages/producer/ProducerMessages'
+import ProducerInventory from './pages/producer/ProducerInventory'
 import ProducerOfferForm from './pages/producer/ProducerOfferForm'
 import ProducerOffers from './pages/producer/ProducerOffers'
 import ProducerProducts from './pages/producer/ProducerProducts'
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="available" element={<ProducerAvailable />} />
         <Route path="available/:id/offer" element={<ProducerOfferForm />} />
         <Route path="offers" element={<ProducerOffers />} />
+        <Route path="inventory" element={<ProducerInventory />} />
         <Route path="products" element={<ProducerProducts />} />
         <Route path="requests" element={<ProducerRequests />} />
         <Route path="messages" element={<ProducerMessages />} />
