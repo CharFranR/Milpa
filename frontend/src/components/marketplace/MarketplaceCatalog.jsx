@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import Icon from '../ui/Icon'
-import ProductCardGrid from '../../components/product/ProductCardGrid'
+import ProductCard from '../../components/product/ProductCard'
 import ProductCardList from '../../components/product/ProductCardList'
 import FiltersSidebar, { PRICE_LIMIT } from './FiltersSidebar'
 import Pagination from './Pagination'
@@ -215,7 +215,7 @@ export default function MarketplaceCatalog() {
               {view === 'grid' ? (
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   {results.map((offering) => (
-                    <ProductCardGrid key={offering.id} offering={toCardOffering(offering)} />
+                    <ProductCard key={offering.id} offering={toCardOffering(offering)} />
                   ))}
                 </div>
               ) : (

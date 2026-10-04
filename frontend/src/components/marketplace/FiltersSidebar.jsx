@@ -3,6 +3,7 @@ import Icon from '../ui/Icon'
 import CategoryPill from '../CategoryPill'
 import { formatPrice } from '../../lib/format'
 import { categories } from '../../services/api'
+import { iconForCategory } from '../../lib/categoryIcons'
 import { cn } from '../../lib/cn'
 
 export const PRICE_LIMIT = 5000
@@ -50,7 +51,7 @@ export default function FiltersSidebar({ filters, onChange, onClear }) {
           {cats.map((category) => (
             <CategoryPill
               key={category.id}
-              icon={category.icon || 'label'}
+              icon={iconForCategory(category)}
               name={category.name}
               count={category.count}
               active={filters.category === category.id}
