@@ -7,6 +7,7 @@ import ErrorState from '../../components/ui/ErrorState'
 import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
 import Toast from '../../components/ui/Toast'
+import OffersSection from '../../components/request/OffersSection'
 import { useSupplyRequest } from '../../hooks/useSupplyRequests'
 import { formatPrice } from '../../lib/format'
 import {
@@ -173,6 +174,8 @@ export default function BuyerRequestDetail() {
           </p>
         </section>
       </div>
+
+      <OffersSection requestId={id} />
 
       <ConfirmDialog
         open={dialog === 'cancel'}

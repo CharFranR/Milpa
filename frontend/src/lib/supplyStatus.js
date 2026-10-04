@@ -7,10 +7,21 @@ export const REQUEST_STATUS = {
   3: { label: 'Expirada', tone: 'amber' },
 }
 
+export const OFFER_STATUS = {
+  0: { label: 'Activa', tone: 'brand' },
+  1: { label: 'Matcheada', tone: 'green' },
+  2: { label: 'Rechazada', tone: 'gray' },
+  3: { label: 'Retirada', tone: 'amber' },
+}
+
 export const EMPTY_TIME = '0001-01-01T00:00:00Z'
 
 export function requestStatus(status) {
   return REQUEST_STATUS[status] || { label: 'Sin estado', tone: 'gray' }
+}
+
+export function offerStatus(status) {
+  return OFFER_STATUS[status] || { label: 'Sin estado', tone: 'gray' }
 }
 
 export function measurementLabel(unit) {

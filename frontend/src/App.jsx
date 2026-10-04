@@ -21,8 +21,11 @@ import ProductDetail from './pages/ProductDetail'
 import ProducerBusiness from './pages/producer/ProducerBusiness'
 import ProducerHome from './pages/producer/ProducerHome'
 import ProducerMessages from './pages/producer/ProducerMessages'
+import ProducerOfferForm from './pages/producer/ProducerOfferForm'
+import ProducerOffers from './pages/producer/ProducerOffers'
 import ProducerProducts from './pages/producer/ProducerProducts'
 import ProducerRequests from './pages/producer/ProducerRequests'
+import ProducerAvailable from './pages/producer/ProducerAvailable'
 import AdminDashboard from './pages/AdminDashboard'
 import BuyerDashboard from './pages/BuyerDashboard'
 import ProducerDashboard from './pages/ProducerDashboard'
@@ -78,6 +81,9 @@ export default function App() {
         }
       >
         <Route index element={<ProducerHome />} />
+        <Route path="available" element={<ProducerAvailable />} />
+        <Route path="available/:id/offer" element={<ProducerOfferForm />} />
+        <Route path="offers" element={<ProducerOffers />} />
         <Route path="products" element={<ProducerProducts />} />
         <Route path="requests" element={<ProducerRequests />} />
         <Route path="messages" element={<ProducerMessages />} />
