@@ -1,8 +1,10 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 import { clearSession, getUser } from '../../lib/session'
 import { getDisplayName, getInitials } from '../../lib/user'
+import { PRODUCER_TAB_PATHS } from '../../lib/routes'
 
 const TABS = [
   { id: 'resumen', icon: 'home', label: 'Resumen' },
@@ -11,11 +13,6 @@ const TABS = [
   { id: 'mensajes', icon: 'chat', label: 'Mensajes' },
   { id: 'negocio', icon: 'storefront', label: 'Mi negocio' },
 ]
-
-function handleLogout() {
-  clearSession()
-  window.location.hash = '#/'
-}
 
 function TabButton({ tab, active, onSelect, className }) {
   return (
@@ -36,10 +33,21 @@ function TabButton({ tab, active, onSelect, className }) {
   )
 }
 
-export default function ProducerSidebar({ activeTab, onTabChange }) {
+export default function ProducerSidebar() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const user = getUser()
   const displayName = getDisplayName(user)
   const initials = getInitials(user)
+
+  function selectTab(id) {
+    navigate(PRODUCER_TAB_PATHS[id])
+  }
+
+  function handleLogout() {
+    clearSession()
+    navigate('/')
+  }
 
   return (
     <>
@@ -64,8 +72,8 @@ export default function ProducerSidebar({ activeTab, onTabChange }) {
               <TabButton
                 key={tab.id}
                 tab={tab}
-                active={activeTab === tab.id}
-                onSelect={onTabChange}
+                active={pathname === PRODUCER_TAB_PATHS[tab.id]}
+                onSelect={selectTab}
                 className="w-full"
               />
             ))}
@@ -79,7 +87,7 @@ export default function ProducerSidebar({ activeTab, onTabChange }) {
               variant="primary"
               size="sm"
               className="w-full"
-              onClick={() => onTabChange('productos')}
+              onClick={() => selectTab('productos')}
               icon={<Icon name="add" size={16} />}
             >
               Agregar producto
@@ -109,8 +117,8 @@ export default function ProducerSidebar({ activeTab, onTabChange }) {
             <TabButton
               key={tab.id}
               tab={tab}
-              active={activeTab === tab.id}
-              onSelect={onTabChange}
+              active={pathname === PRODUCER_TAB_PATHS[tab.id]}
+              onSelect={selectTab}
               className="px-3 py-2 text-xs"
             />
           ))}

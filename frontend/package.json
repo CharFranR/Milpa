@@ -12,7 +12,8 @@
   "dependencies": {
     "material-symbols": "^0.45.10",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
     "@fontsource-variable/outfit": "^5.3.0",

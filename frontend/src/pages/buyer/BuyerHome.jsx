@@ -1,9 +1,11 @@
+import { useNavigate } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import StatCard from '../../components/StatCard'
 import ProductImage from '../../components/product/ProductImage'
 import { formatPrice } from '../../lib/format'
 import { getUser } from '../../lib/session'
 import { getDisplayName } from '../../lib/user'
+import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { productById, producerById } from '../../mocks/catalog'
 import { homeStats, quickActions, recentActivity, recommendedProductIds } from '../../mocks/buyer'
 
@@ -13,9 +15,14 @@ const ACTIVITY_TONES = {
   brand: 'bg-brand-soft text-brand',
 }
 
-export default function BuyerHome({ onGoToTab }) {
+export default function BuyerHome() {
+  const navigate = useNavigate()
   const user = getUser()
   const displayName = getDisplayName(user)
+
+  function goToTab(tab) {
+    navigate(BUYER_TAB_PATHS[tab] || '/dashboard')
+  }
 
   return (
     <div className="space-y-8">
@@ -51,7 +58,7 @@ export default function BuyerHome({ onGoToTab }) {
               </>
             )
             return action.tab ? (
-              <button key={action.label} type="button" onClick={() => onGoToTab(action.tab)} className={className}>
+              <button key={action.label} type="button" onClick={() => goToTab(action.tab)} className={className}>
                 {iconTile}
               </button>
             ) : (
@@ -68,7 +75,7 @@ export default function BuyerHome({ onGoToTab }) {
           <h2 className="text-base font-bold text-gray-900">Recomendados para ti</h2>
           <button
             type="button"
-            onClick={() => onGoToTab('marketplace')}
+            onClick={() => goToTab('marketplace')}
             className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Ver todos

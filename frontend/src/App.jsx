@@ -1,44 +1,103 @@
-import { useEffect, useState } from 'react'
+import { Route, Routes } from 'react-router-dom'
+import RequireRole from './components/auth/RequireRole'
+import Login from './components/auth/Login'
+import Register from './components/auth/Register'
+import MarketplaceCatalog from './components/marketplace/MarketplaceCatalog'
+import AdminConfig from './pages/admin/AdminConfig'
+import AdminHome from './pages/admin/AdminHome'
+import AdminModeration from './pages/admin/AdminModeration'
+import AdminProducts from './pages/admin/AdminProducts'
+import AdminProducers from './pages/admin/AdminProducers'
+import AdminReports from './pages/admin/AdminReports'
+import AdminUsers from './pages/admin/AdminUsers'
+import BuyerFavorites from './pages/buyer/BuyerFavorites'
+import BuyerHome from './pages/buyer/BuyerHome'
+import BuyerMessages from './pages/buyer/BuyerMessages'
+import BuyerProfile from './pages/buyer/BuyerProfile'
 import Landing from './pages/Landing'
-import Auth from './pages/Auth'
 import Marketplace from './pages/Marketplace'
+import ProductDetail from './pages/ProductDetail'
+import ProducerBusiness from './pages/producer/ProducerBusiness'
+import ProducerHome from './pages/producer/ProducerHome'
+import ProducerMessages from './pages/producer/ProducerMessages'
+import ProducerProducts from './pages/producer/ProducerProducts'
+import ProducerRequests from './pages/producer/ProducerRequests'
+import AdminDashboard from './pages/AdminDashboard'
 import BuyerDashboard from './pages/BuyerDashboard'
 import ProducerDashboard from './pages/ProducerDashboard'
-import AdminDashboard from './pages/AdminDashboard'
-import ProductDetail from './pages/ProductDetail'
-import { hasRole } from './lib/session'
 
 export default function App() {
-  const [route, setRoute] = useState(() => resolveRoute(window.location.hash))
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
-  useEffect(() => {
-    const onHashChange = () => setRoute(resolveRoute(window.location.hash))
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+      <Route
+        path="/marketplace"
+        element={
+          <RequireRole role="buyer">
+            <Marketplace />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/product/:id"
+        element={
+          <RequireRole role="buyer">
+            <ProductDetail />
+          </RequireRole>
+        }
+      />
 
-  useEffect(() => {
-    const hash = window.location.hash
-    if (route === 'auth' && (hash === '#/marketplace' || hash === '#/dashboard' || hash === '#/producer' || hash === '#/admin' || hash.startsWith('#/product/'))) {
-      window.location.hash = '#/login'
-    }
-  }, [route])
+      <Route
+        path="/dashboard"
+        element={
+          <RequireRole role="buyer">
+            <BuyerDashboard />
+          </RequireRole>
+        }
+      >
+        <Route index element={<BuyerHome />} />
+        <Route path="favorites" element={<BuyerFavorites />} />
+        <Route path="messages" element={<BuyerMessages />} />
+        <Route path="profile" element={<BuyerProfile />} />
+        <Route path="marketplace" element={<MarketplaceCatalog />} />
+      </Route>
 
-  if (route === 'auth') return <Auth />
-  if (route === 'marketplace') return <Marketplace />
-  if (route === 'dashboard') return <BuyerDashboard />
-  if (route === 'producer') return <ProducerDashboard />
-  if (route === 'admin') return <AdminDashboard />
-  if (route === 'product') return <ProductDetail />
-  return <Landing />
-}
+      <Route
+        path="/producer"
+        element={
+          <RequireRole role="producer">
+            <ProducerDashboard />
+          </RequireRole>
+        }
+      >
+        <Route index element={<ProducerHome />} />
+        <Route path="products" element={<ProducerProducts />} />
+        <Route path="requests" element={<ProducerRequests />} />
+        <Route path="messages" element={<ProducerMessages />} />
+        <Route path="business" element={<ProducerBusiness />} />
+      </Route>
 
-function resolveRoute(hash) {
-  if (hash === '#/login' || hash === '#/register') return 'auth'
-  if (hash === '#/marketplace') return hasRole('buyer') ? 'marketplace' : 'auth'
-  if (hash === '#/dashboard') return hasRole('buyer') ? 'dashboard' : 'auth'
-  if (hash.startsWith('#/product/')) return hasRole('buyer') ? 'product' : 'auth'
-  if (hash === '#/producer') return hasRole('producer') ? 'producer' : 'auth'
-  if (hash === '#/admin') return hasRole('admin') ? 'admin' : 'auth'
-  return 'landing'
+      <Route
+        path="/admin"
+        element={
+          <RequireRole role="admin">
+            <AdminDashboard />
+          </RequireRole>
+        }
+      >
+        <Route index element={<AdminHome />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="producers" element={<AdminProducers />} />
+        <Route path="products" element={<AdminProducts />} />
+        <Route path="moderation" element={<AdminModeration />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="settings" element={<AdminConfig />} />
+      </Route>
+
+      <Route path="*" element={<Landing />} />
+    </Routes>
+  )
 }

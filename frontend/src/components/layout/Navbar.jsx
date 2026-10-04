@@ -1,25 +1,22 @@
 import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 import Logo from '../../components/Logo'
 
 const NAV_LINKS = [
-  { label: 'Inicio', href: '#inicio' },
-  { label: 'Cómo funciona', href: '#como-funciona' },
+  { id: 'inicio', label: 'Inicio' },
+  { id: 'como-funciona', label: 'Cómo funciona' },
 ]
-
-function isLandingPage() {
-  if (typeof window === 'undefined') return false
-  const hash = window.location.hash
-  return hash === '' || hash === '#/' || hash === '#inicio' || hash === '#como-funciona'
-}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
 
-  const isLanding = isLandingPage()
+  const isLanding = pathname === '/'
   const transparent = isLanding && !scrolled && !open
 
   useEffect(() => {
@@ -28,6 +25,21 @@ export default function Navbar() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  function goToSection(id) {
+    setOpen(false)
+    if (pathname !== '/') navigate('/')
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    }, 0)
+  }
+
+  function handleLogo(event) {
+    setOpen(false)
+    if (pathname !== '/') return
+    event.preventDefault()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <header
@@ -38,15 +50,16 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#inicio" className="flex items-center gap-2" aria-label="Milpa — inicio">
+        <Link to="/" onClick={handleLogo} className="flex items-center gap-2" aria-label="Milpa — inicio">
           <Logo className="h-9 w-auto" />
-        </a>
+        </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
           {NAV_LINKS.map((link) => (
-            <a
+            <button
               key={link.label}
-              href={link.href}
+              type="button"
+              onClick={() => goToSection(link.id)}
               className={cn(
                 'rounded-full px-4 py-2 text-sm font-medium transition-colors',
                 transparent
@@ -55,7 +68,7 @@ export default function Navbar() {
               )}
             >
               {link.label}
-            </a>
+            </button>
           ))}
         </nav>
 
@@ -86,13 +99,14 @@ export default function Navbar() {
         <div className="border-t border-gray-100 bg-white px-4 pb-6 pt-3 md:hidden">
           <nav className="flex flex-col" aria-label="Menú móvil">
             {NAV_LINKS.map((link) => (
-              <a
+              <button
                 key={link.label}
-                href={link.href}
-                className="rounded-xl px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                type="button"
+                onClick={() => goToSection(link.id)}
+                className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 {link.label}
-              </a>
+              </button>
             ))}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
