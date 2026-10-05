@@ -97,6 +97,35 @@ func (r *ReviewRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID)
 	return reviews, nil
 }
 
+func (r *ReviewRepositoryImpl) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+	query := `
+		SELECT ` + reviewColumns + `
+		FROM reviews
+		WHERE target_type = $1 AND target_id = $2
+	`
+
+	rows, err := r.pool.Query(ctx, query, targetType, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("review.FindByTarget: %w", err)
+	}
+	defer rows.Close()
+
+	var reviews []domain.Review
+	for rows.Next() {
+		review, err := scanReview(rows.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("review.FindByTarget: %w", err)
+		}
+		reviews = append(reviews, review)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("review.FindByTarget: %w", err)
+	}
+
+	return reviews, nil
+}
+
 func (r *ReviewRepositoryImpl) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
 	query := `
 		SELECT COALESCE(AVG(rating), 0), COUNT(*)

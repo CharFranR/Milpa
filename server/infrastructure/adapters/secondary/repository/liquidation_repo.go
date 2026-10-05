@@ -28,7 +28,7 @@ const liquidationColumns = `
 	FROM liquidations
 `
 
-const visibilityFilter = `(visibility = 'public' OR supplier_id = $1)`
+const visibilityFilter = `(visibility = 'public' OR supplier_id = $1 OR ($2 AND visibility = 'private'))`
 
 func scanLiquidations(rows pgx.Rows) ([]domain.Liquidation, error) {
 	defer rows.Close()
@@ -71,11 +71,11 @@ func (r *LiquidationRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) 
 	return &liq, nil
 }
 
-func (r *LiquidationRepositoryImpl) FindVisibleByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*domain.Liquidation, error) {
-	query := liquidationColumns + ` WHERE id = $2 AND ` + visibilityFilter
+func (r *LiquidationRepositoryImpl) FindVisibleByID(ctx context.Context, id uuid.UUID, viewer port.LiquidationViewer) (*domain.Liquidation, error) {
+	query := liquidationColumns + ` WHERE id = $3 AND ` + visibilityFilter
 
 	var liq domain.Liquidation
-	err := r.pool.QueryRow(ctx, query, viewerID, id).Scan(
+	err := r.pool.QueryRow(ctx, query, viewer.ID, viewer.SeeRestricted, id).Scan(
 		&liq.ID, &liq.SupplierID, &liq.ProductName, &liq.Quantity, &liq.UnitOfMeasure,
 		&liq.TotalPrice, &liq.UnitPrice, &liq.DeliveryTime, &liq.LocationID, &liq.Visibility,
 		&liq.AllocationMethod, &liq.Status, &liq.ClosedAt, &liq.ExpiresAt,
@@ -92,10 +92,10 @@ func (r *LiquidationRepositoryImpl) FindVisibleByID(ctx context.Context, id uuid
 	return &liq, nil
 }
 
-func (r *LiquidationRepositoryImpl) FindBySupplier(ctx context.Context, supplierID uuid.UUID, viewerID uuid.UUID) ([]domain.Liquidation, error) {
-	query := liquidationColumns + ` WHERE supplier_id = $2 AND ` + visibilityFilter + ` ORDER BY created_at DESC`
+func (r *LiquidationRepositoryImpl) FindBySupplier(ctx context.Context, supplierID uuid.UUID, viewer port.LiquidationViewer) ([]domain.Liquidation, error) {
+	query := liquidationColumns + ` WHERE supplier_id = $3 AND ` + visibilityFilter + ` ORDER BY created_at DESC`
 
-	rows, err := r.pool.Query(ctx, query, viewerID, supplierID)
+	rows, err := r.pool.Query(ctx, query, viewer.ID, viewer.SeeRestricted, supplierID)
 	if err != nil {
 		return nil, fmt.Errorf("liquidation.FindBySupplier: %w", err)
 	}
@@ -108,10 +108,10 @@ func (r *LiquidationRepositoryImpl) FindBySupplier(ctx context.Context, supplier
 	return liquidations, nil
 }
 
-func (r *LiquidationRepositoryImpl) FindOpen(ctx context.Context, viewerID uuid.UUID) ([]domain.Liquidation, error) {
+func (r *LiquidationRepositoryImpl) FindOpen(ctx context.Context, viewer port.LiquidationViewer) ([]domain.Liquidation, error) {
 	query := liquidationColumns + ` WHERE status = 'open' AND ` + visibilityFilter + ` ORDER BY created_at DESC`
 
-	rows, err := r.pool.Query(ctx, query, viewerID)
+	rows, err := r.pool.Query(ctx, query, viewer.ID, viewer.SeeRestricted)
 	if err != nil {
 		return nil, fmt.Errorf("liquidation.FindOpen: %w", err)
 	}

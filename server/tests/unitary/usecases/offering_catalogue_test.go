@@ -71,7 +71,7 @@ func TestOfferingCreateRefusesAnIncompleteProduct(t *testing.T) {
 			offeringRepo := newFakeOfferingRepo()
 			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			_, err := uc.CreateOffering(principalCtx(), tt.blank(completeCatalogueRequest()))
+			_, err := uc.CreateOffering(farmerCtx(), tt.blank(completeCatalogueRequest()))
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("CreateOffering() error = %v, want %v", err, tt.wantErr)
@@ -136,7 +136,7 @@ func TestOfferingUpdateRefusesAnIncompleteProduct(t *testing.T) {
 			offeringRepo := newFakeOfferingRepo()
 			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			err := uc.UpdateOffering(principalCtx(), testOfferingID, tt.blank(dto.UpdateOfferingRequest{}))
+			err := uc.UpdateOffering(farmerCtx(), testOfferingID, tt.blank(dto.UpdateOfferingRequest{}))
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("UpdateOffering() error = %v, want %v", err, tt.wantErr)
@@ -165,7 +165,7 @@ func TestOfferingCreateStoresEveryCatalogueField(t *testing.T) {
 	req.Latitude = &latitude
 	req.Longitude = &longitude
 
-	got, err := uc.CreateOffering(principalCtx(), req)
+	got, err := uc.CreateOffering(farmerCtx(), req)
 	if err != nil {
 		t.Fatalf("CreateOffering() error: %v", err)
 	}
@@ -209,9 +209,9 @@ func TestOfferingDeactivateIsIdempotentAndOwnerOnly(t *testing.T) {
 		wantUpdates int
 	}{
 		{name: "unauthenticated", ctx: context.Background(), wantErr: errFake},
-		{name: "foreign user", ctx: principalCtxFor(testOtherID), wantErr: domain.ErrForbidden},
-		{name: "owner", ctx: principalCtx(), wantUpdates: 1},
-		{name: "admin", ctx: reportAdminCtx(), wantUpdates: 1},
+		{name: "foreign user", ctx: farmerCtxFor(testOtherID), wantErr: domain.ErrForbidden},
+		{name: "owner", ctx: farmerCtx(), wantUpdates: 1},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), wantErr: domain.ErrForbidden},
 	}
 
 	for _, tt := range tests {
@@ -271,9 +271,9 @@ func TestOfferingRenewIsOwnerOnlyAndReactivatesTheProduct(t *testing.T) {
 		wantUpdates int
 	}{
 		{name: "unauthenticated", ctx: context.Background(), wantErr: auth.ErrUnauthenticated},
-		{name: "foreign user", ctx: principalCtxFor(testOtherID), wantErr: domain.ErrForbidden},
-		{name: "owner", ctx: principalCtx(), wantUpdates: 1},
-		{name: "admin", ctx: reportAdminCtx(), wantUpdates: 1},
+		{name: "foreign user", ctx: farmerCtxFor(testOtherID), wantErr: domain.ErrForbidden},
+		{name: "owner", ctx: farmerCtx(), wantUpdates: 1},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), wantErr: domain.ErrForbidden},
 	}
 
 	for _, tt := range tests {
@@ -368,7 +368,7 @@ func TestIndexRequestPrefersTheProductLocation(t *testing.T) {
 			req.Latitude = tt.productLat
 			req.Longitude = tt.productLon
 
-			if _, err := uc.CreateOffering(principalCtx(), req); err != nil {
+			if _, err := uc.CreateOffering(farmerCtx(), req); err != nil {
 				t.Fatalf("CreateOffering() error: %v", err)
 			}
 

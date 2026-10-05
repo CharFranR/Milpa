@@ -25,7 +25,7 @@ func setupOfferingTestData(t *testing.T) {
 		ID:           testOwnerID,
 		FirstName:    "Owner",
 		LastName:     "User",
-		Role:         domain.RoleMIPYME,
+		Role:         domain.RoleCompradorMinorista,
 		Email:        "offering-owner@example.com",
 		PhoneNumber:  "0000-0000",
 		PasswordHash: "hash",

@@ -27,3 +27,5 @@ COPY --from=builder /app/infrastructure/adapters/secondary/repository/migrations
 RUN mkdir -p /app/uploads
 
 EXPOSE 8080
+
+CMD ["./api"]

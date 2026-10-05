@@ -488,8 +488,7 @@ func TestModerationUseCaseSuspendUserFailsClosedOnAuditWrite(t *testing.T) {
 			userRepo := newFakeUserRepo()
 			offeringRepo := newFakeOfferingRepo()
 			auditRepo := failingAuditRepo()
-			offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
-			uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+			uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, newFakeTimer())
 
 			err := uc.SuspendUser(reportAdminCtx(), testUserID, dto.SuspendUserRequest{Action: action})
 
@@ -512,8 +511,7 @@ func TestModerationSuspendUserPersistsWhenAuditSucceeds(t *testing.T) {
 	userRepo := newFakeUserRepo()
 	offeringRepo := newFakeOfferingRepo()
 	auditRepo := newFakeAuditLogRepo()
-	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
-	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, newFakeTimer())
 
 	if err := uc.SuspendUser(reportAdminCtx(), testUserID, dto.SuspendUserRequest{Action: "suspend"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -538,8 +536,7 @@ func TestModerationUseCaseDeleteOfferingFailsClosedOnAuditWrite(t *testing.T) {
 	userRepo := newFakeUserRepo()
 	offeringRepo := newFakeOfferingRepo()
 	auditRepo := failingAuditRepo()
-	offeringUC := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
-	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, offeringUC, newFakeTimer())
+	uc := usecases.NewModerationUseCase(userRepo, offeringRepo, auditRepo, newFakeTimer())
 
 	err := uc.DeleteOffering(reportAdminCtx(), testOfferingID)
 

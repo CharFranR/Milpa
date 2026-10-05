@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -18,16 +19,18 @@ type ReviewUseCaseImpl struct {
 	matchRepo         port.MatchRepository
 	supplyOfferRepo   port.SupplyOfferRepository
 	supplyRequestRepo port.SupplyRequestRepository
+	companyRepo       port.CompanyRepository
 	timer             port.TimeProvider
 }
 
-func NewReviewUseCase(reviewRepo port.ReviewRepository, txRepo port.TransactionRepository, matchRepo port.MatchRepository, supplyOfferRepo port.SupplyOfferRepository, supplyRequestRepo port.SupplyRequestRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
+func NewReviewUseCase(reviewRepo port.ReviewRepository, txRepo port.TransactionRepository, matchRepo port.MatchRepository, supplyOfferRepo port.SupplyOfferRepository, supplyRequestRepo port.SupplyRequestRepository, companyRepo port.CompanyRepository, timer port.TimeProvider) *ReviewUseCaseImpl {
 	return &ReviewUseCaseImpl{
 		reviewRepo:        reviewRepo,
 		txRepo:            txRepo,
 		matchRepo:         matchRepo,
 		supplyOfferRepo:   supplyOfferRepo,
 		supplyRequestRepo: supplyRequestRepo,
+		companyRepo:       companyRepo,
 		timer:             timer,
 	}
 }
@@ -77,13 +80,19 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 		companyID = targetID
 	}
 
-	if targetType == domain.ReviewTargetUser {
-		other := offer.SupplierID
-		if principal.UserID == offer.SupplierID {
-			other = request.BuyerID
-		}
+	other := offer.SupplierID
+	if principal.UserID == offer.SupplierID {
+		other = request.BuyerID
+	}
+
+	switch targetType {
+	case domain.ReviewTargetUser:
 		if targetID != other {
 			return nil, domain.ErrReviewTargetPartyMismatch
+		}
+	case domain.ReviewTargetCompany:
+		if err := uc.checkCompanyTarget(ctx, principal.UserID, other, targetID); err != nil {
+			return nil, err
 		}
 	}
 
@@ -107,6 +116,26 @@ func (uc *ReviewUseCaseImpl) CreateReview(ctx context.Context, req dto.CreateRev
 	}
 
 	return reviewToDTO(review), nil
+}
+
+func (uc *ReviewUseCaseImpl) checkCompanyTarget(ctx context.Context, authorID, otherID, targetID uuid.UUID) error {
+	companies, err := uc.companyRepo.FindByOwner(ctx, otherID)
+	if err != nil {
+		return err
+	}
+	if !slices.ContainsFunc(companies, func(company domain.Company) bool { return company.ID == targetID }) {
+		return domain.ErrReviewTargetPartyMismatch
+	}
+
+	authorCompanies, err := uc.companyRepo.FindByOwner(ctx, authorID)
+	if err != nil {
+		return err
+	}
+	if slices.ContainsFunc(authorCompanies, func(company domain.Company) bool { return company.ID == targetID }) {
+		return domain.ErrReviewTargetPartyMismatch
+	}
+
+	return nil
 }
 
 func resolveReviewTarget(req dto.CreateReviewRequest) (domain.ReviewTargetType, uuid.UUID, error) {
@@ -146,6 +175,27 @@ func (uc *ReviewUseCaseImpl) FindByUser(ctx context.Context, userID uuid.UUID) (
 
 func (uc *ReviewUseCaseImpl) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.ReviewDTO, error) {
 	reviews, err := uc.reviewRepo.FindByCompany(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	dtos := make([]*dto.ReviewDTO, len(reviews))
+	for i := range reviews {
+		dtos[i] = reviewToDTO(&reviews[i])
+	}
+
+	return dtos, nil
+}
+
+func (uc *ReviewUseCaseImpl) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]*dto.ReviewDTO, error) {
+	if !domain.ValidReviewTargetType(targetType) {
+		return nil, domain.ErrInvalidReviewTargetType
+	}
+	if targetID == uuid.Nil {
+		return nil, domain.ErrTargetRequired
+	}
+
+	reviews, err := uc.reviewRepo.FindByTarget(ctx, targetType, targetID)
 	if err != nil {
 		return nil, err
 	}

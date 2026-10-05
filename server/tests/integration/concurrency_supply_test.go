@@ -47,16 +47,16 @@ func setupConcurrencyTestData(t *testing.T) {
 	userRepo := repository.NewUserRepository(TestPool)
 
 	users := []*domain.User{
-		{ID: concBuyerID, FirstName: "Conc", LastName: "Buyer", Role: domain.RoleMIPYME,
+		{ID: concBuyerID, FirstName: "Conc", LastName: "Buyer", Role: domain.RoleCompradorMinorista,
 			Email: "conc-buyer@example.com", PhoneNumber: "4500-0001", PasswordHash: "hash",
 			CreatedAt: fixedTime, UpdatedAt: fixedTime},
-		{ID: concSupplier1, FirstName: "Conc", LastName: "SupplierOne", Role: domain.RoleMIPYME,
+		{ID: concSupplier1, FirstName: "Conc", LastName: "SupplierOne", Role: domain.RoleAgricultor,
 			Email: "conc-supplier-1@example.com", PhoneNumber: "4500-0002", PasswordHash: "hash",
 			CreatedAt: fixedTime, UpdatedAt: fixedTime},
-		{ID: concSupplier2, FirstName: "Conc", LastName: "SupplierTwo", Role: domain.RoleMIPYME,
+		{ID: concSupplier2, FirstName: "Conc", LastName: "SupplierTwo", Role: domain.RoleAgricultor,
 			Email: "conc-supplier-2@example.com", PhoneNumber: "4500-0003", PasswordHash: "hash",
 			CreatedAt: fixedTime, UpdatedAt: fixedTime},
-		{ID: concSupplier3, FirstName: "Conc", LastName: "SupplierThree", Role: domain.RoleMIPYME,
+		{ID: concSupplier3, FirstName: "Conc", LastName: "SupplierThree", Role: domain.RoleAgricultor,
 			Email: "conc-supplier-3@example.com", PhoneNumber: "4500-0004", PasswordHash: "hash",
 			CreatedAt: fixedTime, UpdatedAt: fixedTime},
 	}
@@ -93,11 +93,11 @@ func newConcFixture(t *testing.T) *concFixture {
 }
 
 func concBuyerCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: concBuyerID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: concBuyerID, Role: domain.RoleCompradorMinorista})
 }
 
 func concSupplierCtx(supplierID uuid.UUID) context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: supplierID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: supplierID, Role: domain.RoleAgricultor})
 }
 
 // newConcRequest persists an open request whose actual_amount starts at

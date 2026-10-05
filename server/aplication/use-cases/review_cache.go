@@ -45,6 +45,7 @@ func (uc *CachedReviewUseCase) CreateReview(ctx context.Context, req dto.CreateR
 		_ = uc.cache.Delete(ctx, "reviews:bycompany:"+result.CompanyID.String())
 	}
 	_ = uc.cache.Delete(ctx, averageKey(domain.ReviewTargetType(result.TargetType), result.TargetID))
+	_ = uc.cache.Delete(ctx, "reviews:bytarget:"+result.TargetType+":"+result.TargetID.String())
 
 	return result, nil
 }
@@ -81,6 +82,28 @@ func (uc *CachedReviewUseCase) FindByCompany(ctx context.Context, companyID uuid
 		&reviews,
 		func() error {
 			result, err := uc.next.FindByCompany(ctx, companyID)
+			if err != nil {
+				return err
+			}
+
+			reviews = result
+			return nil
+		},
+	)
+
+	return reviews, err
+}
+
+func (uc *CachedReviewUseCase) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]*dto.ReviewDTO, error) {
+	var reviews []*dto.ReviewDTO
+
+	_, err := uc.cache.Remember(
+		ctx,
+		"reviews:bytarget:"+string(targetType)+":"+targetID.String(),
+		5*time.Minute,
+		&reviews,
+		func() error {
+			result, err := uc.next.FindByTarget(ctx, targetType, targetID)
 			if err != nil {
 				return err
 			}

@@ -11,6 +11,7 @@ import (
 	"milpa/aplication/dto"
 	usecases "milpa/aplication/use-cases"
 	domain "milpa/domain/entities"
+	port "milpa/domain/port/secondary"
 	"milpa/infrastructure/adapters/secondary/repository"
 	"milpa/internal/auth"
 )
@@ -25,14 +26,31 @@ var (
 // seedLiquidationUser creates a user a liquidation can reference.
 func seedLiquidationUser(t *testing.T, id uuid.UUID) {
 	t.Helper()
+	seedLiquidationUserWithRole(t, id, 2)
+}
+
+func seedLiquidationUserWithRole(t *testing.T, id uuid.UUID, role int) {
+	t.Helper()
 
 	if _, err := TestPool.Exec(context.Background(),
 		`INSERT INTO users (id, first_name, last_name, role, email, phone_number, password_hash, created_at, updated_at)
-		 VALUES ($1, 'Supplier', 'Test', 2, $2, '555-0000', 'hash', $3, $3)`,
-		id, id.String()+"@milpa.com.ni", liqCreatedAt,
+		 VALUES ($1, 'Supplier', 'Test', $2, $3, '555-0000', 'hash', $4, $4)`,
+		id, role, id.String()+"@milpa.com.ni", liqCreatedAt,
 	); err != nil {
 		t.Fatalf("seed user %s: %v", id, err)
 	}
+}
+
+func anonymousViewer() port.LiquidationViewer {
+	return port.LiquidationViewer{}
+}
+
+func viewerOf(id uuid.UUID) port.LiquidationViewer {
+	return port.LiquidationViewer{ID: id}
+}
+
+func mayoristaViewerOf(id uuid.UUID) port.LiquidationViewer {
+	return port.LiquidationViewer{ID: id, SeeRestricted: true}
 }
 
 func seedLiquidation(t *testing.T, supplierID uuid.UUID, name, visibility string) *domain.Liquidation {
@@ -89,7 +107,7 @@ func TestFindOpenHonoursVisibility(t *testing.T) {
 	repo := repository.NewLiquidationRepository(TestPool)
 
 	t.Run("anonymous sees only public", func(t *testing.T) {
-		open, err := repo.FindOpen(ctx, uuid.Nil)
+		open, err := repo.FindOpen(ctx, anonymousViewer())
 		if err != nil {
 			t.Fatalf("FindOpen: %v", err)
 		}
@@ -103,7 +121,7 @@ func TestFindOpenHonoursVisibility(t *testing.T) {
 	})
 
 	t.Run("owner sees their own regardless of visibility", func(t *testing.T) {
-		open, err := repo.FindOpen(ctx, liqSupplierID)
+		open, err := repo.FindOpen(ctx, viewerOf(liqSupplierID))
 		if err != nil {
 			t.Fatalf("FindOpen: %v", err)
 		}
@@ -116,10 +134,23 @@ func TestFindOpenHonoursVisibility(t *testing.T) {
 		}
 	})
 
+	t.Run("a mayorista sees the restricted one", func(t *testing.T) {
+		mayoristaID := uuid.MustParse("aaaaaaaa-0000-0000-0000-000000000004")
+		seedLiquidationUserWithRole(t, mayoristaID, 3)
+
+		open, err := repo.FindOpen(ctx, mayoristaViewerOf(mayoristaID))
+		if err != nil {
+			t.Fatalf("FindOpen: %v", err)
+		}
+		if !contains(idsOf(open), private.ID) {
+			t.Errorf("open = %v, want the restricted liquidation %s for a mayorista", idsOf(open), private.ID)
+		}
+	})
+
 	t.Run("a different authenticated user sees only public", func(t *testing.T) {
 		seedLiquidationUser(t, liqOtherSupID)
 
-		open, err := repo.FindOpen(ctx, liqOtherSupID)
+		open, err := repo.FindOpen(ctx, viewerOf(liqOtherSupID))
 		if err != nil {
 			t.Fatalf("FindOpen: %v", err)
 		}
@@ -147,21 +178,22 @@ func TestFindVisibleByIDHonoursVisibility(t *testing.T) {
 	repo := repository.NewLiquidationRepository(TestPool)
 
 	tests := []struct {
-		name     string
-		id       uuid.UUID
-		viewerID uuid.UUID
-		wantErr  error
+		name    string
+		id      uuid.UUID
+		viewer  port.LiquidationViewer
+		wantErr error
 	}{
-		{name: "anonymous reads a public liquidation", id: public.ID, viewerID: uuid.Nil},
-		{name: "anonymous cannot read a private one", id: private.ID, viewerID: uuid.Nil, wantErr: domain.ErrNotFound},
-		{name: "owner reads their own private one", id: private.ID, viewerID: liqSupplierID},
-		{name: "another user cannot read it", id: private.ID, viewerID: liqOtherSupID, wantErr: domain.ErrNotFound},
-		{name: "unknown id", id: uuid.New(), viewerID: liqSupplierID, wantErr: domain.ErrNotFound},
+		{name: "anonymous reads a public liquidation", id: public.ID, viewer: anonymousViewer()},
+		{name: "anonymous cannot read a private one", id: private.ID, viewer: anonymousViewer(), wantErr: domain.ErrNotFound},
+		{name: "owner reads their own private one", id: private.ID, viewer: viewerOf(liqSupplierID)},
+		{name: "another user cannot read it", id: private.ID, viewer: viewerOf(liqOtherSupID), wantErr: domain.ErrNotFound},
+		{name: "a mayorista reads a restricted one", id: private.ID, viewer: mayoristaViewerOf(uuid.New())},
+		{name: "unknown id", id: uuid.New(), viewer: viewerOf(liqSupplierID), wantErr: domain.ErrNotFound},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := repo.FindVisibleByID(ctx, tt.id, tt.viewerID)
+			got, err := repo.FindVisibleByID(ctx, tt.id, tt.viewer)
 
 			if tt.wantErr != nil {
 				if err == nil {
@@ -194,7 +226,7 @@ func TestFindBySupplierHonoursVisibility(t *testing.T) {
 
 	repo := repository.NewLiquidationRepository(TestPool)
 
-	anon, err := repo.FindBySupplier(ctx, liqSupplierID, uuid.Nil)
+	anon, err := repo.FindBySupplier(ctx, liqSupplierID, anonymousViewer())
 	if err != nil {
 		t.Fatalf("FindBySupplier: %v", err)
 	}
@@ -205,7 +237,7 @@ func TestFindBySupplierHonoursVisibility(t *testing.T) {
 		t.Error("the anonymous supplier listing is missing the public liquidation")
 	}
 
-	owner, err := repo.FindBySupplier(ctx, liqSupplierID, liqSupplierID)
+	owner, err := repo.FindBySupplier(ctx, liqSupplierID, viewerOf(liqSupplierID))
 	if err != nil {
 		t.Fatalf("FindBySupplier: %v", err)
 	}
@@ -213,7 +245,7 @@ func TestFindBySupplierHonoursVisibility(t *testing.T) {
 		t.Error("the owner listing is missing their own private liquidation")
 	}
 
-	other, err := repo.FindBySupplier(ctx, liqSupplierID, liqOtherSupID)
+	other, err := repo.FindBySupplier(ctx, liqSupplierID, viewerOf(liqOtherSupID))
 	if err != nil {
 		t.Fatalf("FindBySupplier: %v", err)
 	}
@@ -258,11 +290,11 @@ func liquidationUC() *usecases.LiquidationUseCaseImpl {
 }
 
 func ownerCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqSupplierID, Role: domain.RoleProvider})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqSupplierID, Role: domain.RoleAgricultor})
 }
 
 func otherCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqOtherSupID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: liqOtherSupID, Role: domain.RoleCompradorMinorista})
 }
 
 func dtoIDs(dtos []*dto.LiquidationDTO) []uuid.UUID {

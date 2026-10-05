@@ -25,11 +25,11 @@ func TestReviewCacheInvalidatesTheAggregate(t *testing.T) {
 	}{
 		{
 			name: "a company review evicts the company's list and average",
-			req:  dto.CreateReviewRequest{CompanyID: testCompanyID, Rating: 4, TransactionID: txTestTransactID},
+			req:  dto.CreateReviewRequest{CompanyID: testOtherCompanyID, Rating: 4, TransactionID: txTestTransactID},
 			wantKeys: []string{
 				"reviews:byuser:" + testUserID.String(),
-				"reviews:bycompany:" + testCompanyID.String(),
-				"reviews:avg:company:" + testCompanyID.String(),
+				"reviews:bycompany:" + testOtherCompanyID.String(),
+				"reviews:avg:company:" + testOtherCompanyID.String(),
 			},
 		},
 		{

@@ -27,7 +27,7 @@ func (stubJWT) ValidateToken(token string) (*port.JWTClaims, error) {
 	if token != "valid-token" {
 		return nil, errors.New("invalid")
 	}
-	return &port.JWTClaims{UserID: uuid.New(), Role: domain.RoleMIPYME}, nil
+	return &port.JWTClaims{UserID: uuid.New(), Role: domain.RoleCompradorMinorista}, nil
 }
 
 func newWSServer(t *testing.T) *httptest.Server {

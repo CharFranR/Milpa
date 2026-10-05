@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Milpa — Mercado digital agropecuario</title>
+  <meta name="description" content="Milpa conecta a pequeños y medianos agro-productores de frutas y cítricos de Nicaragua con compradores minoristas y mayoristas.">
+  <style>
+    :root {
+      --green-900: #14432a;
+      --green-700: #1d6a41;
+      --green-500: #2e9e5b;
+      --green-100: #e6f4ec;
+      --earth: #b7791f;
+      --ink: #1c2b24;
+      --muted: #5b6b63;
+      --bg: #fbfdfa;
+      --card: #ffffff;
+      --border: #dfe9e3;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    a { color: var(--green-700); }
+    .container { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(251, 253, 250, 0.94);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 0;
+    }
+    .brand {
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--green-900);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .brand span { color: var(--earth); }
+    .nav ul { display: flex; gap: 1.4rem; list-style: none; }
+    .nav a { text-decoration: none; color: var(--muted); font-size: 0.95rem; }
+    .nav a:hover { color: var(--green-700); }
+
+    .hero {
+      padding: 4.5rem 0 3.5rem;
+      text-align: center;
+      background:
+        radial-gradient(ellipse at top, var(--green-100) 0%, transparent 65%),
+        var(--bg);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      color: var(--green-900);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2.2vw, 1.2rem);
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0 auto 2rem;
+    }
+    .cta {
+      display: inline-block;
+      background: var(--green-700);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.85rem 2rem;
+      border-radius: 999px;
+      transition: background 0.15s ease;
+    }
+    .cta:hover { background: var(--green-900); }
+
+    section { padding: 3.25rem 0; }
+    .section-title {
+      font-size: 1.7rem;
+      color: var(--green-900);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .section-sub {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 2.25rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .card h3 { color: var(--green-700); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .card p { color: var(--muted); font-size: 0.95rem; }
+    .icon { font-size: 1.6rem; margin-bottom: 0.6rem; display: block; }
+
+    .flows { background: var(--green-100); }
+    .flow {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      border-left: 4px solid var(--green-500);
+      margin-bottom: 1rem;
+    }
+    .flow h3 { color: var(--green-900); margin-bottom: 0.35rem; }
+    .flow p { color: var(--muted); font-size: 0.95rem; }
+    .flow .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--earth);
+      margin-bottom: 0.4rem;
+    }
+
+
+    footer {
+      background: var(--green-900);
+      color: #cfe4d7;
+      padding: 2rem 0;
+      font-size: 0.9rem;
+    }
+    footer .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer a { color: #fff; }
+
+    @media (max-width: 640px) {
+      .nav ul { display: none; }
+      .hero { padding: 3rem 0 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="#">Mil<span>pa</span></a>
+      <nav>
+        <ul>
+          <li><a href="#funciones">Funciones</a></li>
+          <li><a href="#como-funciona">Cómo funciona</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1>Del campo a quien lo compra,<br>sin intermediarios</h1>
+        <p>
+          Milpa es el mercado digital agropecuario que conecta a pequeños y medianos
+          productores de frutas y cítricos de Nicaragua con compradores minoristas y
+          mayoristas: catálogo, chat, solicitudes de abastecimiento, matches y reputación.
+        </p>
+        <a class="cta" href="#funciones">Conocé la plataforma</a>
+      </div>
+    </section>
+
+    <section id="funciones">
+      <div class="container">
+        <h2 class="section-title">Funciones principales</h2>
+        <p class="section-sub">Todo lo que necesitás para vender o comprar cosecha en un solo lugar.</p>
+        <div class="grid">
+          <div class="card">
+            <span class="icon">🥕</span>
+            <h3>Catálogo con expiración</h3>
+            <p>Publicaciones con fecha de expiración y geolocalización, porque un cultivo fresco tiene caducidad.</p>
+          </div>
+          <div class="card">
+            <span class="icon">💬</span>
+            <h3>Chat directo</h3>
+            <p>Conversación directa entre comprador minorista y agricultor, y chat habilitado al confirmarse un match.</p>
+          </div>
+          <div class="card">
+            <span class="icon">🤝</span>
+            <h3>Solicitudes y ofertas</h3>
+            <p>Los mayoristas publican lo que necesitan; los agricultores ofertan con precio, cantidad y tiempo de entrega.</p>
+          </div>
+          <div class="card">
+            <span class="icon">⭐</span>
+            <h3>Match y reputación</h3>
+            <p>Comparador tipo Tinder con cercanía geográfica, precio y reputación; calificaciones mutuas al cerrar la transacción.</p>
+          </div>
+          <div class="card">
+            <span class="icon">📦</span>
+            <h3>Ofertas de liquidación</h3>
+            <p>El agricultor con excedente publica lotes a precio preferencial, con visibilidad opcional solo para mayoristas.</p>
+          </div>
+          <div class="card">
+            <span class="icon">📍</span>
+            <h3>Geolocalización</h3>
+            <p>Búsqueda por cercanía para reducir costos de transporte y comprar cosecha fresca de la zona.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="flows">
+      <div class="container">
+        <h2 class="section-title">Cómo funciona</h2>
+        <p class="section-sub">Tres flujos pensados para cada tipo de usuario.</p>
+
+        <div class="flow">
+          <span class="tag">Flujo 1</span>
+          <h3>Venta directa — Comprador Minorista ↔ Agricultor</h3>
+          <p>El minorista navega el catálogo, encuentra el producto y abre un chat directo con el agricultor. Sin match ni intermediación.</p>
+        </div>
+
+        <div class="flow">
+          <span class="tag">Flujo 2</span>
+          <h3>Abastecimiento — Comprador Mayorista → Agricultores</h3>
+          <p>El mayorista publica su solicitud; los agricultores ofertan. Se evalúa por cercanía, precio y reputación; al aceptar se genera el Match y se habilita el chat. Al finalizar, ambas partes se califican.</p>
+        </div>
+
+        <div class="flow">
+          <span class="tag">Flujo 3</span>
+          <h3>Liquidación — Agricultor → Compradores</h3>
+          <p>El agricultor publica un lote con excedente, decide si es para todos o solo para mayoristas, y asigna por orden de llegada o a su criterio.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>Milpa — Hackatón Nicaragua 2026</span>
+      <span><a href="privacy.html">Privacy Policy</a> · Contacto: <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a></span>
+    </div>
+  </footer>
+</body>
+</html>

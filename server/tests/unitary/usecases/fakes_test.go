@@ -29,14 +29,32 @@ var (
 	testAddressID           = uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	testUnitOfMeasureID     = uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 	testReviewTransactionID = uuid.MustParse("ffffffff-ffff-4fff-8fff-ffffffffffff")
+
+	testOtherCompanyID = uuid.MustParse("99999999-9999-4999-8999-999999999999")
 )
 
 func principalCtx() context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMinorista})
 }
 
 func principalCtxFor(userID uuid.UUID) context.Context {
-	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleMIPYME})
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMinorista})
+}
+
+func farmerCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleAgricultor})
+}
+
+func farmerCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleAgricultor})
+}
+
+func mayoristaCtx() context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: testUserID, Role: domain.RoleCompradorMayoristaDetallista})
+}
+
+func mayoristaCtxFor(userID uuid.UUID) context.Context {
+	return auth.WithPrincipal(context.Background(), auth.Principal{UserID: userID, Role: domain.RoleCompradorMayoristaDetallista})
 }
 
 func strPtr(s string) *string {
@@ -262,7 +280,18 @@ func newFakeCompanyRepo() *fakeCompanyRepo {
 		return company, nil
 	}
 	f.findByOwner = func(ctx context.Context, ownerID uuid.UUID) ([]domain.Company, error) {
-		return []domain.Company{*mustCompany()}, nil
+		company := mustCompany()
+		company.Owner = domain.User{ID: ownerID}
+		switch ownerID {
+		case testUserID:
+			return []domain.Company{*company}, nil
+		case testOtherID:
+			company.ID = testOtherCompanyID
+			company.Name = "Finca La Esperanza"
+			return []domain.Company{*company}, nil
+		default:
+			return nil, nil
+		}
 	}
 	f.save = func(ctx context.Context, company *domain.Company) error {
 		f.saved = append(f.saved, company)
@@ -350,6 +379,7 @@ func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
 type fakeReviewRepo struct {
 	findByCompany  func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	findByUser     func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)
+	findByTarget   func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error)
 	save           func(ctx context.Context, review *domain.Review) error
 	averageRating  func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error)
 	existsByTxAuth func(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error)
@@ -363,6 +393,9 @@ func newFakeReviewRepo() *fakeReviewRepo {
 		return []domain.Review{*mustReview()}, nil
 	}
 	f.findByUser = func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
+		return []domain.Review{*mustReview()}, nil
+	}
+	f.findByTarget = func(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
 		return []domain.Review{*mustReview()}, nil
 	}
 	f.save = func(ctx context.Context, review *domain.Review) error {
@@ -393,6 +426,10 @@ func (f *fakeReviewRepo) FindByCompany(ctx context.Context, companyID uuid.UUID)
 
 func (f *fakeReviewRepo) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
 	return f.findByUser(ctx, userID)
+}
+
+func (f *fakeReviewRepo) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+	return f.findByTarget(ctx, targetType, targetID)
 }
 
 func (f *fakeReviewRepo) Save(ctx context.Context, review *domain.Review) error {
@@ -721,6 +758,20 @@ func farmerAt(latitude, longitude float64) *fakeUserRepo {
 		user.ID = id
 		user.Address.Latitude = latitude
 		user.Address.Longitude = longitude
+		return user, nil
+	}
+	return repo
+}
+
+func newFakeFarmerUserRepo() *fakeUserRepo {
+	repo := newFakeUserRepo()
+	byID := repo.findByID
+	repo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		user, err := byID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		user.Role = domain.RoleAgricultor
 		return user, nil
 	}
 	return repo

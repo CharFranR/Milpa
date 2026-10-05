@@ -94,7 +94,7 @@ func TestCatalogueWritesRefuseANonAdmin(t *testing.T) {
 			router, repo := newCatalogueRouter(t)
 
 			req := httptest.NewRequest(verb.method, verb.path, strings.NewReader(verb.body))
-			req.Header.Set("Authorization", "Bearer "+piiToken(catalogueAdminID, domain.RoleProvider))
+			req.Header.Set("Authorization", "Bearer "+piiToken(catalogueAdminID, domain.RoleAgricultor))
 			req.Header.Set("Content-Type", "application/json")
 
 			rr := httptest.NewRecorder()
@@ -215,7 +215,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 	offeringRepo := &ownershipOfferingRepo{offering: offeringWithLocation()}
 	uc := usecases.NewOfferingUseCase(
 		offeringRepo,
-		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleProvider}},
+		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleAgricultor}},
 		ownershipClock{},
 		ownershipSearch{},
 		ownershipInvalidator{},
@@ -239,7 +239,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPatch, path, nil)
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleAgricultor))
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusForbidden {
@@ -247,7 +247,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodPatch, path, nil)
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleAgricultor))
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {

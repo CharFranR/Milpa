@@ -27,7 +27,7 @@ func catalogueAdminContext() context.Context {
 func catalogueFarmerContext() context.Context {
 	return auth.WithPrincipal(context.Background(), auth.Principal{
 		UserID: uuid.MustParse("88888888-8888-8888-8888-888888888888"),
-		Role:   domain.RoleProvider,
+		Role:   domain.RoleAgricultor,
 	})
 }
 

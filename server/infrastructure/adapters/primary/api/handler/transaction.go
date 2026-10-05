@@ -111,7 +111,8 @@ func handleTransactionError(w http.ResponseWriter, err error) {
 		errors.Is(err, domain.ErrAlreadyConfirmed),
 		errors.Is(err, domain.ErrInvalidMatchStatus),
 		errors.Is(err, domain.ErrInvalidRequestStatus),
-		errors.Is(err, domain.ErrInvalidOfferStatus):
+		errors.Is(err, domain.ErrInvalidOfferStatus),
+		errors.Is(err, domain.ErrInsufficientAmount):
 		respondError(w, http.StatusConflict, err.Error())
 	default:
 		handleError(w, err)

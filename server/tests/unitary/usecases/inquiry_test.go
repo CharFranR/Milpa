@@ -40,7 +40,7 @@ func TestInquiryUseCaseCreateInquiry(t *testing.T) {
 					return tt.saveErr
 				}
 			}
-			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeTimer())
+			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeOfferingRepo(), newFakeTimer())
 
 			got, err := uc.CreateInquiry(tt.ctx, dto.CreateInquiryRequest{OfferingID: tt.offeringID, Message: tt.message})
 
@@ -115,7 +115,7 @@ func TestInquiryUseCaseGetByID(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeTimer())
+			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeOfferingRepo(), newFakeTimer())
 
 			got, err := uc.GetByID(context.Background(), testInquiryID)
 
@@ -193,7 +193,7 @@ func TestInquiryUseCaseGetByUser(t *testing.T) {
 					return tt.inquiries, nil
 				}
 			}
-			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeTimer())
+			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeOfferingRepo(), newFakeTimer())
 
 			got, err := uc.GetByUser(context.Background(), testUserID)
 
@@ -233,6 +233,7 @@ func TestInquiryUseCaseUpdateInquiry(t *testing.T) {
 
 	tests := []struct {
 		name       string
+		ctx        context.Context
 		status     *domain.InquiryStatus
 		repoErr    error
 		wantErr    error
@@ -245,6 +246,7 @@ func TestInquiryUseCaseUpdateInquiry(t *testing.T) {
 		{name: "invalid status", status: inquiryStatusPtr(domain.InquiryStatus(99)), wantErr: domain.ErrInvalidInput},
 		{name: "repo error", status: inquiryStatusPtr(domain.InquiryRead), repoErr: errFake, wantErr: errFake},
 		{name: "not found", status: inquiryStatusPtr(domain.InquiryRead), repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "forbidden for unrelated user", ctx: principalCtxFor(testOtherID), status: inquiryStatusPtr(domain.InquiryRead), wantErr: domain.ErrForbidden},
 	}
 
 	for _, tt := range tests {
@@ -257,9 +259,14 @@ func TestInquiryUseCaseUpdateInquiry(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeTimer())
+			uc := usecases.NewInquiryUseCase(inquiryRepo, newFakeOfferingRepo(), newFakeTimer())
 
-			err := uc.UpdateInquiry(context.Background(), testInquiryID, dto.UpdateInquiryRequest{Status: tt.status})
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = principalCtx()
+			}
+
+			err := uc.UpdateInquiry(ctx, testInquiryID, dto.UpdateInquiryRequest{Status: tt.status})
 
 			if tt.wantErr != nil {
 				if err == nil {

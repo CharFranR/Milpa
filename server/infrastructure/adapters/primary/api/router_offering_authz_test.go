@@ -154,7 +154,7 @@ func newOwnershipRouter(t *testing.T) (http.Handler, *ownershipOfferingRepo) {
 	repo := &ownershipOfferingRepo{offering: offering}
 	uc := usecases.NewOfferingUseCase(
 		repo,
-		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleProvider}},
+		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleAgricultor}},
 		ownershipClock{},
 		ownershipSearch{},
 		ownershipInvalidator{},
@@ -187,7 +187,7 @@ func TestOfferingMutationRefusesForeignUser(t *testing.T) {
 	router, repo := newOwnershipRouter(t)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String(), strings.NewReader(`{"name":"Hijacked"}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -207,7 +207,7 @@ func TestOfferingMutationAllowsOwner(t *testing.T) {
 	router, repo := newOwnershipRouter(t)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String(), strings.NewReader(`{"name":"Renamed"}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -249,7 +249,7 @@ func TestOfferingMutationUnknownIDIsNotFound(t *testing.T) {
 	router, repo := newOwnershipRouter(t)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+uuid.NewString(), strings.NewReader(`{"name":"Whatever"}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -270,7 +270,7 @@ func TestOfferingRenewReachesTheOwner(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
 		strings.NewReader(`{"expires_at":"2026-09-30T10:00:00Z"}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -299,7 +299,7 @@ func TestOfferingRenewRefusesForeignUser(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
 		strings.NewReader(`{"expires_at":"2026-09-30T10:00:00Z"}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(intruderID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -340,7 +340,7 @@ func TestOfferingRenewRejectsAMissingDate(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/offerings/"+ownerOfferingID.String()+"/renew",
 		strings.NewReader(`{}`))
-	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleProvider))
+	req.Header.Set("Authorization", "Bearer "+ownershipToken(ownerFarmerID, domain.RoleAgricultor))
 	req.Header.Set("Content-Type", "application/json")
 
 	rr := httptest.NewRecorder()

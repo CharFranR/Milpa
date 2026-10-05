@@ -1,12 +1,12 @@
 # Milpa API Reference
 
-Milpa is a marketplace API that connects agricultural producers (MIPYMEs) with buyers: users publish **offerings**, buyers open **inquiries** and **conversations**, suppliers publish **liquidations** (open purchase requests), and admins moderate **reports**. The service is a Go HTTP API built on `chi/v5` with hexagonal architecture. Every route below is served under the version prefix **`/api/v1`**; for local development the base URL is:
+Milpa is a marketplace API that connects agricultural producers (role `1` **agricultor**) with buyers (roles `2`–`4` **comprador**): farmers publish **offerings** and **liquidations** (open purchase requests), buyers open **inquiries** and **conversations**, admins (role `5`) moderate **reports**, and auditors (role `6`) read without being able to write. The service is a Go HTTP API built on `chi/v5` with hexagonal architecture. Every route below is served under the version prefix **`/api/v1`**; for local development the base URL is:
 
 ```
 http://localhost:8080/api/v1
 ```
 
-This document is derived from the authoritative route table in `server/infrastructure/adapters/primary/api/router.go` (70 registrations / 69 distinct routes; 65 registered inside `NewRouter` and 5 by the separate `RegisterTransactionRoutes` entry point).
+This document is derived from the authoritative route table in `server/infrastructure/adapters/primary/api/router.go` (80 registrations / 79 distinct routes; 75 registered inside `NewRouter` and 5 by the separate `RegisterTransactionRoutes` entry point).
 
 ---
 
@@ -49,7 +49,7 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
 }
 ```
 
-`role` must be `1` (MIPYME) or `2` (Provider); `0` and `3` are rejected with `400 invalid input`.
+`role` must be `1` (agricultor), `2` (comprador_minorista), `3` (comprador_mayorista_detallista) or `4` (comprador_mayorista_corporativo); `0` (pending), `5` (admin), `6` (auditor) and any value outside `1`–`4` are rejected with `400 invalid input`.
 
 ### 2. Log in
 
@@ -88,7 +88,7 @@ curl -s -X POST http://localhost:8080/api/v1/companies/ \
 
 ### The supply chain, end to end
 
-The supply-chain surface is a multi-step sequence between two accounts, so it is worth walking through once. `BUYER` and `SUPPLIER` below are two different tokens; the roles do not gate the routes, ownership does.
+The supply-chain surface is a multi-step sequence between two accounts, so it is worth walking through once. `BUYER` and `SUPPLIER` below are two different tokens with two different roles: opening a request requires a mayorista buyer (`3` or `4`) and offering on one requires `1` (agricultor), so anyone else is refused with `403` before ownership is even considered. Within a role, ownership still gates the routes.
 
 **1. The buyer opens a request** — `POST /api/v1/supply-requests/`, as `BUYER`:
 
@@ -179,12 +179,13 @@ If the deal falls apart instead, `POST /api/v1/transactions/{transaction_id}/can
 
 **Header format:** exactly `Bearer ` (uppercase `B`, single space) followed by the raw JWT. Any other scheme results in `401 {"error":"missing or invalid authorization header"}`. An expired/tampered JWT results in `401 {"error":"invalid or expired token"}`.
 
-**Public vs. protected:** routes marked *Public* in the tables need no header. Protected routes run two middlewares in order:
+**Public vs. protected:** routes marked *Public* in the tables need no header. Protected routes run three middlewares in order:
 
 1. `Authenticate` — parses the header, validates the JWT, and puts the principal (`user_id` + `role`) into the request context.
 2. `CheckSuspension` — reloads the user; if the account is suspended it short-circuits with `403` and the body `{"error":"your account has been suspended"}` (note: written through `http.Error`, so the `Content-Type` is `text/plain; charset=utf-8`, not JSON).
+3. `CheckReadOnly` — refuses every state-changing method (`POST`, `PATCH`, `PUT`, `DELETE`) when the principal's role is `6` (auditor), answering `403 {"error":"an auditor has read-only access"}`; `GET`, `HEAD` and `OPTIONS` pass through. It is wired into every authenticated route group, including the transaction routes. The `GET /ws/{conversationID}` handshake runs no middleware, but the handler rejects an auditor itself with the same `403`, before it even parses the conversation id.
 
-**Role checks live in the use cases, not the router.** Several routes accept any authenticated user but return `403 {"error":"forbidden"}` for the wrong role (admin-only) or the wrong ownership/participant relationship.
+**Role checks live in the use cases, not the router.** Several routes accept any authenticated user but return `403 {"error":"forbidden"}` for the wrong role (admin-only, or the role guards below) or the wrong ownership/participant relationship. The role guards are: supply request create/update/cancel/expire → mayorista only (`3`/`4`); supply offer, liquidation, offering and inventory mutations → `agricultor` only (`1`); `matches/like` + `matches/pass` and conversation create → any comprador (`2`–`4`), with a conversation's `farmer_id` required to be an `agricultor`; report list + resolve, suspend, offering delete, audit logs and role assignment → `admin` (`5`).
 
 ### WebSocket authentication
 
@@ -243,6 +244,7 @@ Exactly one key. Malformed JSON always yields `{"error":"invalid request body"}`
 | `domain.ErrUnauthorized` (wrong password) | 401 | `{"error":"unauthorized"}` |
 | Suspended account (suspension middleware) | 403 | `{"error":"your account has been suspended"}` |
 | `domain.ErrForbidden` (role/ownership/participant) | 403 | `{"error":"forbidden"}` |
+| Auditor (role `6`) on a state-changing method | 403 | `{"error":"an auditor has read-only access"}` |
 | `domain.ErrNotFound` | 404 | `{"error":"resource not found"}` |
 | `domain.ErrDuplicate` / `ErrEmailTaken` | 409 | `{"error":"email already registered"}` |
 | `domain.ErrInvalidRequestStatus` / `ErrInvalidOfferStatus` / `ErrInvalidMatchStatus` | 409 | `{"error":"invalid supply request status"}` |
@@ -251,6 +253,8 @@ Exactly one key. Malformed JSON always yields `{"error":"invalid request body"}`
 | `domain.ErrInvalidTransactionTransition` / `ErrAlreadyConfirmed` / `ErrTerminalState` | 409 | `{"error":"participant has already confirmed"}` |
 | Validation errors (`httpx.IsValidationError` list) | 400 | `{"error":"rating must be between 1 and 5"}` |
 | Handler-level input checks (bad UUID, blank field, unparsable body) | 400 | `{"error":"invalid user id"}`, `{"error":"email: cannot be blank"}` |
+| Review guards (`ErrTransactionRequired`, `ErrReviewTargetPartyMismatch`, `ErrInvalidReviewTargetType`, `ErrReviewTargetMismatch`) | 400 | the sentinel's own message |
+| `ErrTransactionNotCompleted`, `ErrReviewAlreadyExists` | 409 | the sentinel's own message |
 | Everything else (unknown/`fmt.Errorf` errors) | 500 | `{"error":"internal server error"}` (message logged server-side) |
 
 > The supply-chain handlers do not rely on that table alone: `handleSupplyError` and `handleMatchError` pre-empt `409` for the sentinels above before delegating, and `handleTransactionError` has its own 409 set. That is why an out-of-order state machine step is a `409` and not a `500`. Two consequences worth knowing: the transaction handler's 409 set does **not** include `ErrInsufficientAmount`, and `repository.ErrAmountConstraint` is in no list at all, so both fall through to `500` if they ever reach the boundary. The messages in the 409 rows are the sentinel's own text; the use cases usually wrap them with detail (`"insufficient amount: offer total amount exceeds the remaining amount of the supply request"`).
@@ -276,7 +280,7 @@ Configured in `router.go`:
 
 | Field | Values |
 |---|---|
-| `role` | `0` pending, `1` MIPYME, `2` Provider, `3` admin (register accepts `1`/`2` only) |
+| `role` | `0` pending, `1` agricultor, `2` comprador_minorista, `3` comprador_mayorista_detallista, `4` comprador_mayorista_corporativo, `5` admin, `6` auditor (register accepts `1`–`4` only) |
 | `type` (offering) | `0` product, `1` service |
 | `status` (inquiry) | `0` pending, `1` read, `2` replied, `3` closed |
 | `status` (liquidation) | `0` open, `1` closed, `2` expired, `3` assigned |
@@ -292,21 +296,21 @@ Configured in `router.go`:
 
 ## Endpoint reference
 
-Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspension check; **Bearer (WS)** = subprotocol/header token + suspension check.
+Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspension check + auditor read-only check; **Bearer (WS)** = subprotocol/header token + suspension check.
 
 ### Auth
 
 | Route | Auth | Request | Success | Notable statuses |
 |---|---|---|---|---|
-| `POST /api/v1/auth/register` | Public | JSON: `email`, `first_name`, `last_name`, `password`, `confirm_password`, `role` (1\|2); optional `address`, `phone_number` | `201` → `UserDTO` | `400` blank field / bad role / password mismatch / bad body; `409` email taken |
+| `POST /api/v1/auth/register` | Public | JSON: `email`, `first_name`, `last_name`, `password`, `confirm_password`, `role` (1–4), `phone_number`; optional `address`, `department`, `municipality` | `201` → `PrivateUserDTO` | `400` blank field / missing phone / bad role (`0`, `5`, `6` or outside `1`–`4`) / password mismatch / bad body; `409` email taken |
 | `POST /api/v1/auth/login` | Public | JSON: `email`, `password` | `200` → `{access_token, expires_in, user}` | `400` blank field/bad body; `404` unknown email; `401` wrong password |
 
 ### Users
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/users/{id}` | Public | path `id` (uuid) | `200` → `UserDTO` | `400` invalid uuid; `404` |
-| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `GET /api/v1/users/{id}` | Public | path `id` (uuid). Self or admin receive the private contact card; everyone else the public profile | `200` → `PrivateUserDTO` or `PublicUserDTO` | `400` invalid uuid; `404` |
+| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
 
 ### Categories
 
@@ -331,19 +335,23 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 |---|---|---|---|---|
 | `GET /api/v1/offerings/{id}` | Public | path `id` (uuid) | `200` → `OfferingDTO` | `400`; `404` |
 | `GET /api/v1/offerings/` | Public | query `user_id` (uuid, required) | `200` → `[OfferingDTO]` | `400` invalid `user_id` |
-| `POST /api/v1/offerings/` | Bearer | JSON: `user_id` (must equal token user), `name`, `type` (0\|1), `price`; optional `description`, `image_url` | `201` → `OfferingDTO` | `400` blank `user_id`/`name`; `403` `user_id` ≠ token user; `404` unknown user |
-| `POST /api/v1/offerings/create2/` | Bearer | `multipart/form-data`: `user_id`, `type`, `name`, `price`, optional `description`, optional file `image_url` (≤ 10 MB) | `201` → `OfferingDTO` | `400` unparsable `user_id`/`type`/`price`, upload failure |
-| `PATCH /api/v1/offerings/{id}` | Bearer | path `id` only — **this path is registered twice and the second handler (`DeleteOffering`) wins** | `200` `{}` (offering deleted) | `400` invalid uuid (handler keeps writing after the error); `404` |
+| `POST /api/v1/offerings/` | Bearer | JSON: `user_id` (must equal token user), `name`, `type` (0\|1), `price`; optional `description`, `image_url` | `201` → `OfferingDTO` | `400` blank `user_id`/`name`; `403` caller not `agricultor`, or `user_id` ≠ token user; `404` unknown user |
+| `POST /api/v1/offerings/create2/` | Bearer | `multipart/form-data`: `user_id`, `type`, `name`, `price`, optional `description`, optional file `image_url` (≤ 10 MB) | `201` → `OfferingDTO` | `400` unparsable `user_id`/`type`/`price`, upload failure; `403` caller not `agricultor` |
+| `PATCH /api/v1/offerings/{id}/status` | Bearer | path `id` — deactivates the offering | `200` → `OfferingDTO` | `400` invalid uuid; `403` caller not `agricultor`, or not the owner; `404` |
+| `PATCH /api/v1/offerings/{id}/renew` | Bearer | path `id`; JSON: `expires_at` (required, non-blank) | `200` → `OfferingDTO` | `400` invalid uuid / bad body / blank `expires_at`; `403` caller not `agricultor`, or not the owner; `404` |
+| `PATCH /api/v1/offerings/{id}` | Bearer | path `id` only — **this path is registered twice and the second handler (`DeleteOffering`) wins** | `200` `{}` (offering deleted) | `400` invalid uuid (handler keeps writing after the error); `403` caller not `agricultor`, or not the owner; `404` |
 
-> The intended update handler is registered first and is unreachable — see the notes.
+> Every offering mutation (create, create2, `status`, `renew`, and the `PATCH` above, which deletes) requires role `1` (**agricultor**) *and*, except on create, ownership of the offering — `403 {"error":"forbidden"}` otherwise. The intended update handler is registered first and is unreachable — see the notes.
 
 ### Reviews
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid). `user_id` lists reviews **authored by** that user | `200` → `[ReviewDTO]` | `400` missing both / invalid uuid |
+| `GET /api/v1/reviews/` | Public | query `company_id` **or** `user_id` (uuid; lists reviews **authored by** that user) **or** `target_type` + `target_id` (lists reviews **received by** that target) | `200` → `[ReviewDTO]` | `400` missing all / invalid uuid / unknown `target_type` |
 | `GET /api/v1/reviews/average` | Public | query `target_type` (`company`\|`user`) and `target_id` (uuid) | `200` → `ReviewAverageDTO` | `400` unknown `target_type` / invalid `target_id` |
-| `POST /api/v1/reviews/` | Bearer | JSON: `rating` (1–5, required), `comment`, and **exactly one** of `company_id` (review a company) or `target_type` + `target_id` (review anyone). Author = token user | `201` → `ReviewDTO` | `400` neither form / both forms / unknown `target_type` / rating out of range / rating yourself |
+| `POST /api/v1/reviews/` | Bearer | JSON: `rating` (1–5, required), `comment`, `transaction_id` (uuid, required — the transaction being reviewed), and **exactly one** of `company_id` (review a company) or `target_type` + `target_id` (review the other party). Author = token user | `201` → `ReviewDTO` | `400` neither form / rating out of range / bad body; `403` caller is not a party of the transaction; `404` unknown transaction; `500` missing `transaction_id`, transaction not completed, target ≠ other party, company target not owned by the other party, unknown `target_type`, both forms at once, or a second review of the same transaction by this author |
+
+> A review is tied to a **completed** transaction: `transaction_id` is required, the transaction must be `status: 2`, the caller must be its buyer or its supplier, a `user` target must be the *other* party of that transaction, and a `company` target must be a company owned by the other party — never one of your own. One review per transaction per author. Those guards are unmapped sentinels, so they answer `500` with the real message logged server-side (see the status-code table); only "not a party" (`403`) and "unknown transaction" (`404`) map cleanly.
 
 ### Inquiries
 
@@ -357,19 +365,19 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 
 ### Supply requests
 
-Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspension` chain, so the Auth column is `Bearer` throughout; ownership is then checked in the use case, not the router.
+Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspension` + `CheckReadOnly` chain, so the Auth column is `Bearer` throughout. **Mutations require a mayorista buyer:** `POST /`, the three `PATCH` routes, `cancel` and `expire` all answer `403 {"error":"forbidden"}` unless the caller holds role `3` or `4` — ownership is checked after that, in the use case, not the router. The `GET` routes only require a token.
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/supply-requests/` | Bearer | — (requests whose `buyer_id` is the token user, all statuses) | `200` → `[SupplyRequestDTO]` | `401`; `403` suspended |
-| `POST /api/v1/supply-requests/` | Bearer | JSON: `product_name` (required, non-blank), `total_amount` (required, > 0); optional `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider`. Buyer = token user | `201` → `SupplyRequestDTO` | `400` blank `product_name`, `total_amount <= 0`, `request_deadline` after `delivery_deadline`, bad body; `401`; `403` suspended |
+| `POST /api/v1/supply-requests/` | Bearer | JSON: `product_name` (required, non-blank), `total_amount` (required, > 0); optional `amount_unit`, `number_of_units`, `amount_per_unit`, `unit_of_measure`, `address`, `request_deadline`, `delivery_deadline`, `description`, `multiple_providers`, `min_amount_per_provider`. Buyer = token user | `201` → `SupplyRequestDTO` | `400` blank `product_name`, `total_amount <= 0`, `request_deadline` after `delivery_deadline`, bad body; `401`; `403` suspended, or caller not mayorista (`3`/`4`) |
 | `GET /api/v1/supply-requests/available` | Bearer | — (open requests from *other* buyers with `actual_amount > 0`, minus any the caller already offered on) | `200` → `[SupplyRequestDTO]` | `401`; `403` suspended |
 | `GET /api/v1/supply-requests/{id}` | Bearer | path `id` (uuid) — any authenticated user, no ownership check | `200` → `SupplyRequestDTO` | `400` invalid uuid; `404` |
-| `PATCH /api/v1/supply-requests/{id}` | Bearer | path `id`; JSON: `SupplyGeneralUpdateDTO` — `product_name` and `total_amount` are **required** (the handler overwrites every other field, so omitting one zeroes it) | `200` `{}` | `400` validation; `403` not the buyer; `404`; `409` request not open |
-| `PATCH /api/v1/supply-requests/{id}/amounts` | Bearer | path `id`; JSON: `SupplyUpdateAmountsDTO` — `total_amount` (required, > 0), `actual_amount` (required, 0…`total_amount`) | `200` `{}` | `400` `actual_amount` out of range; `403` not the buyer; `404`; `409` request not open |
-| `PATCH /api/v1/supply-requests/{id}/deadlines` | Bearer | path `id`; JSON: `SupplyUpdateTimeDTO` — `request_deadline`, `delivery_deadline` | `200` `{}` | `400` `request_deadline` after `delivery_deadline`; `403` not the buyer; `404`; `409` request not open |
-| `POST /api/v1/supply-requests/{id}/cancel` | Bearer | path `id`; no body | `200` `{}` | `403` not the buyer; `404`; `409` not open, or an active match exists |
-| `POST /api/v1/supply-requests/{id}/expire` | Bearer | path `id`; no body | `200` `{}` | `403` not the buyer; `404`; `409` not open, or an active match exists |
+| `PATCH /api/v1/supply-requests/{id}` | Bearer | path `id`; JSON: `SupplyGeneralUpdateDTO` — `product_name` and `total_amount` are **required** (the handler overwrites every other field, so omitting one zeroes it) | `200` `{}` | `400` validation; `403` caller not mayorista, or not the buyer; `404`; `409` request not open |
+| `PATCH /api/v1/supply-requests/{id}/amounts` | Bearer | path `id`; JSON: `SupplyUpdateAmountsDTO` — `total_amount` (required, > 0), `actual_amount` (required, 0…`total_amount`) | `200` `{}` | `400` `actual_amount` out of range; `403` caller not mayorista, or not the buyer; `404`; `409` request not open |
+| `PATCH /api/v1/supply-requests/{id}/deadlines` | Bearer | path `id`; JSON: `SupplyUpdateTimeDTO` — `request_deadline`, `delivery_deadline` | `200` `{}` | `400` `request_deadline` after `delivery_deadline`; `403` caller not mayorista, or not the buyer; `404`; `409` request not open |
+| `POST /api/v1/supply-requests/{id}/cancel` | Bearer | path `id`; no body | `200` `{}` | `403` caller not mayorista, or not the buyer; `404`; `409` not open, or an active match exists |
+| `POST /api/v1/supply-requests/{id}/expire` | Bearer | path `id`; no body | `200` `{}` | `403` caller not mayorista, or not the buyer; `404`; `409` not open, or an active match exists |
 
 > Both amount-changing routes are additionally clamped against the amount already committed by active matches: `total_amount` may not drop below it, and `actual_amount` may not reach into it (`409 insufficient amount`). The three `PATCH` routes are not a full replacement — `Update` rewrites the whole row, `UpdateAmounts` and `UpdateDeadlines` touch only their own columns.
 
@@ -378,27 +386,37 @@ Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspe
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/supply-offers/` | Bearer | — (offers whose `supplier_id` is the token user, all statuses) | `200` → `[SupplyOfferDTO]` | `401`; `403` suspended |
-| `POST /api/v1/supply-offers/` | Bearer | JSON: `supply_request_id` (required, uuid), `total_amount` (required, > 0), `price_per_unit` (required, > 0 — RF-11); optional `measurement`, `comments`, `delivery_day`, `delivery_available`. Supplier = token user | `201` → `SupplyOfferDTO` | `400` missing request id / `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `401`; `403` offering on your own request; `404` unknown request; `409` request not open, duplicate offer from this supplier, active match on a single-provider request, or offer above the remaining amount |
+| `POST /api/v1/supply-offers/` | Bearer | JSON: `supply_request_id` (required, uuid), `total_amount` (required, > 0), `price_per_unit` (required, > 0 — RF-11); optional `measurement`, `comments`, `delivery_day`, `delivery_available`. Supplier = token user | `201` → `SupplyOfferDTO` | `400` missing request id / `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `401`; `403` caller not `agricultor`, or offering on your own request; `404` unknown request; `409` request not open, duplicate offer from this supplier, active match on a single-provider request, or offer above the remaining amount |
 | `GET /api/v1/supply-offers/requests/{request_id}` | Bearer | path `request_id` (uuid) — **rejected offers are filtered out** | `200` → `[SupplyOfferDTO]` | `400` invalid uuid; `403` not the request's buyer; `404` |
 | `GET /api/v1/supply-offers/{id}` | Bearer | path `id` (uuid) — visible to the offer's supplier **or** the buyer of the underlying request | `200` → `SupplyOfferDTO` | `400` invalid uuid; `403` neither party; `404` |
-| `PATCH /api/v1/supply-offers/{id}` | Bearer | path `id`; JSON: `SupplyOfferUpdateDTO` — `total_amount` (required, > 0), `price_per_unit` (required, > 0), `measurement`, `comments`, `delivery_day`, `delivery_available` | `200` `{}` | `400` `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `403` not the supplier; `404`; `409` offer not active, or amount above the request's remaining amount |
-| `POST /api/v1/supply-offers/{id}/withdraw` | Bearer | path `id`; no body | `200` `{}` | `403` not the supplier; `404`; `409` offer not active |
+| `PATCH /api/v1/supply-offers/{id}` | Bearer | path `id`; JSON: `SupplyOfferUpdateDTO` — `total_amount` (required, > 0), `price_per_unit` (required, > 0), `measurement`, `comments`, `delivery_day`, `delivery_available` | `200` `{}` | `400` `total_amount <= 0` / missing or `price_per_unit <= 0` / below `min_amount_per_provider`; `403` caller not `agricultor`, or not the supplier; `404`; `409` offer not active, or amount above the request's remaining amount |
+| `POST /api/v1/supply-offers/{id}/withdraw` | Bearer | path `id`; no body | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404`; `409` offer not active |
 
-> One offer per supplier per request: a second `POST` on the same pair is `409 resource already exists`. The JSON keys here are the crossed ones — `measurement` (not `amount_unit`) and `delivery_day` (not `proposed_delivery_day`) — unlike the supply request DTOs, which were corrected. See the notes.
+> Creating, updating and withdrawing an offer all require role `1` (**agricultor**): any other role is `403 {"error":"forbidden"}` before ownership is considered. One offer per supplier per request: a second `POST` on the same pair is `409 resource already exists`. The JSON keys here are the crossed ones — `measurement` (not `amount_unit`) and `delivery_day` (not `proposed_delivery_day`) — unlike the supply request DTOs, which were corrected. See the notes.
 
 ### Matches
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `POST /api/v1/matches/like/{offerID}` | Bearer | path `offerID` (uuid) — the buyer of the offer's request, no body | `201` → `MatchCreatedDTO` (`{match, transaction}`) | `400` invalid uuid; `403` not the request's buyer; `404` unknown offer; `409` offer not actionable, request not open, offer already matched, or amount above the remaining amount |
-| `POST /api/v1/matches/pass/{offerID}` | Bearer | path `offerID` (uuid) — the buyer, no body | `200` `{}` | `400` invalid uuid; `403` not the request's buyer; `404`; `409` offer not actionable |
+| `POST /api/v1/matches/like/{offerID}` | Bearer | path `offerID` (uuid) — the buyer of the offer's request, no body | `201` → `MatchCreatedDTO` (`{match, transaction}`) | `400` invalid uuid; `403` caller not comprador (`2`–`4`), or not the request's buyer; `404` unknown offer; `409` offer not actionable, request not open, offer already matched, or amount above the remaining amount |
+| `POST /api/v1/matches/pass/{offerID}` | Bearer | path `offerID` (uuid) — the buyer, no body | `200` `{}` | `400` invalid uuid; `403` caller not comprador (`2`–`4`), or not the request's buyer; `404`; `409` offer not actionable |
 | `GET /api/v1/matches/requests/{requestID}` | Bearer | path `requestID` (uuid) — buyer only | `200` → `[MatchDTO]` | `400` invalid uuid; `403` not the buyer; `404` |
 | `GET /api/v1/matches/requests/{requestID}/prioritized` | Bearer | path `requestID` (uuid) — buyer only | `200` → `[PrioritizedOfferDTO]` (actionable offers, ranked) | `400` invalid uuid; `403` not the buyer; `404` |
 | `GET /api/v1/matches/{matchID}` | Bearer | path `matchID` (uuid) — buyer of the request or the matched supplier | `200` → `MatchDTO` | `400` invalid uuid; `403` neither party; `404` |
 
-> `like` is the only place a match *and* its transaction are created, and it does so as one unit of work: reservation, match, transaction and offer status all become visible or none do. On a `multiple_providers: false` request it is also the last one — the competing offers on that request are rejected in the same transaction. The `transaction` inside `MatchCreatedDTO` is a partial DTO (only `id`, `match_id`, `status`; every timestamp is `null` and `history` is `null`); read the full one from `GET /api/v1/transactions/matches/{match_id}`.
+> `like` is the only place a match *and* its transaction are created, and it does so as one unit of work: reservation, match, transaction, offer status and the post-match conversation all become visible or none do. That conversation is created automatically in the same transaction, linking the request's buyer and the offer's supplier through `match_id` (its `offering_id` is the zero uuid) — see Conversations. On a `multiple_providers: false` request the `like` is also the last one — the competing offers on that request are rejected in the same transaction. The `transaction` inside `MatchCreatedDTO` is a partial DTO (only `id`, `match_id`, `status`; every timestamp is `null` and `history` is `null`); read the full one from `GET /api/v1/transactions/matches/{match_id}`.
 
 `PrioritizedOfferDTO` is ordered by `score` descending, then by the offer's `created_at` ascending, then by id. The only configured factor is `availability` at weight `1` (`recommendation.go`, `DefaultScoreFactors`), so `score` currently equals `available_quantity`.
+
+### Inventory
+
+Per-supplier stock rows, read through `GET /api/v1/recommendations/availability`.
+
+| Route | Auth | Params / body | Success | Notable statuses |
+|---|---|---|---|---|
+| `GET /api/v1/inventory/` | Bearer | — (the token user's own rows) | `200` → `[SupplierInventoryDTO]` | `401`; `403` suspended |
+| `PUT /api/v1/inventory/` | Bearer | JSON: `product_name` (required, non-blank), `quantity`, `measurement` (0\|1\|2). Supplier = token user — creates the row if the product is new, otherwise updates it | `200` → `SupplierInventoryDTO` | `400` blank `product_name` / `quantity <= 0` / unknown `measurement` / bad body; `401`; `403` caller not `agricultor` |
+| `DELETE /api/v1/inventory/{id}` | Bearer | path `id` (uuid) | `204` (body written as `{}`) | `400` invalid uuid; `403` caller not `agricultor`, or not the owner; `404` |
 
 ### Recommendations
 
@@ -429,9 +447,11 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 | `GET /api/v1/liquidations/open` | Public | — (matches before `{id}`) | `200` → `[LiquidationDTO]` (status open) | `500` |
 | `GET /api/v1/liquidations/` | Public | query `supplier_id` (uuid, required) | `200` → `[LiquidationDTO]` | `400` invalid `supplier_id` |
 | `GET /api/v1/liquidations/{id}` | Public | path `id` (uuid) | `200` → `LiquidationDTO` | `400`; `404` |
-| `POST /api/v1/liquidations/` | Bearer | JSON: `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price` (all required); optional `delivery_time`, `location_id`, `visibility`, `expires_at`. Supplier = token user | `201` → `LiquidationDTO` | `400` blank field; `401`; `403` |
-| `PATCH /api/v1/liquidations/{id}` | Bearer | path `id`; JSON (all optional): `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `expires_at` | `200` `{}` | `403` if not supplier; `404`; `500` if not open / invalid quantity |
-| `DELETE /api/v1/liquidations/{id}` | Bearer | path `id` | `200` `{}` | `403` if not supplier; `404` |
+| `POST /api/v1/liquidations/` | Bearer | JSON: `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price` (all required); optional `delivery_time`, `location_id`, `visibility`, `expires_at`. Supplier = token user | `201` → `LiquidationDTO` | `400` blank field; `401`; `403` caller not `agricultor` |
+| `PATCH /api/v1/liquidations/{id}` | Bearer | path `id`; JSON (all optional): `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `expires_at` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404`; `500` if not open / invalid quantity |
+| `DELETE /api/v1/liquidations/{id}` | Bearer | path `id` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404` |
+
+> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own restricted rows and mayorista callers (`3`/`4`) see them; anonymous callers still get only `visibility: "public"` rows, and a restricted one answers `404` on `GET /{id}`.
 
 ### Reports
 
@@ -445,11 +465,13 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/conversations/` | Bearer | — (returns conversations where the token user is farmer or buyer) | `200` → `[ConversationDTO]` | `401`; `403` |
-| `POST /api/v1/conversations/` | Bearer | JSON: `farmer_id` (uuid), `offering_id` (uuid). Buyer = token user | `201` → `ConversationDTO` | `400` if `farmer_id` == token user or missing offering/user; `404` |
+| `GET /api/v1/conversations/` | Bearer | — (conversations where the token user is the **buyer or the farmer**, visible ones only) | `200` → `[ConversationDTO]` | `401`; `403` |
+| `POST /api/v1/conversations/` | Bearer | JSON: `farmer_id` (uuid), `offering_id` (uuid). Buyer = token user | `201` → `ConversationDTO` | `400` if `farmer_id` == token user; `403` caller not a comprador (`2`–`4`), or `farmer_id` is not an `agricultor`; `404` unknown offering or farmer |
 | `GET /api/v1/conversations/{id}` | Bearer | path `id` | `200` → `ConversationDTO` | `403` not a participant; `404` |
 | `DELETE /api/v1/conversations/{id}` | Bearer | path `id` | `200` `{}` | `403` not a participant; `404` |
 | `GET /api/v1/conversations/{id}/messages` | Bearer | path `id` | `200` → `[MessageDTO]` | `403` not a participant; `404` |
+
+> `POST /` is the only way a conversation is created *by a caller*, and it requires a comprador caller plus an `agricultor` target. The other one is created by the server: `POST /matches/like/{offerID}` opens a conversation between the request's buyer and the offer's supplier in the same unit of work, carrying `match_id` and a zero `offering_id`. Both shapes come back from `GET /conversations/`.
 
 ### Messages
 
@@ -462,7 +484,7 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 
 | Route | Auth | Params | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/ws/{conversationID}` | Bearer (WS) | path `conversationID` (uuid) | `101 Switching Protocols` | `401` no/invalid credentials; `400` unparsable id; `403` suspended or not a participant; `404` unknown conversation |
+| `GET /api/v1/ws/{conversationID}` | Bearer (WS) | path `conversationID` (uuid) | `101 Switching Protocols` | `401` no/invalid credentials; `400` unparsable id; `403` suspended, not a participant, or **auditor** (read-only); `404` unknown conversation |
 
 Full handshake and message details below.
 
@@ -478,7 +500,7 @@ Images are uploaded through `POST /api/v1/offerings/create2/` (field `image_url`
 
 | Route | Auth | Query params | Success | Notable statuses |
 |---|---|---|---|---|
-| `GET /api/v1/search` | Public | `term`, `type`, `department`, `municipality`, `price_min`, `price_max`, `farmer_id`, `sort` (`relevance`\|`price_asc`\|`price_desc`\|`proximity`), `lat`, `lng`, `page`, `page_size` | `200` → `{results, total_hits, page, page_size, total_pages}` | `400` `{"error":"Search error"}` on any backend failure |
+| `GET /api/v1/search` | Public | `term`, `type`, `category_id`, `department`, `municipality`, `price_min`, `price_max`, `farmer_id`, `sort` (`relevance`\|`price_asc`\|`price_desc`\|`proximity`), `lat`, `lng`, `page`, `page_size` | `200` → `{results, total_hits, page, page_size, total_pages}` | `400` `{"error":"Search error"}` on any backend failure |
 
 Unparsable numeric params are silently ignored (they are skipped, not rejected).
 
@@ -487,10 +509,13 @@ Unparsable numeric params are silently ignored (they are skipped, not rejected).
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `PATCH /api/v1/admin/users/{id}/suspend` | Bearer, **admin** | path `id`; JSON: `action` (`suspend`\|`reactivate`) | `200` `{}` | `403` non-admin; `404`; `400` self-suspend / suspend-an-admin; `500` bad `action` |
+| `PATCH /api/v1/admin/users/{id}/role` | Bearer, **admin** | path `id`; JSON: `role` (int — `6` auditor, or a registration role `1`–`4`) | `200` `{}` | `400` invalid uuid/body, or `role` `0` (pending), `5` (admin) or outside `1`–`6` → `{"error":"invalid input"}`; `403` non-admin; `404` unknown user |
 | `DELETE /api/v1/admin/offerings/{id}` | Bearer, **admin** | path `id` | `204` (body written as `{}`) | `403` non-admin; `404` |
 | `GET /api/v1/admin/audit-logs` | Bearer, **admin** | query: `action`, `actor_id`, `target_type`, `page`, `page_size` (≤ 100, default 20) | `200` → `{items, total, page, size}` of `AuditLogResponse` | `403` non-admin |
 
-Known audit `action` values: `report_created`, `report_approved`, `report_rejected`, `user_suspended`, `user_reactivated`, `offering_deleted`.
+> The role route assigns only what an admin is allowed to hand out: `6` (auditor) or a registration role `1`–`4`. Minting another `5` (admin) or resetting to `0` (pending) is `400`; the caller must already be an admin (`403` otherwise, checked before the body), and an auditor calling it is stopped by `CheckReadOnly` with `403 {"error":"an auditor has read-only access"}`. Every successful change writes an audit log entry.
+
+Known audit `action` values: `report_created`, `report_approved`, `report_rejected`, `user_suspended`, `user_reactivated`, `user_role_updated`, `offering_deleted`.
 
 ---
 
@@ -514,6 +539,7 @@ const ws = new WebSocket(
 - Requested protocols: `milpa.chat.v1` (the only one the server negotiates) plus `bearer.<JWT>` — the token entry is consumed by the auth middleware and does not need to be negotiated.
 - Non-browser clients may instead send `Authorization: Bearer <JWT>`.
 - Before the upgrade, the server verifies the conversation exists **and** the caller is a participant; failures answer with a normal JSON error (`401`/`403`/`404`) instead of `101`.
+- An auditor (role `6`) is refused first, before the conversation id is even parsed: `403 {"error":"an auditor has read-only access"}`. The handshake route is not wrapped in `CheckReadOnly`, so the handler performs that same read-only check itself.
 
 **Client → server:** a raw **text frame** whose payload becomes `content` (max 4096 bytes). The server wraps it as a `MessageDTO` with `conversation_id` from the path and `sender_id` from the token, persists it, and broadcasts it.
 
@@ -542,16 +568,17 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 | DTO | Fields |
 |---|---|
-| `UserDTO` | `id`, `email`, `first_name`, `last_name`, `address`, `phone_number`, `role`, `created_at`, `updated_at` |
+| `PublicUserDTO` | `id`, `first_name`, `last_name`, `role`, `department`, `municipality`, `created_at`, `updated_at` |
+| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`. `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
 | `LoginResponse` | `access_token`, `expires_in`, `user` (`UserDTO`) |
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
 | `OfferingDTO` | `id`, `user_id`, `type`, `name`, `description`, `price`, `image_url`, `created_at`, `updated_at` |
-| `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
+| `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `transaction_id`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
 | `ReviewAverageDTO` (`GET /reviews/average`) | `target_type`, `target_id`, `average`, `count`. A target with no reviews is `average: 0, count: 0` |
 | `InquiryDTO` | `id`, `user_id`, `offering_id`, `offering_name`, `message`, `status`, `created_at` |
 | `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `created_at`, `updated_at` |
-| `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `visibility`, `created_at`, `updated_at` |
+| `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `match_id?`, `visibility`, `created_at`, `updated_at`. `match_id` is omitted unless the conversation was opened by a match, and `offering_id` is then the zero uuid |
 | `MessageDTO` | `id`, `conversation_id`, `sender_id`, `content`, `visibility`, `created_at` |
 | `ReportResponse` | `id`, `reporter` (`{id,name,email}`), `target_type`, `target` (`{id,name}`), `reason`, `status`, `resolved_by?`, `resolved_at?`, `created_at` |
 | `AuditLogResponse` | `id`, `actor_id`, `action`, `target_type`, `target_id`, `metadata?`, `created_at` |
@@ -571,6 +598,7 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `PrioritizedOfferDTO` | `offer` (`SupplyOfferDTO`), `score`, `available_quantity`, `contributions` |
 | `ScoreContributionDTO` (inside `contributions`) | `factor`, `weight`, `score`, `weighted_score` |
 | `AvailabilityDTO` | `supplier_id`, `product_name`, `available_quantity` |
+| `SupplierInventoryDTO` (`GET/PUT /inventory/`) | `id`, `supplier_id`, `product_name`, `quantity`, `measurement`, `created_at`, `updated_at` |
 
 ### Money, units and the `address` object
 
@@ -584,12 +612,12 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in this document is a route that is not registered there.
 
-- [ ] **Route count:** `router.go` has **70** route registrations; `chi` resolves them into **69** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **65** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:178` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted.
-- [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:72` and `router.go:73`.
-- [ ] **No ownership check on offering delete.** `OfferingUseCase.DeleteOffering` never inspects the principal, so any authenticated (non-suspended) user can delete any offering through that PATCH route. The admin route `DELETE /admin/offerings/{id}` is the audited path.
-- [ ] **`PATCH /api/v1/inquiries/{id}` has no ownership check** either — any authenticated user can change any inquiry's status.
-- [ ] **Handler bugs worth knowing:** `OfferingHandler.DeleteOffering` writes a `400` for an invalid uuid but does not `return`, producing a second response write; `POST /api/v1/messages/` and several other creates answer `201` with an empty `{}` body; `DELETE /admin/offerings/{id}` answers `204` while still writing a `{}` body.
-- [ ] **Several domain errors surface as `500`** instead of `400` because they are plain `fmt.Errorf`/unlisted sentinels (report reason length, invalid report/suspend `action`, liquidation quantity/status rules).
+- [ ] **Route count:** `router.go` has **80** route registrations; `chi` resolves them into **79** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **75** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
+- [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:83` and `router.go:84`.
+- [ ] **Offering delete is ownership- and role-checked.** `OfferingUseCase.DeleteOffering` refuses any caller who is not an `agricultor` (`1`) and then refuses anyone who does not own the offering, both with `403`. The admin route `DELETE /admin/offerings/{id}` remains the audited path.
+- [ ] **`PATCH /api/v1/inquiries/{id}` now requires ownership**: only the inquiry's author or the offering's owner can change its status — anyone else gets `403`.
+- [ ] **Handler bugs worth knowing:** `OfferingHandler.DeleteOffering` writes a `400` for an invalid uuid but does not `return`, producing a second response write; `POST /api/v1/messages/` and several other creates answer `201` with an empty `{}` body.
+- [ ] **Several domain errors surface as `500`** instead of `400` because they are plain `fmt.Errorf`/unlisted sentinels (report reason length, invalid report/suspend `action`, liquidation quantity/status rules). The transaction-tied review guards were moved into `httpx.IsValidationError`/`StatusCode`: `ErrTransactionRequired`, `ErrReviewTargetPartyMismatch`, `ErrInvalidReviewTargetType` and `ErrReviewTargetMismatch` answer `400`; `ErrTransactionNotCompleted` and `ErrReviewAlreadyExists` answer `409`.
 - [ ] **Breaking change — the supply request JSON keys were renamed.** `dto.SupplyRequestDTO`, `SupplyGeneralUpdateDTO` and `SupplyUpdateAmountsDTO` previously exposed crossed and misspelled keys, and the crossed pair was a duplicate-key bug: `amount_measure` for the enum, `amount_unit` for the per-unit float, `unit_measure`, plus `numer_units`, `Addrres` and `min_amount_provider`. They are now `amount_unit` (the enum), `amount_per_unit`, `number_of_units`, `unit_of_measure`, `address` and `min_amount_per_provider` — the snake_case of the Go field. Clients written against the old contract must be updated; `git show eae0fd8 -- server/aplication/dto/SupplyRequest.go` is the exact diff.
 - [ ] **Known inconsistency — `SupplyOfferDTO` was not renamed with it.** The offer side still carries the crossed keys: `AmountUnit` serializes as `measurement` and `ProposedDeliveryDay` as `delivery_day` (`aplication/dto/SupplyOffer.go:15-16`, and the same pair in `SupplyOfferUpdateDTO` at :25-26). This is documented as-is, not as a bug to expect to be fixed: reading an offer's unit means reading `measurement`, and the request it belongs to uses `amount_unit` for the same enum.
 - [ ] **`address` serializes with Go field names.** `domain.Address` carries no JSON tags and no custom marshaler, so `SupplyRequestDTO.address` is `{"ID","Department","Municipality","AddressLine","Latitude","Longitude"}` — capitalized, unlike every other key here. A client that lowercases keys will silently read an all-zero object.
@@ -597,7 +625,7 @@ Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in 
 - [ ] **A buyer's offer list no longer shows passed offers.** `GET /api/v1/supply-offers/requests/{request_id}` — the buyer's view of the offers on one of their own requests — filters out `status: 2` (rejected), because re-surfacing a declined supplier would let the buyer pick the same one again on a request they already passed (`use-cases/supply_offer.go:179-184`). A **matched** offer is deliberately still listed, since the buyer must keep seeing the offer they committed to. Note the path: offers hang off `/supply-offers/requests/{request_id}`, **not** off `/supply-requests/{id}/offers`, which is not a registered route.
 - [ ] **`Expire` refuses a request with an active match, exactly like `Cancel`.** `POST /api/v1/supply-requests/{id}/expire` returns `primary.ErrActiveMatch` when `ExistsActiveByRequest` is true (`use-cases/supply_request.go:253-259`), the same sentinel `Cancel` returns at :229-235. `handleSupplyError` maps it to **`409 {"error":"supply request already has an active match"}`** — the conflict list is shared, not per-handler. Both routes also return `409 invalid supply request status` when the request is not open.
 - [ ] **Money is `float64` in JSON, and that is not a defect.** Every amount, quantity and score on the supply-chain surface is an IEEE-754 double, not a fixed-point value. Two things consumers should know: `SupplyRequestDTO` carries both `total_amount` and `actual_amount`, where `actual_amount` is the **remaining un-reserved** amount (not a delivery total); and completion writes `actual_amount = 0` explicitly rather than leaving the residue of subtracting fractions one at a time, so a completed request reads an exact `0`.
-- [ ] **Availability is read-only over the API.** `SupplierInventoryRepositoryImpl` has full `Create`/`Update`/`Delete` (`repository/supplier_inventory.go:37,120,138`) but **no route is registered for any of them** — the only inventory surface is `GET /api/v1/recommendations/availability`. Availability figures therefore reflect whatever was seeded out of band, and there is no way to correct them from the API.
+- [ ] **Inventory has routes; only its figures were ever stuck.** `PUT /api/v1/inventory/` upserts a row for the caller and `DELETE /api/v1/inventory/{id}` removes one — both `agricultor`-only — so the stock behind `GET /api/v1/recommendations/availability` is correctable from the API. The availability read itself stays ownership-gated (see above).
 - [ ] **`repository.ErrAmountConstraint` is unmapped.** The `ck_supply_requests_amounts` CHECK violation is a deliberate, diagnosable sentinel (`repository/supply_request.go:25`), but it appears in no handler conflict list and in no `httpx.StatusCode` case, so if it ever reaches the boundary it is logged and answered as `500 internal server error`. The same holds for `ErrInsufficientAmount` on the transaction routes, whose `409` set omits it (`handler/transaction.go:107-118`).
 - [ ] **Trailing slashes matter** for `POST /api/v1/offerings/create2/` (registered with a trailing slash). The collection routes (`/companies/`, `/offerings/`, `/reviews/`, `/inquiries/`, `/liquidations/`, `/reports/`, `/conversations/`, `/messages/`, `/supply-requests/`, `/supply-offers/`) also answer without the trailing slash thanks to chi's mount behavior.
 - [ ] **Ordering matters** where static and parameterized paths coexist: `GET /liquidations/open` wins over `GET /liquidations/{id}`, `GET /inquiries/company/{company_id}` wins over `GET /inquiries/{id}`, and `GET /supply-requests/available` wins over `GET /supply-requests/{id}` (chi matches static segments first). The supply-offer and match groups avoid the problem by arity: `/supply-offers/requests/{request_id}` and `/matches/requests/{requestID}` are two segments where `/{id}` is one.
@@ -607,9 +635,9 @@ Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in 
 
 | Item | Value |
 |---|---|
-| Port | `SERVER_PORT`, default `8080` (`server/cmd/api/main.go:81-84`) |
+| Port | `SERVER_PORT`, default `8080` (`server/cmd/api/main.go:77`, default in `infrastructure/config/config.go:28`) |
 | Required env | `JWT_SECRET` (fatal if missing), Postgres (`POSTGRES_*`, `DB_SSLMODE`), Redis (`REDIS_URL`/`REDIS_HOST`+`REDIS_PORT`), Elasticsearch (`ESCLIENT_*`) |
-| Timeouts | read 10 s, write 15 s, idle 60 s (`main.go:183-185`) |
-| Migrations | run automatically at startup and **embedded in the binary** — `//go:embed migrations/*.sql` (`repository/migrations.go:19`) read through the `iofs` source driver (`database/migrate.go`, `NewMigrationSource`). No working directory and no on-disk migration path is involved, so the server boots from any directory. |
-| Image store | local directory `./uploads` (`main.go:148`) |
-| Transactions | registered outside `NewRouter` by `api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)` (`main.go:178`) |
+| Timeouts | read 10 s, write 15 s, idle 60 s (`main.go:178-180`) |
+| Migrations | run automatically at startup and **embedded in the binary** — `//go:embed migrations` (`repository/migrations.go:5`) read through the `iofs` source driver (`database/migrate.go`, `NewMigrationSource`). No working directory and no on-disk migration path is involved, so the server boots from any directory. |
+| Image store | local directory `./uploads` (`main.go:141`) |
+| Transactions | registered outside `NewRouter` by `api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)` (`main.go:173`) |
