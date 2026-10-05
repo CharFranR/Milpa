@@ -152,7 +152,7 @@ func newPIIRouter(t *testing.T, userUC primary.UserUseCase, companyUC primary.Co
 	suspensionMW := middleware.NewSuspensionMiddleware(stubUserRepo{})
 
 	return NewRouter(
-		handler.NewUserHandler(userUC), handler.NewCompanyHandler(companyUC),
+		handler.NewUserHandler(userUC, nil), handler.NewCompanyHandler(companyUC),
 		nil, nil, nil, nil, nil,
 		authMW, suspensionMW,
 		nil, nil, nil, nil, nil, nil, chat,

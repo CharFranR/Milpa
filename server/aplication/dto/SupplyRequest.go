@@ -14,9 +14,9 @@ type SupplyRequestDTO struct {
 	TotalAmount          float64                    `json:"total_amount"`
 	ActualAmount         float64                    `json:"actual_amount"`
 	AmountUnit           domain.MeasurementOptions  `json:"amount_unit"`
-	NumberOfUnits        float64                    `json:"number_of_units"`
-	AmountPerUnit        float64                    `json:"amount_per_unit"`
-	UnitOfMeasure        domain.MeasurementOptions  `json:"unit_of_measure"`
+	NumberOfUnits        float64                    `json:"number_of_units,omitempty"`
+	AmountPerUnit        float64                    `json:"amount_per_unit,omitempty"`
+	UnitOfMeasure        domain.MeasurementOptions  `json:"unit_of_measure,omitempty"`
 	Address              domain.Address             `json:"address"`
 	RequestDeadline      time.Time                  `json:"request_deadline"`
 	DeliveryDeadline     time.Time                  `json:"delivery_deadline"`

@@ -15,6 +15,7 @@ import (
 	"milpa/internal/validate"
 
 	"strconv"
+	"time"
 )
 
 type OfferingHandler struct {
@@ -89,6 +90,61 @@ func (h *OfferingHandler) Create_v2(w http.ResponseWriter, r *http.Request) {
 		Name:        r.FormValue("name"),
 		Description: r.FormValue("description"),
 		Price:       price,
+		Variety:     r.FormValue("variety"),
+	}
+
+	if value := r.FormValue("unit_of_measure_id"); value != "" {
+		parsed, err := uuid.Parse(value)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "unit_of_measure_id is not a valid uuid")
+			return
+		}
+		req.UnitOfMeasureID = &parsed
+	}
+
+	if value := r.FormValue("quantity_available"); value != "" {
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "quantity_available is not a valid number")
+			return
+		}
+		req.QuantityAvailable = parsed
+	}
+
+	if value := r.FormValue("category_id"); value != "" {
+		parsed, err := uuid.Parse(value)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "category_id is not a valid uuid")
+			return
+		}
+		req.CategoryID = &parsed
+	}
+
+	if value := r.FormValue("expires_at"); value != "" {
+		parsed, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "expires_at is not a valid RFC3339 timestamp")
+			return
+		}
+		req.ExpiresAt = &parsed
+	}
+
+	if value := r.FormValue("latitude"); value != "" {
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "latitude is not a valid number")
+			return
+		}
+		req.Latitude = &parsed
+	}
+
+	if value := r.FormValue("longitude"); value != "" {
+		parsed, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "longitude is not a valid number")
+			return
+		}
+		req.Longitude = &parsed
 	}
 
 	if file, header, err := r.FormFile("image_url"); err == nil {

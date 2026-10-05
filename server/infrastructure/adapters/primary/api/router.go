@@ -64,6 +64,7 @@ func NewRouter(
 				// what lets the owner and an admin receive the private view.
 				r.With(authMW.AuthenticateOptional).Get("/{id}", user.GetByID)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}", user.UpdateProfile)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/photo", user.UploadPhoto)
 			})
 
 			r.Route("/companies", func(r chi.Router) {
@@ -104,9 +105,13 @@ func NewRouter(
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/", liquidation.Create)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}", liquidation.Update)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Delete("/{id}", liquidation.Delete)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/interest", liquidation.ExpressInterest)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/{id}/interests", liquidation.ListInterests)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/{id}/assign", liquidation.Assign)
 			})
 
 			r.Get("/images/{filename}", image.Get)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/images/", image.Upload)
 
 			r.Get("/search", search.Search)
 

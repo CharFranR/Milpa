@@ -15,6 +15,8 @@ type OfferScoreInput struct {
 	AvailableQuantity    float64
 	CheapestPrice        *float64
 	MaxAvailableQuantity float64
+	DistanceKM           float64
+	HasDistance          bool
 }
 
 // technical debt,  pronto en un DTo

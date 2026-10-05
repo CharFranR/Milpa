@@ -21,6 +21,7 @@ type AllocationMethod int
 
 const (
 	AllocationManual AllocationMethod = iota
+	AllocationFirstCome
 )
 
 type Liquidation struct {
@@ -38,8 +39,25 @@ type Liquidation struct {
 	Status           LiquidationStatus
 	ClosedAt         *time.Time
 	ExpiresAt        *time.Time
+	AssignedBuyerID  *uuid.UUID
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+}
+
+type LiquidationInterest struct {
+	ID            uuid.UUID
+	LiquidationID uuid.UUID
+	BuyerID       uuid.UUID
+	CreatedAt     time.Time
+}
+
+func NewLiquidationInterest(liquidationID, buyerID uuid.UUID, now time.Time) *LiquidationInterest {
+	return &LiquidationInterest{
+		ID:            uuid.New(),
+		LiquidationID: liquidationID,
+		BuyerID:       buyerID,
+		CreatedAt:     now,
+	}
 }
 
 // Builder
@@ -116,11 +134,12 @@ func (l *Liquidation) Expire(now time.Time) error {
 	return nil
 }
 
-func (l *Liquidation) Assign(now time.Time) error {
+func (l *Liquidation) Assign(buyerID uuid.UUID, now time.Time) error {
 	if l.Status != LiquidationOpen {
 		return ErrLiquidationCannotAssign
 	}
 	l.Status = LiquidationAssigned
+	l.AssignedBuyerID = &buyerID
 	l.ClosedAt = &now
 	l.Touch(now)
 	return nil
@@ -136,12 +155,14 @@ func (l *Liquidation) UpdateDeliveryTime(deliveryTime string, now time.Time) {
 }
 
 func (l *Liquidation) UpdateVisibility(visibility string, now time.Time) error {
-	if visibility != "public" && visibility != "private" {
+	switch visibility {
+	case "public", "wholesale", "wholesale_retail", "wholesale_corporate":
+		l.Visibility = visibility
+		l.Touch(now)
+		return nil
+	default:
 		return ErrInvalidVisibility
 	}
-	l.Visibility = visibility
-	l.Touch(now)
-	return nil
 }
 
 func (l *Liquidation) SetExpiry(expiresAt time.Time, now time.Time) {
@@ -170,6 +191,8 @@ func (a AllocationMethod) String() string {
 	switch a {
 	case AllocationManual:
 		return "manual"
+	case AllocationFirstCome:
+		return "first_come"
 	default:
 		return "unknown"
 	}
@@ -199,6 +222,11 @@ func (a *AllocationMethod) Scan(src any) error {
 
 	if text == AllocationManual.String() {
 		*a = AllocationManual
+		return nil
+	}
+
+	if text == AllocationFirstCome.String() {
+		*a = AllocationFirstCome
 		return nil
 	}
 

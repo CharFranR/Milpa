@@ -77,9 +77,10 @@ func newConcFixture(t *testing.T) *concFixture {
 	matchRepo := repository.NewMatchRepository(TestPool)
 	transactionRepo := repository.NewTransactionRepository(TestPool)
 	inventoryRepo := repository.NewSupplierInventoryRepository(TestPool)
+	userRepo := repository.NewUserRepository(TestPool)
 	unitOfWork := repository.NewUnitOfWork(TestPool)
 
-	recommendationUC := usecases.NewRecommendationUseCase(offerRepo, requestRepo, inventoryRepo, matchRepo, nil)
+	recommendationUC := usecases.NewRecommendationUseCase(offerRepo, requestRepo, userRepo, inventoryRepo, matchRepo, nil)
 
 	return &concFixture{
 		requestRepo:   requestRepo,

@@ -11,7 +11,8 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /app/api ./cmd/api && \
-    go build -ldflags="-w -s" -o /app/migrate ./cmd/migrate
+    go build -ldflags="-w -s" -o /app/migrate ./cmd/migrate && \
+    go build -ldflags="-w -s" -o /app/seed ./cmd/seed
 
 
 FROM alpine:3.21
@@ -22,6 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /app/api .
 COPY --from=builder /app/migrate .
+COPY --from=builder /app/seed .
 COPY --from=builder /app/infrastructure/adapters/secondary/repository/migrations ./infrastructure/adapters/secondary/repository/migrations
 
 RUN mkdir -p /app/uploads

@@ -284,7 +284,7 @@ Configured in `router.go`:
 | `type` (offering) | `0` product, `1` service |
 | `status` (inquiry) | `0` pending, `1` read, `2` replied, `3` closed |
 | `status` (liquidation) | `0` open, `1` closed, `2` expired, `3` assigned |
-| `allocation_method` | `0` manual |
+| `allocation_method` | `0` manual, `1` first_come |
 | `amount_unit` / `unit_of_measure` / `measurement` (offer) | `0` Kg, `1` Lb, `2` Tn — one `MeasurementOptions` enum reused by all three keys |
 | `status` (supply request) | `0` open, `1` cancelled, `2` completed, `3` expired |
 | `status` (supply offer) | `0` active, `1` matched, `2` rejected, `3` withdrawn |
@@ -310,7 +310,8 @@ Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspen
 | Route | Auth | Params / body | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/users/{id}` | Public | path `id` (uuid). Self or admin receive the private contact card; everyone else the public profile | `200` → `PrivateUserDTO` or `PublicUserDTO` | `400` invalid uuid; `404` |
-| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `PATCH /api/v1/users/{id}` | Bearer | path `id`; JSON (all optional): `email`, `first_name`, `last_name`, `address`, `department`, `municipality`, `phone_number`, `latitude`, `longitude`, `photo_url` | `200` `{}` | `400`; `401`; `403` if `{id}` ≠ token user; `404` |
+| `POST /api/v1/users/{id}/photo` | Bearer | path `id`; multipart field `photo` (max 5 MB) | `200` `{}` | `400` invalid uuid, missing `photo` or unreadable file; `401`; `403` if `{id}` ≠ token user; `404` |
 
 ### Categories
 
@@ -335,8 +336,8 @@ Collection routes are registered with a trailing slash; chi's mount also answers
 |---|---|---|---|---|
 | `GET /api/v1/offerings/{id}` | Public | path `id` (uuid) | `200` → `OfferingDTO` | `400`; `404` |
 | `GET /api/v1/offerings/` | Public | query `user_id` (uuid, required) | `200` → `[OfferingDTO]` | `400` invalid `user_id` |
-| `POST /api/v1/offerings/` | Bearer | JSON: `user_id` (must equal token user), `name`, `type` (0\|1), `price`; optional `description`, `image_url` | `201` → `OfferingDTO` | `400` blank `user_id`/`name`; `403` caller not `agricultor`, or `user_id` ≠ token user; `404` unknown user |
-| `POST /api/v1/offerings/create2/` | Bearer | `multipart/form-data`: `user_id`, `type`, `name`, `price`, optional `description`, optional file `image_url` (≤ 10 MB) | `201` → `OfferingDTO` | `400` unparsable `user_id`/`type`/`price`, upload failure; `403` caller not `agricultor` |
+| `POST /api/v1/offerings/` | Bearer | JSON: `user_id` (uuid, required, must equal token user), `name` (required, non-blank), `type` (required, `0` only — `1` is rejected), `variety` (required, non-blank), `unit_of_measure_id` (uuid, required), `quantity_available` (required, > 0), `category_id` (uuid, required); optional `description`, `price`, `image_url`, `latitude`, `longitude`, `expires_at`, `company_id`. The farmer's address must be complete (`department`, `municipality` and address line) | `201` → `OfferingDTO` | `400` blank `user_id`/`name`, invalid type, missing variety/unit/quantity/category, incomplete address; `403` caller not `agricultor`, or `user_id` ≠ token user; `404` unknown user |
+| `POST /api/v1/offerings/create2/` | Bearer | `multipart/form-data`: `user_id`, `type`, `name`, `price`, optional `description`, optional `variety`, `unit_of_measure_id` (uuid), `quantity_available` (number), `category_id` (uuid), `expires_at` (RFC3339), `latitude`/`longitude` (numbers), optional file `image_url` (≤ 10 MB). This is the way to publish a product together with its photo; the use case applies the same validation as `POST /api/v1/offerings/` | `201` → `OfferingDTO` | `400` unparsable `user_id`/`type`/`price` or malformed optional field, missing use-case fields (`variety`/`unit_of_measure_id`/`quantity_available`/`category_id`), upload failure; `403` caller not `agricultor` |
 | `PATCH /api/v1/offerings/{id}/status` | Bearer | path `id` — deactivates the offering | `200` → `OfferingDTO` | `400` invalid uuid; `403` caller not `agricultor`, or not the owner; `404` |
 | `PATCH /api/v1/offerings/{id}/renew` | Bearer | path `id`; JSON: `expires_at` (required, non-blank) | `200` → `OfferingDTO` | `400` invalid uuid / bad body / blank `expires_at`; `403` caller not `agricultor`, or not the owner; `404` |
 | `PATCH /api/v1/offerings/{id}` | Bearer | path `id` only — **this path is registered twice and the second handler (`DeleteOffering`) wins** | `200` `{}` (offering deleted) | `400` invalid uuid (handler keeps writing after the error); `403` caller not `agricultor`, or not the owner; `404` |
@@ -406,7 +407,7 @@ Buyer-owned purchase requests. Every route runs the `Authenticate` + `CheckSuspe
 
 > `like` is the only place a match *and* its transaction are created, and it does so as one unit of work: reservation, match, transaction, offer status and the post-match conversation all become visible or none do. That conversation is created automatically in the same transaction, linking the request's buyer and the offer's supplier through `match_id` (its `offering_id` is the zero uuid) — see Conversations. On a `multiple_providers: false` request the `like` is also the last one — the competing offers on that request are rejected in the same transaction. The `transaction` inside `MatchCreatedDTO` is a partial DTO (only `id`, `match_id`, `status`; every timestamp is `null` and `history` is `null`); read the full one from `GET /api/v1/transactions/matches/{match_id}`.
 
-`PrioritizedOfferDTO` is ordered by `score` descending, then by the offer's `created_at` ascending, then by id. The only configured factor is `availability` at weight `1` (`recommendation.go`, `DefaultScoreFactors`), so `score` currently equals `available_quantity`.
+`PrioritizedOfferDTO` is ordered by `score` descending, then by the offer's `created_at` ascending, then by id. `score` is the weighted sum of the five factors configured in `DefaultScoreFactors` (`recommendation.go`): `distance` at weight `0.3`, `availability` at `0.25`, `reputation` at `0.2`, `price` at `0.15`, and `delivery_time` at `0.1`. The `distance` factor scores `1 / (1 + km / 50)` from the buyer's request address to the offer's supplier address; the resulting distance is exposed per offer as `distance_km`, and the key is omitted when the distance is unknown — because either address lacks coordinates — in which case the factor scores the neutral `0.5`, the same convention `reputation` uses when a supplier has no reviews. Every factor, weighted and unweighted, appears in the `contributions` array.
 
 ### Inventory
 
@@ -450,8 +451,13 @@ Registered by the separate `RegisterTransactionRoutes` entry point, called on th
 | `POST /api/v1/liquidations/` | Bearer | JSON: `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price` (all required); optional `delivery_time`, `location_id`, `visibility`, `expires_at`. Supplier = token user | `201` → `LiquidationDTO` | `400` blank field; `401`; `403` caller not `agricultor` |
 | `PATCH /api/v1/liquidations/{id}` | Bearer | path `id`; JSON (all optional): `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `expires_at` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404`; `500` if not open / invalid quantity |
 | `DELETE /api/v1/liquidations/{id}` | Bearer | path `id` | `200` `{}` | `403` caller not `agricultor`, or not the supplier; `404` |
+| `POST /api/v1/liquidations/{id}/interest` | Bearer | path `id`; no body. Caller must be a comprador (roles `2`–`4`), and the liquidation must be visible to them and open | `201` `{}` | `400`; `401`; `403` caller not a comprador; `404` missing or invisible; `409` already interested or not open |
+| `GET /api/v1/liquidations/{id}/interests` | Bearer | path `id`. Supplier only | `200` → `[LiquidationInterestDTO]` | `401`; `403` not the supplier; `404` |
+| `POST /api/v1/liquidations/{id}/assign` | Bearer | path `id`; JSON with optional `buyer_id` (uuid). Supplier only. With `allocation_method: 0` (`manual`) an interested `buyer_id` is required; with `1` (`first_come`) the earliest interest by `created_at` is assigned and `buyer_id` is ignored | `200` `{}` | `400`; `401`; `403` not the supplier; `404`; `409` not open or already assigned, buyer did not express interest, or no interest to assign |
 
-> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own restricted rows and mayorista callers (`3`/`4`) see them; anonymous callers still get only `visibility: "public"` rows, and a restricted one answers `404` on `GET /{id}`.
+> The three mutations require role `1` (**agricultor**). The three reads run `AuthenticateOptional`: with a valid Bearer token the visibility filter presents its viewer, so a supplier's own rows and the matching buyer level see them; anonymous callers still get only `visibility: "public"` rows, and an invisible one answers `404` on `GET /{id}`.
+>
+> `visibility` has four buyer-facing levels: `public` (everyone, including anonymous), `wholesale` (roles `3` and `4`), `wholesale_retail` (role `3` only), `wholesale_corporate` (role `4` only). The supplier always sees their own. `allocation_method` is `0` manual (the supplier picks an interested buyer) or `1` first_come (the earliest interest wins).
 
 ### Reports
 
@@ -493,8 +499,9 @@ Full handshake and message details below.
 | Route | Auth | Params | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/images/{filename}` | Public | path `filename` (single path segment, resolved under `./uploads`) | `200` raw bytes with the detected `Content-Type` + `Cache-Control: public, max-age=86400` | `404` `{"error":"could not find image"}` |
+| `POST /api/v1/images/` | Bearer | `multipart/form-data` with the file on the field `image` (≤ 10 MB; `.jpg`, `.jpeg`, `.png` and `.webp` keep their extension, anything else is stored as `.jpg`) | `201` → `{"path": "uploads/img-<uuid>.png"}` | `400` invalid multipart form / missing `image` / unreadable file / storage failure |
 
-Images are uploaded through `POST /api/v1/offerings/create2/` (field `image_url`); the stored value is the on-disk path and the public read path is `/api/v1/images/<filename>`.
+Images are uploaded through `POST /api/v1/images/` (field `image`, Bearer), which returns the stored on-disk path; that path is what `image_url` takes when publishing or updating an offering, and the public read path is `/api/v1/images/<filename>`. `POST /api/v1/offerings/create2/` (field `image_url`) does the upload and the create in one multipart request, but it only forwards `user_id`, `type`, `name`, `description`, `price` and the image, so the use case rejects it for missing variety, unit of measure, quantity and category: use `POST /api/v1/images/` and then `POST /api/v1/offerings/`.
 
 ### Search
 
@@ -569,7 +576,7 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | DTO | Fields |
 |---|---|
 | `PublicUserDTO` | `id`, `first_name`, `last_name`, `role`, `department`, `municipality`, `created_at`, `updated_at` |
-| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`. `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
+| `PrivateUserDTO` | the public fields plus `email`, `phone_number`, `address_line`, `photo_url` (path under `uploads/`, served by `GET /images/{filename}`; empty when the user never uploaded one). `GET /users/{id}` and login return this view to the user themselves (or an admin); everyone else gets the public one |
 | `LoginResponse` | `access_token`, `expires_in`, `user` (`UserDTO`) |
 | `CompanyDTO` | `id`, `name`, `category_id`, `owner_id`, `address`, `description`, `phone_number`, `email`, `website`, `verified`, `created_at`, `updated_at` |
 | `CategoryDTO` | `id`, `name`, `description` |
@@ -577,7 +584,8 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 | `ReviewDTO` | `id`, `user_id` (the author), `company_id`, `target_type`, `target_id`, `rating`, `comment`, `transaction_id`, `created_at`. `company_id` is the zero uuid on a `user` target, so `target_id` is the only way to tell what was reviewed |
 | `ReviewAverageDTO` (`GET /reviews/average`) | `target_type`, `target_id`, `average`, `count`. A target with no reviews is `average: 0, count: 0` |
 | `InquiryDTO` | `id`, `user_id`, `offering_id`, `offering_name`, `message`, `status`, `created_at` |
-| `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `created_at`, `updated_at` |
+| `LiquidationDTO` | `id`, `supplier_id`, `product_name`, `quantity`, `unit_of_measure`, `total_price`, `unit_price`, `delivery_time`, `location_id`, `visibility`, `allocation_method`, `status`, `closed_at?`, `expires_at?`, `assigned_buyer_id?`, `created_at`, `updated_at` |
+| `LiquidationInterestDTO` | `id`, `liquidation_id`, `buyer_id`, `buyer_name`, `created_at` |
 | `ConversationDTO` | `id`, `farmer_id`, `buyer_id`, `offering_id`, `match_id?`, `visibility`, `created_at`, `updated_at`. `match_id` is omitted unless the conversation was opened by a match, and `offering_id` is then the zero uuid |
 | `MessageDTO` | `id`, `conversation_id`, `sender_id`, `content`, `visibility`, `created_at` |
 | `ReportResponse` | `id`, `reporter` (`{id,name,email}`), `target_type`, `target` (`{id,name}`), `reason`, `status`, `resolved_by?`, `resolved_at?`, `created_at` |
@@ -612,7 +620,7 @@ Exact JSON shapes (field names as implemented in `server/aplication/dto/`).
 
 Derived from `server/infrastructure/adapters/primary/api/router.go`; nothing in this document is a route that is not registered there.
 
-- [ ] **Route count:** `router.go` has **80** route registrations; `chi` resolves them into **79** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **75** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
+- [ ] **Route count:** `router.go` has **81** route registrations; `chi` resolves them into **80** distinct method+path routes because `PATCH /api/v1/offerings/{id}` is registered twice (`Update`, then `DeleteOffering`). The registrations split **76** inside `NewRouter` and **5** inside the separate `RegisterTransactionRoutes`, which is called on the same mux from `cmd/api/main.go:173` — counting only `NewRouter` undercounts the table by five. Sprint 3 added 26 routes (9 supply requests, 6 supply offers, 5 matches, 1 recommendation, 5 transactions) to the 44 the previous revision of this document counted; ten more arrived since (3 admin categories, 3 inventory, offering `status` + `renew`, the WS handshake, and `PATCH /admin/users/{id}/role` on this branch).
 - [ ] **`PATCH /api/v1/offerings/{id}` behaves as delete.** chi's tree keeps the last handler written for a method+pattern, so `DeleteOffering` wins and `OfferingHandler.Update` is unreachable. There is currently **no working "update an offering" endpoint** despite the handler existing. Still unfixed: `router.go:83` and `router.go:84`.
 - [ ] **Offering delete is ownership- and role-checked.** `OfferingUseCase.DeleteOffering` refuses any caller who is not an `agricultor` (`1`) and then refuses anyone who does not own the offering, both with `403`. The admin route `DELETE /admin/offerings/{id}` remains the audited path.
 - [ ] **`PATCH /api/v1/inquiries/{id}` now requires ownership**: only the inquiry's author or the offering's owner can change its status — anyone else gets `403`.

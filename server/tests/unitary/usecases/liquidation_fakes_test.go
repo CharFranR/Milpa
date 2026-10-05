@@ -10,12 +10,17 @@ import (
 )
 
 type fakeLiquidationRepo struct {
-	liquidations []domain.Liquidation
-	findOpenErr  error
-	findByIDErr  error
-	saveErr      error
-	updated      []*domain.Liquidation
-	deleted      []uuid.UUID
+	liquidations    []domain.Liquidation
+	interests       []domain.LiquidationInterest
+	findOpenErr     error
+	findByIDErr     error
+	findVisibleErr  error
+	saveErr         error
+	saveInterestErr error
+	updated         []*domain.Liquidation
+	deleted         []uuid.UUID
+	lastViewer      port.LiquidationViewer
+	viewerSeen      bool
 }
 
 func newFakeLiquidationRepo(liquidations ...domain.Liquidation) *fakeLiquidationRepo {
@@ -36,6 +41,11 @@ func (f *fakeLiquidationRepo) FindByID(ctx context.Context, id uuid.UUID) (*doma
 }
 
 func (f *fakeLiquidationRepo) FindVisibleByID(ctx context.Context, id uuid.UUID, viewer port.LiquidationViewer) (*domain.Liquidation, error) {
+	f.lastViewer = viewer
+	f.viewerSeen = true
+	if f.findVisibleErr != nil {
+		return nil, f.findVisibleErr
+	}
 	return f.FindByID(ctx, id)
 }
 
@@ -78,6 +88,38 @@ func (f *fakeLiquidationRepo) Update(ctx context.Context, liquidation *domain.Li
 func (f *fakeLiquidationRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	f.deleted = append(f.deleted, id)
 	return nil
+}
+
+func (f *fakeLiquidationRepo) SaveInterest(ctx context.Context, interest *domain.LiquidationInterest) error {
+	if f.saveInterestErr != nil {
+		return f.saveInterestErr
+	}
+	for i := range f.interests {
+		if f.interests[i].LiquidationID == interest.LiquidationID && f.interests[i].BuyerID == interest.BuyerID {
+			return domain.ErrInterestAlreadyExists
+		}
+	}
+	f.interests = append(f.interests, *interest)
+	return nil
+}
+
+func (f *fakeLiquidationRepo) FindInterests(ctx context.Context, liquidationID uuid.UUID) ([]domain.LiquidationInterest, error) {
+	var result []domain.LiquidationInterest
+	for i := range f.interests {
+		if f.interests[i].LiquidationID == liquidationID {
+			result = append(result, f.interests[i])
+		}
+	}
+	return result, nil
+}
+
+func (f *fakeLiquidationRepo) InterestExists(ctx context.Context, liquidationID, buyerID uuid.UUID) (bool, error) {
+	for i := range f.interests {
+		if f.interests[i].LiquidationID == liquidationID && f.interests[i].BuyerID == buyerID {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 var _ port.LiquidationRepository = (*fakeLiquidationRepo)(nil)

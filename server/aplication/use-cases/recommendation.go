@@ -72,6 +72,19 @@ func (deliveryTimeScoreFactor) Score(_ context.Context, input primary.OfferScore
 	return 1 / (1 + daysLate), nil
 }
 
+type distanceScoreFactor struct{}
+
+func (distanceScoreFactor) Name() string {
+	return "distance"
+}
+
+func (distanceScoreFactor) Score(_ context.Context, input primary.OfferScoreInput) (float64, error) {
+	if !input.HasDistance {
+		return 0.5, nil
+	}
+	return 1 / (1 + input.DistanceKM/50), nil
+}
+
 type reputationScoreFactor struct {
 	reviewRepo port.ReviewRepository
 }
@@ -113,22 +126,28 @@ func DeliveryTimeScoreFactor() primary.ScoreFactor {
 	return deliveryTimeScoreFactor{}
 }
 
+func DistanceScoreFactor() primary.ScoreFactor {
+	return distanceScoreFactor{}
+}
+
 func ReputationScoreFactor(reviewRepo port.ReviewRepository) primary.ScoreFactor {
 	return reputationScoreFactor{reviewRepo: reviewRepo}
 }
 
 func DefaultScoreFactors(reviewRepo port.ReviewRepository) []WeightedScoreFactor {
 	return []WeightedScoreFactor{
-		{Factor: availabilityScoreFactor{}, Weight: 0.35},
-		{Factor: reputationScoreFactor{reviewRepo: reviewRepo}, Weight: 0.25},
-		{Factor: priceScoreFactor{}, Weight: 0.2},
-		{Factor: deliveryTimeScoreFactor{}, Weight: 0.2},
+		{Factor: distanceScoreFactor{}, Weight: 0.3},
+		{Factor: availabilityScoreFactor{}, Weight: 0.25},
+		{Factor: reputationScoreFactor{reviewRepo: reviewRepo}, Weight: 0.2},
+		{Factor: priceScoreFactor{}, Weight: 0.15},
+		{Factor: deliveryTimeScoreFactor{}, Weight: 0.1},
 	}
 }
 
 type RecommendationUseCaseImpl struct {
 	offerRepo     port.SupplyOfferRepository
 	requestRepo   port.SupplyRequestRepository
+	userRepo      port.UserRepository
 	inventoryRepo port.SupplierInventoryRepository
 	matchRepo     port.MatchRepository
 	factors       []WeightedScoreFactor
@@ -137,6 +156,7 @@ type RecommendationUseCaseImpl struct {
 func NewRecommendationUseCase(
 	offerRepo port.SupplyOfferRepository,
 	requestRepo port.SupplyRequestRepository,
+	userRepo port.UserRepository,
 	inventoryRepo port.SupplierInventoryRepository,
 	matchRepo port.MatchRepository,
 	factors []WeightedScoreFactor,
@@ -147,6 +167,7 @@ func NewRecommendationUseCase(
 	return &RecommendationUseCaseImpl{
 		offerRepo:     offerRepo,
 		requestRepo:   requestRepo,
+		userRepo:      userRepo,
 		inventoryRepo: inventoryRepo,
 		matchRepo:     matchRepo,
 		factors:       factors,
@@ -194,6 +215,7 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 	}
 
 	availabilityBySupplier := make(map[uuid.UUID]float64, len(actionable))
+	supplierAddresses := make(map[uuid.UUID]domain.Address, len(actionable))
 	var maxAvailable float64
 	var cheapestPrice *float64
 
@@ -203,6 +225,17 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 			return nil, err
 		}
 		availabilityBySupplier[offer.SupplierID] = available
+		if _, ok := supplierAddresses[offer.SupplierID]; !ok {
+			supplier, err := uc.userRepo.FindByID(ctx, offer.SupplierID)
+			if err != nil && !errors.Is(err, domain.ErrNotFound) {
+				return nil, err
+			}
+			if err == nil && supplier != nil {
+				supplierAddresses[offer.SupplierID] = supplier.Address
+			} else {
+				supplierAddresses[offer.SupplierID] = domain.Address{}
+			}
+		}
 		if available > maxAvailable {
 			maxAvailable = available
 		}
@@ -216,12 +249,16 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 
 	ranked := make([]*dto.PrioritizedOfferDTO, 0, len(actionable))
 	for _, offer := range actionable {
+		distanceKM, hasDistance := request.Address.DistanceKM(supplierAddresses[offer.SupplierID])
+
 		input := primary.OfferScoreInput{
 			Offer:                offer,
 			Request:              request,
 			AvailableQuantity:    availabilityBySupplier[offer.SupplierID],
 			CheapestPrice:        cheapestPrice,
 			MaxAvailableQuantity: maxAvailable,
+			DistanceKM:           distanceKM,
+			HasDistance:          hasDistance,
 		}
 
 		var score float64
@@ -241,10 +278,16 @@ func (uc *RecommendationUseCaseImpl) RankOffers(ctx context.Context, supplyReque
 			})
 		}
 
+		var distancePtr *float64
+		if hasDistance {
+			distancePtr = &distanceKM
+		}
+
 		ranked = append(ranked, &dto.PrioritizedOfferDTO{
 			Offer:             *supplyOfferToDTO(&offer),
 			Score:             score,
 			AvailableQuantity: input.AvailableQuantity,
+			DistanceKM:        distancePtr,
 			Contributions:     contributions,
 		})
 	}
