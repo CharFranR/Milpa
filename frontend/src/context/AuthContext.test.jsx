@@ -45,6 +45,17 @@ describe('context/AuthContext', () => {
     expect(current.isAuthenticated).toBe(true)
   })
 
+  it('login normaliza rol numérico del backend y lo guarda como string', () => {
+    renderAuth()
+
+    act(() => {
+      current.login('tok-7', { id: 'u7', first_name: 'Prod', role: 1 })
+    })
+
+    expect(getUser().role).toBe('producer')
+    expect(current.role).toBe('producer')
+  })
+
   it('updateUser refresca el usuario del contexto', () => {
     setToken('tok-3')
     setUser({ id: 'u3', first_name: 'Carla', role: 'minorista' })

@@ -11,6 +11,14 @@ function loadSessionUser() {
   return role ? { ...stored, role } : null
 }
 
+function normalizeUserRole(nextUser) {
+  if (!nextUser || typeof nextUser !== 'object' || nextUser.role === undefined) {
+    return nextUser
+  }
+  const normalized = normalizeRole(nextUser.role)
+  return normalized ? { ...nextUser, role: normalized } : nextUser
+}
+
 export function AuthProvider({ children }) {
   const [user, setAuthUser] = useState(loadSessionUser)
   const [token, setAuthToken] = useState(() => getToken())
@@ -27,10 +35,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = useCallback((nextToken, nextUser) => {
+    const normalizedUser = normalizeUserRole(nextUser)
     setToken(nextToken)
-    setUser(nextUser)
+    setUser(normalizedUser)
     setAuthToken(nextToken)
-    setAuthUser(nextUser)
+    setAuthUser(normalizedUser)
   }, [])
 
   const logout = useCallback(() => {
@@ -38,8 +47,9 @@ export function AuthProvider({ children }) {
   }, [])
 
   const updateUser = useCallback((nextUser) => {
-    setUser(nextUser)
-    setAuthUser(nextUser)
+    const normalizedUser = normalizeUserRole(nextUser)
+    setUser(normalizedUser)
+    setAuthUser(normalizedUser)
   }, [])
 
   const value = useMemo(

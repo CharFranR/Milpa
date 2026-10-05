@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
+import { normalizeRole } from '../../lib/roles'
 
 const ROLES = [
   {
@@ -78,10 +79,13 @@ export default function Login() {
     auth.login(email, password)
       .then((data) => {
         login(data.access_token, data.user)
-        if (data.user.role === 'producer') {
+        const next = normalizeRole(data.user.role)
+        if (next === 'producer') {
           navigate('/producer')
-        } else if (data.user.role === 'admin' || data.user.role === 'auditor') {
+        } else if (next === 'admin' || next === 'auditor') {
           navigate('/admin')
+        } else if (next === 'pending') {
+          setError('Tu cuenta está pendiente de aprobación.')
         } else {
           navigate('/dashboard')
         }
