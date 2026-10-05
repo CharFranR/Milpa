@@ -72,3 +72,25 @@ type LoginResponse struct {
 	ExpiresIn   int64          `json:"expires_in"`
 	User        PrivateUserDTO `json:"user"`
 }
+
+type AdminUserDTO struct {
+	ID           uuid.UUID          `json:"id"`
+	FirstName    string             `json:"first_name"`
+	LastName     string             `json:"last_name"`
+	Email        string             `json:"email"`
+	PhoneNumber  string             `json:"phone_number"`
+	Role         domain.RoleOptions `json:"role"`
+	Department   string             `json:"department"`
+	Municipality string             `json:"municipality"`
+	SuspendedAt  *time.Time         `json:"suspended_at,omitempty"`
+	PhotoURL     string             `json:"photo_url"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+type PaginatedUsersResponse struct {
+	Items []AdminUserDTO `json:"items"`
+	Total int            `json:"total"`
+	Page  int            `json:"page"`
+	Size  int            `json:"size"`
+}
