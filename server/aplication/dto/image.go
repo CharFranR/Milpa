@@ -6,3 +6,7 @@ type ImageDataDTO struct {
 	Filepath    string
 	Filename    string
 }
+
+type UploadedImageDTO struct {
+	Path string `json:"path"`
+}

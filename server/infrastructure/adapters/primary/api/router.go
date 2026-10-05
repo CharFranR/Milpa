@@ -112,6 +112,7 @@ func NewRouter(
 			})
 
 			r.Get("/images/{filename}", image.Get)
+			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/images/", image.Upload)
 
 			r.Get("/search", search.Search)
 
