@@ -57,12 +57,14 @@ export default function ProductCard({ offering, showArrow = true }) {
       </a>
 
       <div className="flex flex-1 flex-col p-4">
-        <a
-          href={`#/product/${offering.id}`}
-          className="text-base font-semibold text-gray-900 hover:text-brand"
-        >
-          {offering.name}
-        </a>
+        <h3 className="text-base font-semibold text-gray-900">
+          <a
+            href={`#/product/${offering.id}`}
+            className="text-base font-semibold text-gray-900 hover:text-brand"
+          >
+            {offering.name}
+          </a>
+        </h3>
         {(offering.company_name || location) && (
           <p className="mt-0.5 truncate text-sm text-gray-500">
             {offering.company_name}

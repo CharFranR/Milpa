@@ -150,7 +150,7 @@ export default function ProducerLiquidations() {
         setToast({
           message:
             created.visibility === 'private'
-              ? 'Liquidación privada guardada. El listado del servidor devuelve las públicas, así que esta fila se ve solo hasta que recargues.'
+              ? 'Liquidación privada publicada. Solo tú puedes verla.'
               : 'Liquidación publicada.',
           tone: 'success',
         })
