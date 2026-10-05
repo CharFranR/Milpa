@@ -21,7 +21,7 @@ function renderAuth() {
 describe('context/AuthContext', () => {
   it('lee la sesión inicial y normaliza un rol numérico del backend', () => {
     setToken('tok-1')
-    setUser({ id: 'u1', first_name: 'Ana', role: 1 })
+    setUser({ id: 'u1', first_name: 'Ana', role: 2 })
 
     renderAuth()
 

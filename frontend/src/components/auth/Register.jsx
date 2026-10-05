@@ -75,7 +75,7 @@ export default function Register() {
       first_name: firstName,
       last_name: lastName,
       email: form.email.trim(),
-      role: userType === 'buyer' ? 1 : 2,
+      role: userType === 'buyer' ? 2 : 1, // 1 agricultor · 2 comprador minorista
       password: form.password,
       confirm_password: form.password,
     }
