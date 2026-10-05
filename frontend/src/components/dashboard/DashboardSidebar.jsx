@@ -42,12 +42,11 @@ function TabButton({ tab, active, onSelect, className }) {
 export default function DashboardSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { user, logout } = useAuth()
+  const { user, role, logout } = useAuth()
   const displayName = getDisplayName(user)
-  const rawRole = user?.role
-  const displayRole = rawRole ? ROLE_LABELS[rawRole] : 'Comprador'
+  const displayRole = role ? ROLE_LABELS[role] : 'Comprador'
 
-  const tabs = rawRole === 'mayorista' ? MAYORISTA_TABS : MINORISTA_TABS
+  const tabs = role === 'mayorista' ? MAYORISTA_TABS : MINORISTA_TABS
 
   function selectTab(id) {
     navigate(BUYER_TAB_PATHS[id])

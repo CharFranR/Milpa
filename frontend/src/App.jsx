@@ -15,6 +15,7 @@ import BuyerProfile from './pages/buyer/BuyerProfile'
 import BuyerRequestDetail from './pages/buyer/BuyerRequestDetail'
 import BuyerRequestForm from './pages/buyer/BuyerRequestForm'
 import BuyerRequests from './pages/buyer/BuyerRequests'
+import BuyerHome from './pages/buyer/BuyerHome'
 import Landing from './pages/Landing'
 import Liquidations from './pages/Liquidations'
 import MatchDetail from './pages/matches/MatchDetail'
@@ -72,8 +73,8 @@ export default function App() {
         <Route
           index
           element={
-            <RequireRole roles={['mayorista']}>
-              <BuyerRequests />
+            <RequireRole roles={buyerRoles}>
+              <BuyerHome />
             </RequireRole>
           }
         />
