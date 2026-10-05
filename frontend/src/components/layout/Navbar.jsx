@@ -8,6 +8,7 @@ import Logo from '../../components/Logo'
 const NAV_LINKS = [
   { id: 'inicio', label: 'Inicio' },
   { id: 'como-funciona', label: 'Cómo funciona' },
+  { href: '/liquidations', label: 'Liquidaciones' },
 ]
 
 export default function Navbar() {
@@ -55,21 +56,37 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
-          {NAV_LINKS.map((link) => (
-            <button
-              key={link.label}
-              type="button"
-              onClick={() => goToSection(link.id)}
-              className={cn(
-                'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                transparent
-                  ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
-                  : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
-              )}
-            >
-              {link.label}
-            </button>
-          ))}
+          {NAV_LINKS.map((link) =>
+            link.href ? (
+              <Link
+                key={link.label}
+                to={link.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  transparent
+                    ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
+                    : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
+                )}
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <button
+                key={link.label}
+                type="button"
+                onClick={() => goToSection(link.id)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  transparent
+                    ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
+                    : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
+                )}
+              >
+                {link.label}
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
@@ -98,16 +115,27 @@ export default function Navbar() {
       {open && (
         <div className="border-t border-gray-100 bg-white px-4 pb-6 pt-3 md:hidden">
           <nav className="flex flex-col" aria-label="Menú móvil">
-            {NAV_LINKS.map((link) => (
-              <button
-                key={link.label}
-                type="button"
-                onClick={() => goToSection(link.id)}
-                className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {link.label}
-              </button>
-            ))}
+            {NAV_LINKS.map((link) =>
+              link.href ? (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <button
+                  key={link.label}
+                  type="button"
+                  onClick={() => goToSection(link.id)}
+                  className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {link.label}
+                </button>
+              ),
+            )}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
             <a href="#/login" className="w-full">

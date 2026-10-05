@@ -9,7 +9,7 @@ export default function ProductCardList({ offering }) {
 
   const description = offering.description || ''
   const unitMatch = description.match(/Unit:\s*(\S+)/)
-  const unit = unitMatch?.[1] || 'un'
+  const unit = unitMatch?.[1] || null
   const imageUrl = resolveOfferingImage(offering)
 
   return (
@@ -38,7 +38,7 @@ export default function ProductCardList({ offering }) {
       <div className="flex shrink-0 flex-col items-end justify-between self-stretch py-1">
         <p className="whitespace-nowrap text-lg font-bold text-brand">
           {formatPrice(offering.price)}
-          <span className="ml-1 text-sm font-medium text-gray-400">/ {unit}</span>
+          {unit && <span className="ml-1 text-sm font-medium text-gray-400">/ {unit}</span>}
         </p>
         <a href={`#/product/${offering.id}`} aria-label={`Ver detalle de ${offering.name}`}>
           <Button variant="primary" size="sm">

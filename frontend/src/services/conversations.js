@@ -9,6 +9,10 @@ export const conversations = {
 
   list: () =>
     request('/conversations'),
+
+  getById: (id) => request(`/conversations/${id}`),
+
+  messages: (id) => request(`/conversations/${id}/messages`),
 }
 
 /**

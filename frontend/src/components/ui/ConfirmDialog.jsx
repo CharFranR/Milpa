@@ -14,6 +14,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
   className,
+  children,
 }) {
   const cancelRef = useRef(null)
 
@@ -52,6 +53,7 @@ export default function ConfirmDialog({
               {title}
             </h2>
             {message && <p className="mt-1 text-sm text-gray-600">{message}</p>}
+            {children}
           </div>
         </div>
 

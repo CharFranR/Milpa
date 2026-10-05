@@ -3,36 +3,73 @@ import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { useOfferings } from '../../hooks/useOfferings'
+import { useCompany } from '../../hooks/useCompany'
+import { useAuth } from '../../context/AuthContext'
 import { categories } from '../../services/api'
-import { getCompanyId } from '../../lib/session'
 import { formatPrice } from '../../lib/format'
 import { setProductImage, getProductImage, embedImageInDescription, extractImageFromDescription, resolveOfferingImage } from '../../lib/productImages'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const RENEW_DAYS = 30
+
+// El backend responde en inglés (domain/entities/errors.go); la UI va en español.
+const SERVER_ERROR_ES = [
+  [/a complete address/i, 'Para publicar necesitas una dirección completa en tu perfil: departamento, municipio y dirección.'],
+  [/variety is required/i, 'La variedad es obligatoria.'],
+  [/category is required/i, 'Selecciona una categoría.'],
+  [/unit of measure is required/i, 'La categoría seleccionada no tiene unidad de medida asociada.'],
+  [/quantity must be greater than zero/i, 'La cantidad debe ser mayor que cero.'],
+  [/price must be greater than zero/i, 'El precio debe ser mayor que cero.'],
+  [/name is required/i, 'El nombre es obligatorio.'],
+]
+
+function toSpanish(message = '') {
+  const match = SERVER_ERROR_ES.find(([pattern]) => pattern.test(message))
+  return match ? match[1] : message
+}
+
+function offeringStatus(offering) {
+  if (!offering.is_active) return { label: 'Desactivado', tone: 'gray', renew: true }
+  const expired = offering.expires_at && new Date(offering.expires_at) <= new Date()
+  if (expired) return { label: 'Vencido', tone: 'amber', renew: true }
+  return { label: 'Activo', tone: 'brand', renew: false }
+}
+
+const EMPTY_FORM = {
+  name: '',
+  variety: '',
+  price: '',
+  quantity: '',
+  category: '',
+  description: '',
+  image_url: '',
+}
 
 export default function ProducerProducts() {
-  const companyId = getCompanyId()
-  const { offeringsList, loading, error, createOffering, updateOffering } = useOfferings(companyId)
+  const { user } = useAuth()
+  const userId = user?.id
+  // La empresa se resuelve por owner: sin esto, un login nuevo no encuentra su
+  // empresa hasta que visita "Mi negocio" (getCompanyId() sólo cachea).
+  const { company, loading: companyLoading } = useCompany(userId)
+  const companyId = company?.id || null
+  const { offeringsList, loading, error, createOffering, updateOffering, deactivateOffering, renewOffering } = useOfferings(userId)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [busyId, setBusyId] = useState(null)
   const [cats, setCats] = useState([])
-  const [form, setForm] = useState({
-    name: '',
-    price: '',
-    unit: 'kg',
-    quantity: '',
-    category: '',
-    description: '',
-    image_url: '',
-  })
+  const [form, setForm] = useState(EMPTY_FORM)
   const fileRef = useRef(null)
   const [imagePreview, setImagePreview] = useState('')
 
   useEffect(() => {
     categories.getAll().then((data) => setCats(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
+
+  const selectedCategory = cats.find((c) => c.id === form.category)
+  const unitOfMeasureId = selectedCategory?.default_unit_of_measure_id || null
 
   function setField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -63,7 +100,7 @@ export default function ProducerProducts() {
   }
 
   function openCreate() {
-    setForm({ name: '', price: '', unit: 'kg', quantity: '', category: '', description: '', image_url: '' })
+    setForm({ ...EMPTY_FORM })
     setImagePreview('')
     setEditingId(null)
     setShowForm(true)
@@ -72,19 +109,22 @@ export default function ProducerProducts() {
 
   function openEdit(offering) {
     const { clean: cleanDesc, imageUrl: descImage } = extractImageFromDescription(offering.description || '')
-    const unitMatch = cleanDesc.match(/Unit:\s*(\S+)/)
-    const qtyMatch = cleanDesc.match(/Qty:\s*(\d+)/)
-    const catMatch = cleanDesc.match(/Category:\s*(.+)/)
-    const descOnly = cleanDesc.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+    // Líneas heredadas del formulario viejo: unidad/cantidad/categoría ya viven en columnas.
+    const legacyCategory = cleanDesc.match(/Category:\s*(.+)/)?.[1]?.trim()
+    const descOnly = cleanDesc
+      .replace(/Unit:\s*\S+\n?/g, '')
+      .replace(/Qty:\s*\d+\n?/g, '')
+      .replace(/Category:\s*.+\n?/g, '')
+      .trim()
 
     const savedImage = descImage || offering.image_url || getProductImage(offering.id) || ''
 
     setForm({
       name: offering.name || '',
+      variety: offering.variety || '',
       price: String(offering.price || ''),
-      unit: unitMatch?.[1] || 'kg',
-      quantity: qtyMatch?.[1] || '',
-      category: catMatch?.[1] || '',
+      quantity: offering.quantity_available ? String(offering.quantity_available) : '',
+      category: offering.category_id || cats.find((c) => c.name === legacyCategory)?.id || '',
       description: descOnly,
       image_url: savedImage,
     })
@@ -95,42 +135,48 @@ export default function ProducerProducts() {
   }
 
   function handleCancel() {
-    setForm({ name: '', price: '', unit: 'kg', quantity: '', category: '', description: '', image_url: '' })
+    setForm({ ...EMPTY_FORM })
     setImagePreview('')
     setEditingId(null)
     setShowForm(false)
     setFormError('')
   }
 
+  function validate() {
+    if (!form.name.trim()) return 'El nombre es obligatorio.'
+    if (!form.variety.trim()) return 'La variedad es obligatoria.'
+    if (!form.price || Number(form.price) <= 0) return 'El precio debe ser mayor que cero.'
+    if (!form.quantity || Number(form.quantity) <= 0) return 'La cantidad debe ser mayor que cero.'
+    if (!form.category) return 'Selecciona una categoría.'
+    if (!unitOfMeasureId) return 'La categoría seleccionada no tiene unidad de medida asociada.'
+    if (!companyId) return 'Primero debes crear tu empresa en "Mi negocio".'
+    return ''
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
-    if (!form.name.trim() || !form.price) {
-      setFormError('Nombre y precio son obligatorios.')
-      return
-    }
-    if (!companyId) {
-      setFormError('Primero debes crear tu empresa en "Mi negocio".')
+    const validationError = validate()
+    if (validationError) {
+      setFormError(validationError)
       return
     }
 
     setSaving(true)
     setFormError('')
 
-    let descParts = []
-    if (form.unit) descParts.push(`Unit: ${form.unit}`)
-    if (form.quantity) descParts.push(`Qty: ${form.quantity}`)
-    if (form.category) descParts.push(`Category: ${form.category}`)
-    if (form.description) descParts.push('')
-    if (form.description) descParts.push(form.description)
-    let description = descParts.join('\n')
-    description = embedImageInDescription(description, form.image_url)
+    const description = embedImageInDescription(form.description.trim(), form.image_url)
 
     const payload = {
+      user_id: userId,
       company_id: companyId,
       type: 0,
       name: form.name.trim(),
       description,
       price: parseFloat(form.price),
+      variety: form.variety.trim(),
+      category_id: form.category,
+      unit_of_measure_id: unitOfMeasureId,
+      quantity_available: parseFloat(form.quantity),
     }
 
     const action = editingId
@@ -145,9 +191,45 @@ export default function ProducerProducts() {
         handleCancel()
       })
       .catch((err) => {
-        setFormError(err.message || 'Error al guardar.')
+        setFormError(toSpanish(err.message || 'Error al guardar.'))
       })
       .finally(() => setSaving(false))
+  }
+
+  function handleDeactivate(offering) {
+    setBusyId(offering.id)
+    setActionError('')
+    deactivateOffering(offering.id)
+      .catch((err) => setActionError(toSpanish(err.message || 'No se pudo desactivar el producto.')))
+      .finally(() => setBusyId(null))
+  }
+
+  function handleRenew(offering) {
+    setBusyId(offering.id)
+    setActionError('')
+    const expiresAt = new Date(Date.now() + RENEW_DAYS * 86400000).toISOString()
+    renewOffering(offering.id, expiresAt)
+      .catch((err) => setActionError(toSpanish(err.message || 'No se pudo renovar el producto.')))
+      .finally(() => setBusyId(null))
+  }
+
+  if (loading || companyLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Mis productos</h1>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
+              <div className="aspect-[4/3] rounded-xl bg-gray-200" />
+              <div className="h-4 w-3/4 rounded bg-gray-200" />
+              <div className="h-5 w-1/2 rounded bg-gray-200" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (!companyId) {
@@ -172,25 +254,6 @@ export default function ProducerProducts() {
     )
   }
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Mis productos</h1>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4 space-y-3">
-              <div className="aspect-[4/3] rounded-xl bg-gray-200" />
-              <div className="h-4 w-3/4 rounded bg-gray-200" />
-              <div className="h-5 w-1/2 rounded bg-gray-200" />
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -204,6 +267,10 @@ export default function ProducerProducts() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
+      {actionError && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{actionError}</p>
+      )}
+
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 bg-brand-soft/50 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -211,7 +278,12 @@ export default function ProducerProducts() {
           </h2>
 
           {formError && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{formError}</p>
+            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+              <p>{formError}</p>
+              {/dirección completa/i.test(formError) && (
+                <a href="#/producer" className="mt-1 inline-block font-semibold underline">Ir a Mi negocio</a>
+              )}
+            </div>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -259,55 +331,69 @@ export default function ProducerProducts() {
             </div>
 
             <div>
+              <label className="text-xs font-semibold text-gray-600">Variedad *</label>
+              <input
+                type="text"
+                required
+                value={form.variety}
+                onChange={(e) => setField('variety', e.target.value)}
+                placeholder="Cherry, Criollo, Híbrido..."
+                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+            </div>
+
+            <div>
               <label className="text-xs font-semibold text-gray-600">Precio (C$) *</label>
               <input
                 type="number"
                 required
+                min="1"
                 value={form.price}
                 onChange={(e) => setField('price', e.target.value)}
                 placeholder="180"
                 className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
+
             <div>
-              <label className="text-xs font-semibold text-gray-600">Unidad de medida</label>
-              <select
-                value={form.unit}
-                onChange={(e) => setField('unit', e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-              >
-                <option value="kg">Kilogramo (kg)</option>
-                <option value="un">Unidad (un)</option>
-                <option value="bandeja">Bandeja</option>
-                <option value="docena">Docena</option>
-                <option value="500 ml">500 ml</option>
-                <option value="250 g">250 g</option>
-                <option value="atado">Atado</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-600">Cantidad disponible</label>
+              <label className="text-xs font-semibold text-gray-600">Cantidad disponible *</label>
               <input
                 type="number"
+                required
+                min="1"
                 value={form.quantity}
                 onChange={(e) => setField('quantity', e.target.value)}
                 placeholder="100"
                 className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
+
             <div>
-              <label className="text-xs font-semibold text-gray-600">Categoría</label>
+              <label className="text-xs font-semibold text-gray-600">Categoría *</label>
               <select
+                required
                 value={form.category}
                 onChange={(e) => setField('category', e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               >
-                <option value="">Sin categoría</option>
+                <option value="">Selecciona una categoría</option>
                 {cats.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="text-xs font-semibold text-gray-600">Unidad de medida</label>
+              <p className="mt-1.5 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-500">
+                {form.category
+                  ? unitOfMeasureId
+                    ? 'Fijada por la categoría seleccionada'
+                    : 'La categoría no tiene unidad asociada'
+                  : 'Elige una categoría'}
+              </p>
+            </div>
+
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold text-gray-600">Descripción</label>
               <textarea
@@ -345,35 +431,48 @@ export default function ProducerProducts() {
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {offeringsList.map((offering) => (
-            <article
-              key={offering.id}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-shadow hover:shadow-lg"
-            >
-              <div className="relative aspect-[4/3] bg-gray-100">
-                {resolveOfferingImage(offering) ? (
-                  <img src={resolveOfferingImage(offering)} alt={offering.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="absolute left-3 top-3 text-4xl">📦</span>
-                )}
-                <Badge className="absolute right-3 top-3" tone="brand">Activo</Badge>
-              </div>
-              <div className="flex flex-1 flex-col p-4">
-                <h3 className="font-semibold text-gray-900 line-clamp-1">{offering.name}</h3>
-                <p className="mt-2 text-lg font-bold text-brand">
-                  {formatPrice(offering.price)}
-                </p>
-                <div className="mt-4 flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(offering)}>
-                    Editar
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1 opacity-40 cursor-not-allowed" disabled>
-                    Eliminar
-                  </Button>
+          {offeringsList.map((offering) => {
+            const status = offeringStatus(offering)
+            const busy = busyId === offering.id
+            return (
+              <article
+                key={offering.id}
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-shadow hover:shadow-lg"
+              >
+                <div className="relative aspect-[4/3] bg-gray-100">
+                  {resolveOfferingImage(offering) ? (
+                    <img src={resolveOfferingImage(offering)} alt={offering.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="absolute left-3 top-3 text-4xl">📦</span>
+                  )}
+                  <Badge className="absolute right-3 top-3" tone={status.tone}>{status.label}</Badge>
                 </div>
-              </div>
-            </article>
-          ))}
+                <div className="flex flex-1 flex-col p-4">
+                  <h3 className="font-semibold text-gray-900 line-clamp-1">{offering.name}</h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {offering.variety || 'Sin variedad'} · {offering.quantity_available ?? 0} disponibles
+                  </p>
+                  <p className="mt-2 text-lg font-bold text-brand">
+                    {formatPrice(offering.price)}
+                  </p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(offering)} disabled={busy}>
+                      Editar
+                    </Button>
+                    {status.renew ? (
+                      <Button variant="primary" size="sm" className="flex-1" onClick={() => handleRenew(offering)} disabled={busy}>
+                        Renovar
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleDeactivate(offering)} disabled={busy}>
+                        Desactivar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       )}
     </div>

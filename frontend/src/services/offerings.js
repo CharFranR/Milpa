@@ -1,7 +1,9 @@
 import { request } from './http'
-import { FEATURED_COMPANY_IDS } from '../config/featuredCompanies'
 
 export const offerings = {
+  getByUser: (userId) =>
+    request(`/offerings?user_id=${userId}`),
+
   getByCompany: (companyId) =>
     request(`/offerings?company_id=${companyId}`),
 
@@ -14,13 +16,19 @@ export const offerings = {
   update: (id, data) =>
     request(`/offerings/${id}`, { method: 'PATCH', body: data }),
 
-  getFeatured: async () => {
-    if (FEATURED_COMPANY_IDS.length === 0) return []
-    const results = await Promise.all(
-      FEATURED_COMPANY_IDS.map((id) =>
-        request(`/offerings?company_id=${id}`).catch(() => [])
-      )
-    )
-    return results.flat()
+  deactivate: (id) =>
+    request(`/offerings/${id}/status`, { method: 'PATCH' }),
+
+  renew: (id, expiresAt) =>
+    request(`/offerings/${id}/renew`, { method: 'PATCH', body: { expires_at: expiresAt } }),
+
+  search: (params = {}) => {
+    const qs = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return
+      qs.set(key, String(value))
+    })
+    const query = qs.toString()
+    return request(`/search${query ? `?${query}` : ''}`)
   },
 }

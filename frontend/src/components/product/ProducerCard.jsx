@@ -1,5 +1,6 @@
 import { cn } from '../../lib/cn'
 import Button from '../ui/Button'
+import StarRating from '../StarRating'
 
 export default function ProducerCard({
   producer,
@@ -51,8 +52,7 @@ export default function ProducerCard({
             {producer.productsCount} productos
           </span>
           <span className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-[10px] leading-none">⭐</span>
-            {producer.rating}
+            <StarRating rating={Number(producer.rating) || 0} size={14} showValue />
           </span>
           <span className="flex items-center gap-1 whitespace-nowrap">
             <span className="text-[10px] leading-none">📅</span>

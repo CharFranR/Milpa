@@ -82,6 +82,8 @@ export default function Login() {
         login(data.access_token, data.user)
         if (data.user.role === 'producer') {
           navigate('/producer')
+        } else if (data.user.role === 'admin' || data.user.role === 'auditor') {
+          navigate('/admin')
         } else {
           navigate('/dashboard')
         }

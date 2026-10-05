@@ -1,6 +1,5 @@
 export const BUYER_TAB_PATHS = {
-  inicio: '/dashboard',
-  favoritos: '/dashboard/favorites',
+  solicitudes: '/dashboard',
   mensajes: '/dashboard/messages',
   perfil: '/dashboard/profile',
   marketplace: '/dashboard/marketplace',
@@ -8,7 +7,11 @@ export const BUYER_TAB_PATHS = {
 
 export const PRODUCER_TAB_PATHS = {
   resumen: '/producer',
+  disponibles: '/producer/available',
+  ofertas: '/producer/offers',
+  inventario: '/producer/inventory',
   productos: '/producer/products',
+  liquidaciones: '/producer/liquidations',
   solicitudes: '/producer/requests',
   mensajes: '/producer/messages',
   negocio: '/producer/business',

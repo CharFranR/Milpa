@@ -8,7 +8,11 @@ import { PRODUCER_TAB_PATHS } from '../../lib/routes'
 
 const TABS = [
   { id: 'resumen', icon: 'home', label: 'Resumen' },
+  { id: 'disponibles', icon: 'search', label: 'Disponibles' },
+  { id: 'ofertas', icon: 'handshake', label: 'Mis ofertas' },
+  { id: 'inventario', icon: 'warehouse', label: 'Inventario' },
   { id: 'productos', icon: 'inventory_2', label: 'Mis productos' },
+  { id: 'liquidaciones', icon: 'sell', label: 'Liquidaciones' },
   { id: 'solicitudes', icon: 'inbox', label: 'Solicitudes' },
   { id: 'mensajes', icon: 'chat', label: 'Mensajes' },
   { id: 'negocio', icon: 'storefront', label: 'Mi negocio' },

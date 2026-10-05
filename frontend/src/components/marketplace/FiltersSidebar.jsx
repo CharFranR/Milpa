@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react'
 import Icon from '../ui/Icon'
-import StarRating from '../StarRating'
 import CategoryPill from '../CategoryPill'
 import { formatPrice } from '../../lib/format'
 import { categories } from '../../services/api'
+import { iconForCategory } from '../../lib/categoryIcons'
 import { cn } from '../../lib/cn'
 
 export const PRICE_LIMIT = 5000
-
-const MIN_RATING_OPTIONS = [
-  { value: 0, label: 'Todas' },
-  { value: 3.5, label: '3.5+' },
-  { value: 4.0, label: '4.0+' },
-  { value: 4.5, label: '4.5+' },
-]
 
 export default function FiltersSidebar({ filters, onChange, onClear }) {
   const [cats, setCats] = useState([])
@@ -58,7 +51,7 @@ export default function FiltersSidebar({ filters, onChange, onClear }) {
           {cats.map((category) => (
             <CategoryPill
               key={category.id}
-              icon={category.icon || 'label'}
+              icon={iconForCategory(category)}
               name={category.name}
               count={category.count}
               active={filters.category === category.id}
@@ -88,32 +81,6 @@ export default function FiltersSidebar({ filters, onChange, onClear }) {
           onChange={(e) => onChange({ maxPrice: Number(e.target.value) })}
           className="mt-2 w-full accent-brand"
         />
-      </section>
-
-      <section aria-label="Valoración mínima" className="mt-6 border-t border-gray-100 pt-5">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-          Valoración mínima
-        </h3>
-        <div className="mt-3 space-y-2">
-          {MIN_RATING_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onChange({ minRating: option.value })}
-              aria-pressed={filters.minRating === option.value}
-              className={cn(
-                'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
-                filters.minRating === option.value
-                  ? 'border-brand bg-brand-soft text-brand'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-brand/40',
-              )}
-            >
-              {option.label}
-              {option.value > 0 && <StarRating rating={option.value} size={14} />}
-            </button>
-          ))}
-        </div>
       </section>
     </div>
   )

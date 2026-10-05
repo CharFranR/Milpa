@@ -19,7 +19,6 @@ import (
 var supplyRequestDTOKeys = []string{
 	"actual_amount",
 	"address",
-	"amount_per_unit",
 	"amount_unit",
 	"buyer_id",
 	"created_at",
@@ -28,12 +27,10 @@ var supplyRequestDTOKeys = []string{
 	"id",
 	"min_amount_per_provider",
 	"multiple_providers",
-	"number_of_units",
 	"product_name",
 	"request_deadline",
 	"status",
 	"total_amount",
-	"unit_of_measure",
 	"updated_at",
 }
 
