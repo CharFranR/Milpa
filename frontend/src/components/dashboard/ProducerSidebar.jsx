@@ -5,6 +5,7 @@ import Button from '../ui/Button'
 import { useAuth } from '../../context/AuthContext'
 import { getDisplayName, getInitials } from '../../lib/user'
 import { PRODUCER_TAB_PATHS } from '../../lib/routes'
+import { ROLE_LABELS } from '../../lib/roles'
 
 const TABS = [
   { id: 'resumen', icon: 'home', label: 'Resumen' },
@@ -43,6 +44,8 @@ export default function ProducerSidebar() {
   const { user, logout } = useAuth()
   const displayName = getDisplayName(user)
   const initials = getInitials(user)
+  const rawRole = user?.role
+  const displayRole = rawRole ? ROLE_LABELS[rawRole] : 'Agricultor'
 
   function selectTab(id) {
     navigate(PRODUCER_TAB_PATHS[id])
@@ -67,7 +70,7 @@ export default function ProducerSidebar() {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
-              <p className="truncate text-xs text-gray-500">Productor</p>
+              <p className="truncate text-xs text-gray-500">{displayRole}</p>
             </div>
           </div>
 

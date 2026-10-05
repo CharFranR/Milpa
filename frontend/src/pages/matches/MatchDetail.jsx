@@ -30,6 +30,7 @@ import { reports } from '../../services/reports'
 import { supplyOffers } from '../../services/supplyOffers'
 import { supplyRequests } from '../../services/supplyRequests'
 import { transactions } from '../../services/transactions'
+import { isBuyer } from '../../lib/roles'
 
 const TIMELINE_LABELS = {
   0: 'Match creado',
@@ -49,7 +50,7 @@ function ConfirmRow({ title, buyerAt, supplierAt }) {
           Comprador: {buyerDone ? formatDateTime(buyerAt) : 'pendiente'}
         </span>
         <span className={supplierDone ? 'text-green-600' : 'text-gray-400'}>
-          Proveedor: {supplierDone ? formatDateTime(supplierAt) : 'pendiente'}
+          Agricultor: {supplierDone ? formatDateTime(supplierAt) : 'pendiente'}
         </span>
       </span>
     </div>
@@ -59,7 +60,7 @@ function ConfirmRow({ title, buyerAt, supplierAt }) {
 export default function MatchDetail() {
   const { matchId } = useParams()
   const { role, user } = useAuth()
-  const isBuyer = role === 'buyer'
+  const buyerRole = isBuyer(role)
 
   const [match, setMatch] = useState(null)
   const [transaction, setTransaction] = useState(null)
@@ -113,9 +114,9 @@ export default function MatchDetail() {
     ]).then(([requestData, offerData]) => {
       if (cancelled) return
       const myId = user?.id
-      let other = isBuyer ? offerData?.supplier_id : requestData?.buyer_id
+      let other = buyerRole ? offerData?.supplier_id : requestData?.buyer_id
       if (other && other === myId) {
-        other = isBuyer ? requestData?.buyer_id : offerData?.supplier_id
+        other = buyerRole ? requestData?.buyer_id : offerData?.supplier_id
       }
       setCounterpartyId(other || null)
       setCounterpartyCompany(null)
@@ -124,7 +125,7 @@ export default function MatchDetail() {
     return () => {
       cancelled = true
     }
-  }, [match, isBuyer, user?.id])
+  }, [match, buyerRole, user?.id])
 
   useEffect(() => {
     if (!counterpartyId || transaction?.status !== 2) return undefined
@@ -231,7 +232,7 @@ export default function MatchDetail() {
       <div className="space-y-6">
         <ErrorState message={error} onRetry={reload} />
         <Link
-          to={isBuyer ? '/dashboard' : '/producer/offers'}
+          to={buyerRole ? '/dashboard' : '/producer/offers'}
           className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline"
         >
           <Icon name="chevron_left" size={16} />
@@ -248,8 +249,8 @@ export default function MatchDetail() {
   const tx = transaction
   const status = tx?.status
 
-  const startMine = isBuyer ? tx?.buyer_start_confirmed_at : tx?.supplier_start_confirmed_at
-  const deliveryMine = isBuyer ? tx?.buyer_delivery_confirmed_at : tx?.supplier_delivery_confirmed_at
+  const startMine = buyerRole ? tx?.buyer_start_confirmed_at : tx?.supplier_start_confirmed_at
+  const deliveryMine = buyerRole ? tx?.buyer_delivery_confirmed_at : tx?.supplier_delivery_confirmed_at
   const canConfirmStart = status === 0 && isZeroTime(startMine)
   const canConfirmDelivery = status === 1 && isZeroTime(deliveryMine)
   const canCancel = status === 0 || status === 1
@@ -264,11 +265,11 @@ export default function MatchDetail() {
     : false
   const reviewTargetLabel = counterpartyCompany
     ? `a la empresa ${counterpartyCompany.name}`
-    : isBuyer
-      ? 'al proveedor'
+    : buyerRole
+      ? 'al agricultor'
       : 'al comprador'
 
-  const backTo = isBuyer
+  const backTo = buyerRole
     ? `/dashboard/requests/${match.supply_request}`
     : '/producer/offers'
 
@@ -280,7 +281,7 @@ export default function MatchDetail() {
           className="inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline"
         >
           <Icon name="chevron_left" size={16} />
-          {isBuyer ? 'Volver a la solicitud' : 'Volver a mis ofertas'}
+          {buyerRole ? 'Volver a la solicitud' : 'Volver a mis ofertas'}
         </Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
@@ -299,7 +300,7 @@ export default function MatchDetail() {
           {formatPrice(match.matched_amount)} {measurementLabel(match.amount_unit)}
         </p>
         <p className="mt-1 text-sm text-gray-500">
-          Reservado de la solicitud. Confirma el inicio cuando el proveedor despache.
+          Reservado de la solicitud. Confirma el inicio cuando el agricultor despache.
         </p>
       </section>
 
@@ -313,7 +314,7 @@ export default function MatchDetail() {
               className="inline-flex items-center gap-1 text-sm font-semibold text-red-600 hover:text-red-700"
             >
               <Icon name="flag" size={16} />
-              Reportar {isBuyer ? 'al proveedor' : 'al comprador'}
+              Reportar {buyerRole ? 'al agricultor' : 'al comprador'}
             </button>
           )}
         </div>
@@ -327,7 +328,7 @@ export default function MatchDetail() {
         {reporting && !reported && (
           <div className="rounded-xl border border-gray-100 bg-white p-4">
             <ReportForm
-              targetLabel={isBuyer ? 'al proveedor' : 'al comprador'}
+              targetLabel={buyerRole ? 'al agricultor' : 'al comprador'}
               onSubmit={submitUserReport}
               onCancel={() => setReporting(false)}
             />
@@ -337,7 +338,7 @@ export default function MatchDetail() {
         {conversationId ? (
           <ChatPanel
             conversationId={conversationId}
-            title={isBuyer ? 'Con el proveedor' : 'Con el comprador'}
+            title={buyerRole ? 'Con el agricultor' : 'Con el comprador'}
             hint="La conversación se creó al confirmar el match. Coordina aquí el despacho."
           />
         ) : (
@@ -478,7 +479,7 @@ export default function MatchDetail() {
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Ej. El proveedor no pudo despachar a tiempo"
+          placeholder="Ej. El agricultor no pudo despachar a tiempo"
           className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
         />
         {reasonError && (

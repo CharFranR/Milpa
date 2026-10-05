@@ -126,7 +126,7 @@ export default function MarketplaceCatalog() {
         </h1>
         <p className="mt-1 text-sm text-gray-500">
           <span className="font-semibold text-brand">{totalHits}</span> productos
-          disponibles de productores locales
+          disponibles de agricultores locales
         </p>
       </header>
 

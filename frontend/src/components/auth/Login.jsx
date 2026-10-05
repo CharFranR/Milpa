@@ -5,26 +5,11 @@ import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
-import { ROLE_MAP } from '../../lib/roles'
 
 const ROLES = [
   {
-    key: 'buyer',
-    label: 'Comprador',
-    icon: 'shopping_basket',
-    panel: 'bg-brand text-white',
-    submit: 'primary',
-    title: 'El campo más cerca que nunca',
-    desc: 'Explora productos frescos de productores locales y coordina tu compra directamente, sin intermediarios.',
-    bullets: [
-      { icon: 'verified_user', text: 'Productores verificados' },
-      { icon: 'local_shipping', text: 'Coordinación directa' },
-      { icon: 'price_check', text: 'Precio justo sin intermediarios' },
-    ],
-  },
-  {
     key: 'producer',
-    label: 'Productor',
+    label: 'Agricultor',
     icon: 'agriculture',
     panel: 'bg-accent text-night',
     submit: 'dark',
@@ -34,6 +19,20 @@ const ROLES = [
       { icon: 'bar_chart', text: 'Estadísticas de tu negocio' },
       { icon: 'inbox', text: 'Gestión de solicitudes de compra' },
       { icon: 'storefront', text: 'Perfil público de tu finca' },
+    ],
+  },
+  {
+    key: 'buyer',
+    label: 'Comprador',
+    icon: 'shopping_basket',
+    panel: 'bg-brand text-white',
+    submit: 'primary',
+    title: 'El campo más cerca que nunca',
+    desc: 'Explora productos frescos de agricultores locales y coordina tu compra directamente, sin intermediarios.',
+    bullets: [
+      { icon: 'verified_user', text: 'Agricultores verificados' },
+      { icon: 'local_shipping', text: 'Coordinación directa' },
+      { icon: 'price_check', text: 'Precio justo sin intermediarios' },
     ],
   },
 ]
@@ -78,7 +77,6 @@ export default function Login() {
 
     auth.login(email, password)
       .then((data) => {
-        data.user.role = ROLE_MAP[data.user.role] || 'buyer'
         login(data.access_token, data.user)
         if (data.user.role === 'producer') {
           navigate('/producer')
@@ -148,7 +146,7 @@ export default function Login() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Ingresar como
           </p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {ROLES.map((r) => (
               <button
                 key={r.key}

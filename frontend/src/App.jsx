@@ -35,6 +35,8 @@ import BuyerDashboard from './pages/BuyerDashboard'
 import ProducerDashboard from './pages/ProducerDashboard'
 
 export default function App() {
+  const buyerRoles = ['minorista', 'mayorista']
+
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
@@ -45,7 +47,7 @@ export default function App() {
       <Route
         path="/marketplace"
         element={
-          <RequireRole role="buyer">
+          <RequireRole roles={buyerRoles}>
             <Marketplace />
           </RequireRole>
         }
@@ -53,7 +55,7 @@ export default function App() {
       <Route
         path="/product/:id"
         element={
-          <RequireRole role="buyer">
+          <RequireRole roles={buyerRoles}>
             <ProductDetail />
           </RequireRole>
         }
@@ -62,17 +64,59 @@ export default function App() {
       <Route
         path="/dashboard"
         element={
-          <RequireRole role="buyer">
+          <RequireRole roles={buyerRoles}>
             <BuyerDashboard />
           </RequireRole>
         }
       >
-        <Route index element={<BuyerRequests />} />
-        <Route path="requests" element={<BuyerRequests />} />
-        <Route path="requests/new" element={<BuyerRequestForm />} />
-        <Route path="requests/:id" element={<BuyerRequestDetail />} />
-        <Route path="requests/:id/edit" element={<BuyerRequestForm />} />
-        <Route path="matches/:matchId" element={<MatchDetail />} />
+        <Route
+          index
+          element={
+            <RequireRole roles={['mayorista']}>
+              <BuyerRequests />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="requests"
+          element={
+            <RequireRole roles={['mayorista']}>
+              <BuyerRequests />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="requests/new"
+          element={
+            <RequireRole roles={['mayorista']}>
+              <BuyerRequestForm />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="requests/:id"
+          element={
+            <RequireRole roles={['mayorista']}>
+              <BuyerRequestDetail />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="requests/:id/edit"
+          element={
+            <RequireRole roles={['mayorista']}>
+              <BuyerRequestForm />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="matches/:matchId"
+          element={
+            <RequireRole roles={['mayorista']}>
+              <MatchDetail />
+            </RequireRole>
+          }
+        />
         <Route path="messages" element={<BuyerMessages />} />
         <Route path="profile" element={<BuyerProfile />} />
         <Route path="marketplace" element={<MarketplaceCatalog />} />

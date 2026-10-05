@@ -149,8 +149,8 @@ export default function BuyerRequestDetail() {
             </InfoRow>
             <InfoRow label="Proveedores">
               {request.multiple_providers
-                ? `Múltiples (mín. ${formatPrice(request.min_amount_per_provider || 0)} por proveedor)`
-                : 'Un solo proveedor'}
+                ? `Múltiples (mín. ${formatPrice(request.min_amount_per_provider || 0)} por agricultor)`
+                : 'Un solo agricultor'}
             </InfoRow>
           </dl>
         </section>
@@ -184,7 +184,7 @@ export default function BuyerRequestDetail() {
         open={dialog === 'cancel'}
         danger
         title="¿Cancelar la solicitud?"
-        message="Dejará de estar visible para los proveedores. Esta acción no se puede deshacer."
+        message="Dejará de estar visible para los agricultores. Esta acción no se puede deshacer."
         confirmLabel="Sí, cancelar"
         loading={busy}
         onConfirm={() => runAction('cancel')}

@@ -25,7 +25,7 @@ describe('context/AuthContext', () => {
 
     renderAuth()
 
-    expect(current.role).toBe('buyer')
+    expect(current.role).toBe('minorista')
     expect(current.token).toBe('tok-1')
     expect(current.isAuthenticated).toBe(true)
     expect(screen.getByText('Ana')).toBeInTheDocument()
@@ -47,12 +47,12 @@ describe('context/AuthContext', () => {
 
   it('updateUser refresca el usuario del contexto', () => {
     setToken('tok-3')
-    setUser({ id: 'u3', first_name: 'Carla', role: 'buyer' })
+    setUser({ id: 'u3', first_name: 'Carla', role: 'minorista' })
 
     renderAuth()
 
     act(() => {
-      current.updateUser({ id: 'u3', first_name: 'Carla Nueva', role: 'buyer' })
+      current.updateUser({ id: 'u3', first_name: 'Carla Nueva', role: 'minorista' })
     })
 
     expect(current.user.first_name).toBe('Carla Nueva')
@@ -62,7 +62,7 @@ describe('context/AuthContext', () => {
 
   it('logout limpia storage y estado', () => {
     setToken('tok-4')
-    setUser({ id: 'u4', first_name: 'Diego', role: 'buyer' })
+    setUser({ id: 'u4', first_name: 'Diego', role: 'minorista' })
 
     renderAuth()
     expect(screen.getByText('Diego')).toBeInTheDocument()
@@ -81,7 +81,7 @@ describe('context/AuthContext', () => {
 
   it('responde al evento de cierre de sesión que dispara http.js en un 401', () => {
     setToken('tok-5')
-    setUser({ id: 'u5', first_name: 'Elena', role: 'buyer' })
+    setUser({ id: 'u5', first_name: 'Elena', role: 'minorista' })
 
     renderAuth()
 

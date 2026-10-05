@@ -102,11 +102,11 @@ export default function OffersSection({ requestId }) {
       {!loading && error && <ErrorState message={error} onRetry={reload} />}
 
       {!loading && !error && items.length === 0 && (
-        <EmptyState
-          icon="handshake"
-          title="Sin ofertas todavía"
-          description="Los proveedores verán tu solicitud en «Solicitudes disponibles» y podrán ofertar."
-        />
+<EmptyState
+              icon="handshake"
+              title="Sin ofertas todavía"
+              description="Los agricultores verán tu solicitud en «Solicitudes disponibles» y podrán ofertar."
+            />
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -118,9 +118,9 @@ export default function OffersSection({ requestId }) {
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-gray-900">
-                    {names[offer.supplier_id] || `Proveedor ${shortId(offer.supplier_id)}`}
-                  </h3>
+<h3 className="font-semibold text-gray-900">
+                      {names[offer.supplier_id] || `Agricultor ${shortId(offer.supplier_id)}`}
+                    </h3>
                   <p className="mt-1 text-sm text-gray-500">
                     {formatPrice(offer.total_amount)} · {formatPrice(offer.price_per_unit)} por{' '}
                     {measurementLabel(offer.measurement)}
@@ -135,7 +135,7 @@ export default function OffersSection({ requestId }) {
               </div>
 
               <p className="mt-3 text-sm text-gray-600">
-                Disponibilidad del proveedor: {money(available)} {measurementLabel(offer.measurement)}
+                Disponibilidad del agricultor: {money(available)} {measurementLabel(offer.measurement)}
               </p>
 
               {offer.comments && (
@@ -181,7 +181,7 @@ export default function OffersSection({ requestId }) {
         open={Boolean(dialog)}
         danger
         title="¿Descartar esta oferta?"
-        message="El proveedor la verá como rechazada y no podrás seleccionarla después."
+        message="El agricultor la verá como rechazada y no podrás seleccionarla después."
         confirmLabel="Sí, descartar"
         loading={busyId === dialog?.id}
         onConfirm={handlePass}

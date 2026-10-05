@@ -85,7 +85,7 @@ export default function ProductDetailModal({ isOpen, onClose, product, onSend })
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <p className="text-sm text-gray-600">
-            Escribe un mensaje sobre <span className="font-medium">{product.name}</span>. El productor responderá directamente.
+            Escribe un mensaje sobre <span className="font-medium">{product.name}</span>. El agricultor responderá directamente.
           </p>
 
           <label htmlFor="inquiry-message" className="sr-only">

@@ -13,7 +13,7 @@ function renderAt(path) {
           <Route
             path="/dashboard"
             element={
-              <RequireRole role="buyer">
+              <RequireRole role="minorista">
                 <div>zona de comprador</div>
               </RequireRole>
             }
@@ -35,7 +35,7 @@ function renderAt(path) {
 describe('components/auth/RequireRole', () => {
   it('deja pasar cuando el rol coincide', () => {
     localStorage.setItem('milpa_token', 'tok')
-    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'buyer' }))
+    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'minorista' }))
 
     renderAt('/dashboard')
 
@@ -45,7 +45,7 @@ describe('components/auth/RequireRole', () => {
 
   it('redirige a login cuando el rol no coincide', () => {
     localStorage.setItem('milpa_token', 'tok')
-    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'buyer' }))
+    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'minorista' }))
 
     renderAt('/producer')
 

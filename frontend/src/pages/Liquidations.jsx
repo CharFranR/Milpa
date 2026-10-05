@@ -52,7 +52,7 @@ export default function Liquidations() {
           Lotes de excedente a precio preferencial
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-gray-500">
-          Los productores publican aquí sus excedentes de cosecha para venderlos antes de que se
+          Los agricultores publican aquí sus excedentes de cosecha para venderlos antes de que se
           pierdan. Cada lote indica cuánto falta para que cierre.
         </p>
       </header>

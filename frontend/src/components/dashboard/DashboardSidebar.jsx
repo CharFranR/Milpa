@@ -5,9 +5,16 @@ import { useAuth } from '../../context/AuthContext'
 import { getInitials, getDisplayName } from '../../lib/user'
 import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { cn } from '../../lib/cn'
+import { ROLE_LABELS } from '../../lib/roles'
 
-const TABS = [
+const MAYORISTA_TABS = [
   { id: 'solicitudes', icon: 'view_list', label: 'Mis solicitudes' },
+  { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
+  { id: 'perfil', icon: 'person', label: 'Mi perfil' },
+  { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
+]
+
+const MINORISTA_TABS = [
   { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
   { id: 'perfil', icon: 'person', label: 'Mi perfil' },
   { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
@@ -37,7 +44,10 @@ export default function DashboardSidebar() {
   const { pathname } = useLocation()
   const { user, logout } = useAuth()
   const displayName = getDisplayName(user)
-  const displayRole = user?.role === 'buyer' ? 'Comprador' : user?.role || 'Comprador'
+  const rawRole = user?.role
+  const displayRole = rawRole ? ROLE_LABELS[rawRole] : 'Comprador'
+
+  const tabs = rawRole === 'mayorista' ? MAYORISTA_TABS : MINORISTA_TABS
 
   function selectTab(id) {
     navigate(BUYER_TAB_PATHS[id])
@@ -63,7 +73,7 @@ export default function DashboardSidebar() {
           </div>
 
           <nav aria-label="Secciones del dashboard" className="mt-4 space-y-1">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabButton
                 key={tab.id}
                 tab={tab}
@@ -90,7 +100,7 @@ export default function DashboardSidebar() {
       <div className="sticky top-16 z-30 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
           <Avatar initials={getInitials(user)} name={displayName} size="sm" />
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <TabButton
               key={tab.id}
               tab={tab}
