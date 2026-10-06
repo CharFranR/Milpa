@@ -3,7 +3,8 @@ import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import { useCompany } from '../../hooks/useCompany'
-import { categories } from '../../services/api'
+import { categories, users } from '../../services/api'
+import { regions } from '../../lib/regions'
 import { useAuth } from '../../context/AuthContext'
 
 export default function ProducerBusiness() {
@@ -14,6 +15,11 @@ export default function ProducerBusiness() {
   const [formError, setFormError] = useState('')
   const [success, setSuccess] = useState('')
   const [cats, setCats] = useState([])
+  const [addr, setAddr] = useState({ department: '', municipality: '', address: '' })
+  const [addrEditing, setAddrEditing] = useState(false)
+  const [addrSaving, setAddrSaving] = useState(false)
+  const [addrError, setAddrError] = useState('')
+  const [addrSuccess, setAddrSuccess] = useState('')
   const [form, setForm] = useState({
     name: '',
     category_id: '',
@@ -27,6 +33,20 @@ export default function ProducerBusiness() {
   useEffect(() => {
     categories.getAll().then((data) => setCats(Array.isArray(data) ? data : [])).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!currentUser?.id) return
+    users
+      .getById(currentUser.id)
+      .then((u) =>
+        setAddr({
+          department: u.department || '',
+          municipality: u.municipality || '',
+          address: u.address_line || '',
+        }),
+      )
+      .catch(() => {})
+  }, [currentUser?.id])
 
   function setField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -91,6 +111,129 @@ export default function ProducerBusiness() {
       .finally(() => setSaving(false))
   }
 
+  function handleAddrSubmit(e) {
+    e.preventDefault()
+    if (!addr.department.trim() || !addr.municipality.trim() || !addr.address.trim()) {
+      setAddrError('Departamento, municipio y dirección son obligatorios.')
+      return
+    }
+    setAddrSaving(true)
+    setAddrError('')
+    users
+      .update(currentUser.id, {
+        department: addr.department.trim(),
+        municipality: addr.municipality.trim(),
+        address: addr.address.trim(),
+      })
+      .then(() => {
+        setAddrEditing(false)
+        setAddrSuccess('Dirección guardada. Ya puedes publicar productos.')
+      })
+      .catch((err) => setAddrError(err.message || 'No se pudo guardar la dirección.'))
+      .finally(() => setAddrSaving(false))
+  }
+
+  const addrComplete = Boolean(addr.department && addr.municipality && addr.address)
+
+  const addressCard = (
+    <section aria-label="Dirección para publicar" className="rounded-xl border border-gray-100 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Dirección para publicar</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Es la dirección de tu perfil; el servidor la exige para publicar productos.
+          </p>
+        </div>
+        {addrSuccess && !addrEditing && (
+          <span className="rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">{addrSuccess}</span>
+        )}
+        {!addrEditing && (
+          <Badge tone={addrComplete ? 'brand' : 'amber'}>
+            {addrComplete ? 'Completa' : 'Incompleta'}
+          </Badge>
+        )}
+      </div>
+
+      {addrEditing ? (
+        <form onSubmit={handleAddrSubmit} className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label htmlFor="biz-department" className="text-xs font-semibold text-gray-600">Departamento *</label>
+              <select
+                id="biz-department"
+                required
+                value={addr.department}
+                onChange={(e) => setAddr((a) => ({ ...a, department: e.target.value }))}
+                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              >
+                <option value="">Selecciona un departamento</option>
+                {regions.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="biz-municipality" className="text-xs font-semibold text-gray-600">Municipio *</label>
+              <input
+                id="biz-municipality"
+                type="text"
+                required
+                value={addr.municipality}
+                onChange={(e) => setAddr((a) => ({ ...a, municipality: e.target.value }))}
+                placeholder="Masaya, Estelí, Jinotega..."
+                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+            </div>
+            <div>
+              <label htmlFor="biz-address-line" className="text-xs font-semibold text-gray-600">Dirección *</label>
+              <input
+                id="biz-address-line"
+                type="text"
+                required
+                value={addr.address}
+                onChange={(e) => setAddr((a) => ({ ...a, address: e.target.value }))}
+                placeholder="Km 5 carretera a Masaya, al frente de..."
+                className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+            </div>
+          </div>
+          {addrError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{addrError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => { setAddrEditing(false); setAddrError(''); setAddrSuccess('') }} disabled={addrSaving}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" disabled={addrSaving}>
+              {addrSaving ? 'Guardando...' : 'Guardar dirección'}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-4">
+          {addrComplete ? (
+            <dl className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Icon name="map" size={16} className="text-gray-400" />
+                <dd className="text-gray-900">{addr.department} · {addr.municipality}</dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <Icon name="location_on" size={16} className="text-gray-400" />
+                <dd className="text-gray-900">{addr.address}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Completa tu departamento, municipio y dirección para poder publicar productos.
+            </p>
+          )}
+          {addrError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{addrError}</p>}
+          <Button type="button" variant="outline" className="mt-4" onClick={() => { setAddrEditing(true); setAddrSuccess(''); setAddrError('') }} icon={<Icon name="edit" size={16} />}>
+            {addrComplete ? 'Editar dirección' : 'Completar dirección'}
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -149,6 +292,7 @@ export default function ProducerBusiness() {
             Crear mi empresa
           </Button>
         </div>
+        {addressCard}
       </div>
     )
   }
@@ -328,6 +472,8 @@ export default function ProducerBusiness() {
           </div>
         </section>
       </div>
+
+      {addressCard}
     </div>
   )
 }
