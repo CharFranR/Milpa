@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { categories } from '../../services/api'
 import { formatPrice } from '../../lib/format'
 import { setProductImage, getProductImage, embedImageInDescription, extractImageFromDescription, resolveOfferingImage } from '../../lib/productImages'
+import { compressImage } from '../../lib/imageCompression'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const RENEW_DAYS = 30
@@ -75,7 +76,7 @@ export default function ProducerProducts() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleImageSelect(e) {
+  async function handleImageSelect(e) {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -84,13 +85,13 @@ export default function ProducerProducts() {
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result
+    try {
+      const dataUrl = await compressImage(file)
       setForm((f) => ({ ...f, image_url: dataUrl }))
       setImagePreview(dataUrl)
+    } catch {
+      setFormError('No se pudo leer la imagen.')
     }
-    reader.readAsDataURL(file)
   }
 
   function handleRemoveImage() {
