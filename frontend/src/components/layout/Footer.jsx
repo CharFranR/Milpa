@@ -4,7 +4,7 @@ import Logo from '../../components/Logo'
 
 const PLATFORM_LINKS = [
   { label: 'Para compradores', href: '#' },
-  { label: 'Para productores', href: '#' },
+  { label: 'Para agricultores', href: '#' },
   { label: 'Registrarse', href: '#/register' },
   { label: 'Iniciar sesión', href: '#/login' },
 ]
@@ -31,7 +31,7 @@ export default function Footer() {
               <Logo className="h-9 w-auto" />
             </p>
             <p className="mt-4 max-w-xs text-sm text-gray-400">
-              Conectando el campo con la ciudad. Productos frescos, directamente del productor a tu
+              Conectando el campo con la ciudad. Productos frescos, directamente del agricultor a tu
               mesa.
             </p>
           </div>

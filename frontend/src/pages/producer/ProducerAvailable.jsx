@@ -116,11 +116,11 @@ export default function ProducerAvailable() {
                 <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-gray-500">
                   <span>Entrega hasta: {formatDeadline(item.delivery_deadline)}</span>
                   <span>{item.address?.Department || 'Sin departamento'}</span>
-                  <span>
-                    {item.multiple_providers
-                      ? `Mín. ${formatPrice(item.min_amount_per_provider || 0)} por proveedor`
-                      : 'Un solo proveedor'}
-                  </span>
+<span>
+                      {item.multiple_providers
+                        ? `Mín. ${formatPrice(item.min_amount_per_provider || 0)} por agricultor`
+                        : 'Un solo agricultor'}
+                    </span>
                 </div>
 
                 {item.description && (

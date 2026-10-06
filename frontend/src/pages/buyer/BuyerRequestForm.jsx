@@ -94,7 +94,7 @@ export default function BuyerRequestForm() {
           {editing ? 'Editar solicitud' : 'Nueva solicitud de insumo'}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Describe qué necesitas, cuánto y para cuándo. Los proveedores podrán ofertarte.
+          Describe qué necesitas, cuánto y para cuándo. Los agricultores podrán ofertarte.
         </p>
       </header>
 

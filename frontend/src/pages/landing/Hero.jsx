@@ -54,7 +54,7 @@ export default function Hero() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-base text-white/70 sm:text-lg">
-          Conecta directamente con productores locales. Frutas, verduras y productos del campo
+          Conecta directamente con agricultores locales. Frutas, verduras y productos del campo
           frescos, sin intermediarios y a precio justo.
         </p>
 

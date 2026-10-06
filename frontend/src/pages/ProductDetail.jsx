@@ -112,6 +112,10 @@ export default function ProductDetail() {
   async function handleContact() {
     setChatError('')
 
+    if (!farmerId) {
+      setChatError('Este anuncio no tiene un agricultor registrado todavía.')
+      return
+    }
     if (!isAuthenticated) {
       navigate('/login')
       return
@@ -262,7 +266,7 @@ export default function ProductDetail() {
                 disabled={startingChat}
                 onClick={handleContact}
               >
-                {startingChat ? 'Abriendo chat...' : 'Contactar productor'}
+                {startingChat ? 'Abriendo chat...' : 'Contactar agricultor'}
               </Button>
 
               {chatError && (

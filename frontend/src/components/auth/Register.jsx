@@ -7,16 +7,32 @@ import { auth } from '../../services/api'
 
 const USER_TYPES = [
   {
-    key: 'buyer',
-    label: 'Comprador',
-    icon: 'shopping_basket',
-    desc: 'Quiero descubrir y comprar productos frescos directamente de productores locales.',
-  },
-  {
     key: 'producer',
-    label: 'Productor',
+    label: 'Agricultor',
     icon: 'agriculture',
     desc: 'Quiero publicar mis productos y venderlos sin intermediarios.',
+    role: 1,
+  },
+  {
+    key: 'minorista',
+    label: 'Comprador Minorista',
+    icon: 'shopping_basket',
+    desc: 'Quiero descubrir y comprar productos frescos directamente de agricultores locales.',
+    role: 2,
+  },
+  {
+    key: 'mayorista_detallista',
+    label: 'Comprador Mayorista Detallista',
+    icon: 'storefront',
+    desc: 'Compro en volumen para reventa y publico solicitudes de abastecimiento.',
+    role: 3,
+  },
+  {
+    key: 'mayorista_corporativo',
+    label: 'Comprador Mayorista Corporativo',
+    icon: 'business',
+    desc: 'Compro en altos volúmenes recurrentes con requerimientos específicos.',
+    role: 4,
   },
 ]
 
@@ -71,11 +87,14 @@ export default function Register() {
     const firstName = parts[0] || ''
     const lastName = parts.slice(1).join(' ') || ''
 
+    const typeDef = USER_TYPES.find((t) => t.key === userType)
+    const role = typeDef ? typeDef.role : 2
+
     const payload = {
       first_name: firstName,
       last_name: lastName,
       email: form.email.trim(),
-      role: userType === 'buyer' ? 2 : 1, // 1 agricultor · 2 comprador minorista
+      role,
       password: form.password,
       confirm_password: form.password,
     }
@@ -131,7 +150,7 @@ export default function Register() {
             </li>
             <li className="flex items-center gap-2.5">
               <Icon name="storefront" size={18} />
-              Perfil público para productores
+              Perfil público para agricultores
             </li>
           </ul>
         </div>
@@ -235,7 +254,7 @@ export default function Register() {
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <h1 className="text-xl font-bold text-gray-900">
-              Crea tu cuenta de {isProducer ? 'productor' : 'comprador'}
+              Crea tu cuenta de {isProducer ? 'agricultor' : 'comprador'}
             </h1>
 
             <div>

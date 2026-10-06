@@ -39,6 +39,21 @@ function statusTone(label) {
   return STATUS_TONE[label] || 'gray'
 }
 
+const VISIBILITY_LABELS = {
+  public: 'Todos los compradores',
+  wholesale: 'Mayoristas (ambos)',
+  wholesale_retail: 'Solo mayoristas detallistas',
+  wholesale_corporate: 'Solo mayoristas corporativos',
+}
+
+function visibilityLabel(value) {
+  return VISIBILITY_LABELS[value] || value
+}
+
+function visibilityTone(value) {
+  return value === 'public' ? 'brand' : 'amber'
+}
+
 export default function ProducerLiquidations() {
   const { user } = useAuth()
   const [items, setItems] = useState([])
@@ -149,9 +164,9 @@ export default function ProducerLiquidations() {
         setItems((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
         setToast({
           message:
-            created.visibility === 'private'
-              ? 'Liquidación privada publicada. Solo tú puedes verla.'
-              : 'Liquidación publicada.',
+            created.visibility === 'public'
+              ? 'Liquidación pública publicada.'
+              : `Liquidación ${visibilityLabel(created.visibility).toLowerCase()} publicada.`,
           tone: 'success',
         })
       }
@@ -319,7 +334,9 @@ export default function ProducerLiquidations() {
                 className={INPUT}
               >
                 <option value="public">Todos los compradores</option>
-                <option value="private">Solo mayoristas (privada)</option>
+                <option value="wholesale_retail">Solo mayoristas detallistas</option>
+                <option value="wholesale_corporate">Solo mayoristas corporativos</option>
+                <option value="wholesale">Mayoristas (ambos)</option>
               </select>
             </div>
 
@@ -410,8 +427,8 @@ export default function ProducerLiquidations() {
                     </td>
                     <td className="px-5 py-3.5 text-gray-600">{formatPrice(item.unit_price)}</td>
                     <td className="px-5 py-3.5">
-                      <Badge tone={item.visibility === 'private' ? 'amber' : 'brand'}>
-                        {item.visibility === 'private' ? 'Privada' : 'Pública'}
+                      <Badge tone={visibilityTone(item.visibility)}>
+                        {visibilityLabel(item.visibility)}
                       </Badge>
                     </td>
                     <td className="px-5 py-3.5 text-gray-600">

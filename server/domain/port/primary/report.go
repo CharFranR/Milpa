@@ -19,4 +19,5 @@ type ModerationUseCase interface {
 	SetUserRole(ctx context.Context, id uuid.UUID, req dto.SetUserRoleRequest) error
 	DeleteOffering(ctx context.Context, id uuid.UUID) error
 	ListAuditLogs(ctx context.Context, action string, actorID string, targetType string, page, pageSize int) (*dto.PaginatedAuditLogsResponse, error)
+	ListUsers(ctx context.Context, page, pageSize int) (*dto.PaginatedUsersResponse, error)
 }

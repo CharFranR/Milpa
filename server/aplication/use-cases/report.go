@@ -435,4 +435,51 @@ func (uc *ModerationUseCaseImpl) ListAuditLogs(ctx context.Context, action strin
 	}, nil
 }
 
+func (uc *ModerationUseCaseImpl) ListUsers(ctx context.Context, page, pageSize int) (*dto.PaginatedUsersResponse, error) {
+	principal, err := auth.RequirePrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if principal.Role != domain.RoleAdmin {
+		return nil, domain.ErrForbidden
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	users, total, err := uc.userRepo.List(ctx, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.AdminUserDTO, len(users))
+	for i, u := range users {
+		items[i] = dto.AdminUserDTO{
+			ID:           u.ID,
+			FirstName:    u.FirstName,
+			LastName:     u.LastName,
+			Email:        u.Email,
+			PhoneNumber:  u.PhoneNumber,
+			Role:         u.Role,
+			Department:   u.Address.Department,
+			Municipality: u.Address.Municipality,
+			SuspendedAt:  u.SuspendedAt,
+			PhotoURL:     u.PhotoURL,
+			CreatedAt:    u.CreatedAt,
+			UpdatedAt:    u.UpdatedAt,
+		}
+	}
+
+	return &dto.PaginatedUsersResponse{
+		Items: items,
+		Total: total,
+		Page:  page,
+		Size:  pageSize,
+	}, nil
+}
+
 var _ primary.ModerationUseCase = (*ModerationUseCaseImpl)(nil)

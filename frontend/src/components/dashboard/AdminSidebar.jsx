@@ -8,7 +8,7 @@ import { ADMIN_TAB_PATHS } from '../../lib/routes'
 const GESTION_TABS = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', badge: null },
   { id: 'usuarios', icon: 'group', label: 'Usuarios', badge: 3 },
-  { id: 'productores', icon: 'agriculture', label: 'Productores', badge: null },
+  { id: 'productores', icon: 'agriculture', label: 'Agricultores', badge: null },
   { id: 'productos', icon: 'inventory_2', label: 'Productos', badge: 7 },
   { id: 'moderacion', icon: 'shield', label: 'Moderación', badge: 2 },
   { id: 'reportes', icon: 'analytics', label: 'Reportes', badge: null },

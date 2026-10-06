@@ -128,7 +128,7 @@ export default function ProducerOfferForm() {
           Ofrecer en «{request.product_name}»
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          El comprador verá tu oferta junto a las de otros proveedores.
+          El comprador verá tu oferta junto a las de otros agricultores.
         </p>
       </header>
 

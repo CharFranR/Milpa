@@ -10,10 +10,11 @@ function renderAt(path) {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<div>pagina de login</div>} />
+          <Route path="/admin" element={<div>panel admin</div>} />
           <Route
             path="/dashboard"
             element={
-              <RequireRole role="buyer">
+              <RequireRole role="minorista">
                 <div>zona de comprador</div>
               </RequireRole>
             }
@@ -35,7 +36,7 @@ function renderAt(path) {
 describe('components/auth/RequireRole', () => {
   it('deja pasar cuando el rol coincide', () => {
     localStorage.setItem('milpa_token', 'tok')
-    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'buyer' }))
+    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'minorista' }))
 
     renderAt('/dashboard')
 
@@ -43,13 +44,14 @@ describe('components/auth/RequireRole', () => {
     expect(screen.queryByText('pagina de login')).not.toBeInTheDocument()
   })
 
-  it('redirige a login cuando el rol no coincide', () => {
+  it('redirige a la zona del rol cuando el rol no coincide (usuario autenticado)', () => {
     localStorage.setItem('milpa_token', 'tok')
-    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'buyer' }))
+    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1', role: 'minorista' }))
 
     renderAt('/producer')
 
-    expect(screen.getByText('pagina de login')).toBeInTheDocument()
+    expect(screen.getByText('zona de comprador')).toBeInTheDocument()
+    expect(screen.queryByText('pagina de login')).not.toBeInTheDocument()
     expect(screen.queryByText('zona de productor')).not.toBeInTheDocument()
   })
 

@@ -200,6 +200,7 @@ type fakeUserRepo struct {
 	existsByID    func(ctx context.Context, id string) (bool, error)
 	save          func(ctx context.Context, user *domain.User) (string, error)
 	update        func(ctx context.Context, user *domain.User) error
+	list          func(ctx context.Context, page, pageSize int) ([]domain.User, int, error)
 	saved         []*domain.User
 	updated       []*domain.User
 	existedEmails []string
@@ -236,6 +237,9 @@ func newFakeUserRepo() *fakeUserRepo {
 		f.updated = append(f.updated, user)
 		return nil
 	}
+	f.list = func(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+		return []domain.User{}, 0, nil
+	}
 	return f
 }
 
@@ -261,6 +265,10 @@ func (f *fakeUserRepo) Save(ctx context.Context, user *domain.User) (string, err
 
 func (f *fakeUserRepo) Update(ctx context.Context, user *domain.User) error {
 	return f.update(ctx, user)
+}
+
+func (f *fakeUserRepo) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	return f.list(ctx, page, pageSize)
 }
 
 type fakeCompanyRepo struct {

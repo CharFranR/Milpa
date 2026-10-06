@@ -279,4 +279,44 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 	return tx.Commit(ctx)
 }
 
+func (userRepo *UserRepositoryImpl) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	offset := (page - 1) * pageSize
+
+	countQuery := `SELECT COUNT(*) FROM users`
+	var total int
+	err := userRepo.pool.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("user.List: count: %w", err)
+	}
+
+	query := userColumns + ` ORDER BY u.created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := userRepo.pool.Query(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("user.List: query: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0, pageSize)
+	for rows.Next() {
+		user, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("user.List: scan: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("user.List: rows: %w", err)
+	}
+
+	return users, total, nil
+}
+
 var _ port.UserRepository = (*UserRepositoryImpl)(nil)

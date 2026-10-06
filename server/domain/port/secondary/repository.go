@@ -16,6 +16,7 @@ type UserRepository interface {
 	ExistsByID(ctx context.Context, id string) (bool, error)
 	Save(ctx context.Context, user *domain.User) (string, error)
 	Update(ctx context.Context, user *domain.User) error
+	List(ctx context.Context, page, pageSize int) ([]domain.User, int, error)
 }
 
 type CompanyRepository interface {

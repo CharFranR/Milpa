@@ -153,3 +153,16 @@ func (h *ModerationHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request
 
 	respond(w, http.StatusOK, result)
 }
+
+func (h *ModerationHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+
+	result, err := h.uc.ListUsers(r.Context(), page, pageSize)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	respond(w, http.StatusOK, result)
+}

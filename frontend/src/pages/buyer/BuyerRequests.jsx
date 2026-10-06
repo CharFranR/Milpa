@@ -35,7 +35,7 @@ export default function BuyerRequests() {
             Mis solicitudes
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Solicitudes de insumo que publicaste para los proveedores.
+            Solicitudes de insumo que publicaste para los agricultores.
           </p>
         </div>
         <Button
@@ -56,7 +56,7 @@ export default function BuyerRequests() {
         <EmptyState
           icon="inventory_2"
           title="Aún no tienes solicitudes"
-          description="Crea una solicitud de insumo para que los proveedores te ofrezcan."
+          description="Crea una solicitud de insumo para que los agricultores te ofrezcan."
           action={
             <Button onClick={() => navigate('/dashboard/requests/new')}>
               Crear mi primera solicitud
@@ -98,8 +98,8 @@ export default function BuyerRequests() {
                   </span>
                   <span>
                     {item.multiple_providers
-                      ? 'Múltiples proveedores'
-                      : 'Un solo proveedor'}
+                      ? 'Múltiples agricultores'
+                      : 'Un solo agricultor'}
                   </span>
                 </div>
               </Link>

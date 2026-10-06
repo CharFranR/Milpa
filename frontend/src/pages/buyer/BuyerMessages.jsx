@@ -57,7 +57,7 @@ export default function BuyerMessages() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Mensajes</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Conversaciones con productores y consultas que enviaste.
+          Conversaciones con agricultores y consultas que enviaste.
         </p>
       </header>
 
@@ -177,7 +177,7 @@ function InquiriesPane({ items, loading, error, onRetry, onClose }) {
             {item.status === 'replied' && (
               <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
                 <p className="text-sm text-green-700">
-                  El productor ha respondido. Para ver la respuesta, contacta directamente por WhatsApp desde la página del producto.
+                  El agricultor ha respondido. Para ver la respuesta, contacta directamente por WhatsApp desde la página del producto.
                 </p>
                 <a
                   href={`#/product/${item.offering_id}`}
