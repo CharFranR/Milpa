@@ -10,6 +10,7 @@ import { conversations, offerings, users } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000'
+const POLL_INTERVAL_MS = 20000
 
 function peerIdOf(conversation, myId) {
   return conversation.buyer_id === myId ? conversation.farmer_id : conversation.buyer_id
@@ -46,47 +47,82 @@ export default function ConversationList({ onSelect, selectedId, className }) {
 
   useEffect(() => {
     let alive = true
-    setLoading(true)
-    setError('')
+    let timer = null
+    const decorated = new Map()
 
-    conversations
-      .list()
-      .then(async (list) => {
+    // El servidor cachea la lista 5 minutos, así que una conversación nueva
+    // puede tardar en aparecer. Se sondea y se reintenta al volver a la pestaña.
+    const decorate = async (conversation) => {
+      const peerId = peerIdOf(conversation, user?.id)
+      const offeringId =
+        conversation.offering_id && conversation.offering_id !== NIL_UUID
+          ? conversation.offering_id
+          : null
+      const stamp = `${peerId}|${offeringId || ''}`
+      const cached = decorated.get(conversation.id)
+      if (cached && cached.stamp === stamp) return { ...conversation, ...cached.row }
+
+      const [peer, offering] = await Promise.all([
+        users.getById(peerId).catch(() => null),
+        offeringId ? offerings.getById(offeringId).catch(() => null) : Promise.resolve(null),
+      ])
+      const row = { peerId, peerName: nameOf(peer), offeringName: offering?.name || '' }
+      decorated.set(conversation.id, { stamp, row })
+      return { ...conversation, ...row }
+    }
+
+    const schedule = () => {
+      if (!alive || document.hidden) return
+      timer = setTimeout(() => load({ initial: false }), POLL_INTERVAL_MS)
+    }
+
+    async function load({ initial }) {
+      try {
+        const list = await conversations.list()
+        if (!alive) return
         const rows = Array.isArray(list) ? list : []
-        const enriched = await Promise.all(
-          rows.map(async (conversation) => {
-            const peerId = peerIdOf(conversation, user?.id)
-            const offeringId =
-              conversation.offering_id && conversation.offering_id !== NIL_UUID
-                ? conversation.offering_id
-                : null
-            const [peer, offering] = await Promise.all([
-              users.getById(peerId).catch(() => null),
-              offeringId ? offerings.getById(offeringId).catch(() => null) : null,
-            ])
-            return {
-              ...conversation,
-              peerId,
-              peerName: nameOf(peer),
-              offeringName: offering?.name || '',
-            }
-          }),
-        )
+        const enriched = await Promise.all(rows.map(decorate))
+        if (!alive) return
+
+        const live = new Set(rows.map((conversation) => conversation.id))
+        for (const id of decorated.keys()) {
+          if (!live.has(id)) decorated.delete(id)
+        }
+
         enriched.sort(
           (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
         )
-        if (!alive) return
         setItems(enriched)
-        setLoading(false)
-      })
-      .catch((err) => {
+        if (initial) setError('')
+      } catch (err) {
         if (!alive) return
-        setError(err?.message || 'No se pudieron cargar las conversaciones.')
-        setLoading(false)
-      })
+        // Tras la primera carga los items visibles siguen siendo válidos: un fallo
+        // puntual no debe dejar la bandeja en blanco.
+        if (initial) setError(err?.message || 'No se pudieron cargar las conversaciones.')
+      }
+
+      if (!alive) return
+      setLoading(false)
+      schedule()
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) return
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      load({ initial: false })
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    setLoading(true)
+    load({ initial: true })
 
     return () => {
       alive = false
+      if (timer) clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [attempt, user?.id])
 
