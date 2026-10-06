@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"time"
 
 	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
@@ -118,6 +119,9 @@ type ConversationRepository interface {
 	List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
 	ListMessage(ctx context.Context, conversastionID uuid.UUID) ([]domain.Message, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	// MarkRead sella la conversación como leída para userID. Devuelve false si
+	// el usuario no participa: no es un error, el use case ya validó el acceso.
+	MarkRead(ctx context.Context, conversationID uuid.UUID, userID uuid.UUID, at time.Time) (bool, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 

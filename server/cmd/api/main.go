@@ -127,7 +127,7 @@ func main() {
 	var supplyOfferUC primary.SupplyOfferUseCase = usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
 
 	var recommendationUC primary.RecommendationUseCase = usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, userRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
-	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
+	var matchUC primary.MatchUseCase = usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork, cacheClient)
 
 	categoryUC = usecases.NewCachedCategoryUseCase(categoryUC, cacheClient)
 	companyUC = usecases.NewCachedCompanyUseCase(companyUC, cacheClient)
@@ -136,7 +136,7 @@ func main() {
 	inquiryUC = usecases.NewCachedInquiryUseCase(inquiryUC, cacheClient)
 	userUC = usecases.NewCachedUserUseCase(userUC, cacheClient)
 	conversationUC = usecases.NewCachedConversationUseCase(conversationUC, cacheClient)
-	messageUC = usecases.NewCachedMessageUseCase(messageUC, cacheClient)
+	messageUC = usecases.NewCachedMessageUseCase(messageUC, cacheClient, conversationRepo)
 
 	imageStore := storage.NewLocalImageStore("./uploads")
 

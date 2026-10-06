@@ -15,6 +15,16 @@ type ConversationDTO struct {
 	Visibility bool       `json:"visibility"`
 	Created_at time.Time  `json:"created_at"`
 	Updated_at time.Time  `json:"updated_at"`
+	// Los llena solo el listado: el resto de endpoints no los consulta y los
+	// deja en cero/nil.
+	LastMessage *LastMessageDTO `json:"last_message,omitempty"`
+	UnreadCount int             `json:"unread_count"`
+}
+
+type LastMessageDTO struct {
+	Content    string    `json:"content"`
+	SenderID   uuid.UUID `json:"sender_id"`
+	Created_at time.Time `json:"created_at"`
 }
 
 type CreateWSConversation struct {

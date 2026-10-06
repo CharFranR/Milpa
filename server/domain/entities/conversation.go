@@ -15,6 +15,18 @@ type Conversation struct {
 	Visibility bool
 	Created_at time.Time
 	Updated_at time.Time
+
+	// Solo los llena ConversationRepository.List: el listado necesita saber qué
+	// dijo el otro por última vez y cuántas cosas hay sin leer, y eso vive en
+	// la tabla messages, no en conversations.
+	LastMessage *LastMessage
+	UnreadCount int
+}
+
+type LastMessage struct {
+	Content    string
+	SenderID   uuid.UUID
+	Created_at time.Time
 }
 
 func NewConvesation(FamerID uuid.UUID, BuyerID uuid.UUID, OfferingID uuid.UUID, matchID *uuid.UUID, now time.Time) (*Conversation, error) {

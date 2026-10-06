@@ -13,14 +13,16 @@ import (
 )
 
 type CachedMessageUseCase struct {
-	next  primary.MessageUserCase
-	cache port.Cache
+	next          primary.MessageUserCase
+	cache         port.Cache
+	conversations port.ConversationRepository
 }
 
-func NewCachedMessageUseCase(next primary.MessageUserCase, cache port.Cache) *CachedMessageUseCase {
+func NewCachedMessageUseCase(next primary.MessageUserCase, cache port.Cache, conversations port.ConversationRepository) *CachedMessageUseCase {
 	return &CachedMessageUseCase{
-		next:  next,
-		cache: cache,
+		next:          next,
+		cache:         cache,
+		conversations: conversations,
 	}
 }
 
@@ -31,8 +33,21 @@ func (uc *CachedMessageUseCase) CreateMessage(ctx context.Context, req dto.Messa
 	}
 
 	_ = uc.cache.DeleteByPrefix(ctx, "messages:byconversation:"+req.ConversationID.String()+":")
+	uc.evictConversationLists(ctx, req.ConversationID)
 
 	return response, nil
+}
+
+// evictConversationLists borra el listado cacheado de las dos partes: el preview
+// del último mensaje y el contador de no leídos viajan en GET /conversations.
+func (uc *CachedMessageUseCase) evictConversationLists(ctx context.Context, conversationID uuid.UUID) {
+	conversation, err := uc.conversations.GetByID(ctx, conversationID)
+	if err != nil {
+		return
+	}
+
+	_ = uc.cache.Delete(ctx, "conversations:byuser:"+conversation.BuyerID.String())
+	_ = uc.cache.Delete(ctx, "conversations:byuser:"+conversation.FarmerID.String())
 }
 
 func (uc *CachedMessageUseCase) ListMessage(ctx context.Context, conversationID uuid.UUID) (*[]dto.MessageDTO, error) {
@@ -57,6 +72,12 @@ func (uc *CachedMessageUseCase) ListMessage(ctx context.Context, conversationID 
 			return nil
 		},
 	)
+
+	if err == nil {
+		// El use case base acaba de marcar la conversación como leída: la lista
+		// cacheada traería el contador anterior.
+		_ = uc.cache.Delete(ctx, "conversations:byuser:"+principal.UserID.String())
+	}
 
 	return messages, err
 }

@@ -34,7 +34,7 @@ func newMatchFixture() *matchFixture {
 		convs:    newFakeConversationRepo(),
 	}
 	f.uow = newFakeUnitOfWork(f.newTxScope())
-	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow)
+	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow, nil)
 	return f
 }
 
@@ -322,6 +322,56 @@ func TestMatchUseCaseLikeCreatesConversation(t *testing.T) {
 	}
 	if conversation.OfferingID != uuid.Nil {
 		t.Errorf("conversation offering = %v, want nil uuid", conversation.OfferingID)
+	}
+}
+
+func containsKey(keys []string, want string) bool {
+	for _, key := range keys {
+		if key == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestMatchUseCaseLikeEvictsBothConversationLists(t *testing.T) {
+	t.Parallel()
+
+	f := newMatchFixture()
+	cache := newFakeCache()
+	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow, cache)
+
+	if _, _, err := f.uc.Like(principalCtx(), matchTestOfferID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Sin esto la conversación del match no salía en la bandeja hasta que
+	// vencía el TTL de la lista cacheada de cada lado.
+	for _, want := range []string{
+		"conversations:byuser:" + testUserID.String(),
+		"conversations:byuser:" + matchTestSupplierID.String(),
+	} {
+		if !containsKey(cache.deletedKeys, want) {
+			t.Errorf("deleted keys = %v, want %q", cache.deletedKeys, want)
+		}
+	}
+}
+
+func TestMatchUseCaseLikeFailureKeepsCachedLists(t *testing.T) {
+	t.Parallel()
+
+	f := newMatchFixture()
+	cache := newFakeCache()
+	f.uc = usecases.NewMatchUseCase(f.requests, f.offers, f.matches, f.txs, f.recs, f.uow, cache)
+
+	// El comprador del contexto no es el dueño de la solicitud: la transacción
+	// revierte y no hay conversación nueva que invalidar.
+	if _, _, err := f.uc.Like(principalCtx(), uuid.New()); err == nil {
+		t.Fatal("Like() error = nil, want an error for an unknown offer")
+	}
+
+	if len(cache.deletedKeys) != 0 {
+		t.Errorf("deleted keys = %v, want none on a failed Like", cache.deletedKeys)
 	}
 }
 

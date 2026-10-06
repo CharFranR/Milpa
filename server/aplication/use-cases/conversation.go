@@ -147,14 +147,25 @@ func (uc *ConversationUseCaseImpl) DeleteConversation(ctx context.Context, id uu
 var _ primary.ConversationUserUseCase = (*ConversationUseCaseImpl)(nil)
 
 func conversationToDTO(conversation *domain.Conversation) *dto.ConversationDTO {
-	return &dto.ConversationDTO{
-		ID:         conversation.ID,
-		FarmerID:   conversation.FarmerID,
-		BuyerID:    conversation.BuyerID,
-		OfferingID: conversation.OfferingID,
-		MatchID:    conversation.MatchID,
-		Visibility: conversation.Visibility,
-		Created_at: conversation.Created_at,
-		Updated_at: conversation.Updated_at,
+	result := &dto.ConversationDTO{
+		ID:          conversation.ID,
+		FarmerID:    conversation.FarmerID,
+		BuyerID:     conversation.BuyerID,
+		OfferingID:  conversation.OfferingID,
+		MatchID:     conversation.MatchID,
+		Visibility:  conversation.Visibility,
+		Created_at:  conversation.Created_at,
+		Updated_at:  conversation.Updated_at,
+		UnreadCount: conversation.UnreadCount,
 	}
+
+	if conversation.LastMessage != nil {
+		result.LastMessage = &dto.LastMessageDTO{
+			Content:    conversation.LastMessage.Content,
+			SenderID:   conversation.LastMessage.SenderID,
+			Created_at: conversation.LastMessage.Created_at,
+		}
+	}
+
+	return result
 }
