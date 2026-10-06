@@ -62,7 +62,14 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    const notice = sessionStorage.getItem('milpa_notice')
+    if (notice) {
+      sessionStorage.removeItem('milpa_notice')
+      return notice
+    }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
 
   const current = ROLES.find((r) => r.key === role)

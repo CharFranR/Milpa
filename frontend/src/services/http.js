@@ -39,6 +39,12 @@ export async function request(path, options = {}) {
   const data = await res.json().catch(() => null)
 
   if (!res.ok) {
+    if (res.status === 403 && String(data?.error || '').includes('suspended')) {
+      clearSession()
+      sessionStorage.setItem('milpa_notice', 'Tu cuenta está suspendida. Contacta al administrador.')
+      window.location.hash = '#/login'
+      throw { message: 'Tu cuenta está suspendida', status: 403, errors: {} }
+    }
     throw buildError(res.status, data)
   }
 
