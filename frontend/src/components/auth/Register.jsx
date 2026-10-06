@@ -53,6 +53,8 @@ export default function Register() {
     password: '',
     farm: '',
     region: '',
+    municipio: '',
+    direccion: '',
   })
   const [legal, setLegal] = useState(false)
   const [error, setError] = useState('')
@@ -80,6 +82,10 @@ export default function Register() {
       setError('Debes aceptar los Términos de uso y la Política de privacidad.')
       return
     }
+    if (isProducer && (!form.region.trim() || !form.municipio.trim() || !form.direccion.trim())) {
+      setError('Para publicar productos necesitas departamento, municipio y dirección.')
+      return
+    }
     setError('')
     setLoading(true)
 
@@ -101,7 +107,11 @@ export default function Register() {
 
     const phone = normalizePhone(form.phone)
     if (phone) payload.phone_number = phone
-    if (form.region?.trim()) payload.address = form.region.trim()
+    if (isProducer) {
+      payload.department = form.region.trim()
+      payload.municipality = form.municipio.trim()
+      payload.address = form.direccion.trim()
+    }
 
     auth.register(payload)
       .then(() => {
@@ -335,10 +345,11 @@ export default function Register() {
                 </div>
                 <div>
                   <label htmlFor="reg-region" className="text-xs font-semibold text-gray-600">
-                    Departamento
+                    Departamento *
                   </label>
                   <select
                     id="reg-region"
+                    required
                     value={form.region}
                     onChange={(e) => setField('region', e.target.value)}
                     className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
@@ -350,6 +361,34 @@ export default function Register() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label htmlFor="reg-municipio" className="text-xs font-semibold text-gray-600">
+                    Municipio *
+                  </label>
+                  <input
+                    id="reg-municipio"
+                    type="text"
+                    required
+                    value={form.municipio}
+                    onChange={(e) => setField('municipio', e.target.value)}
+                    placeholder="Masaya, Estelí, Jinotega..."
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="reg-direccion" className="text-xs font-semibold text-gray-600">
+                    Dirección *
+                  </label>
+                  <input
+                    id="reg-direccion"
+                    type="text"
+                    required
+                    value={form.direccion}
+                    onChange={(e) => setField('direccion', e.target.value)}
+                    placeholder="Km 5 carretera a Masaya, al frente de..."
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  />
                 </div>
               </>
             )}
