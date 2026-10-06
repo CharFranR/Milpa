@@ -1,5 +1,5 @@
 import StatCard from '../../components/StatCard'
-import { landingStats } from '../../mocks/content'
+import { landingStats } from '../../content/landing'
 
 export default function Stats() {
   return (

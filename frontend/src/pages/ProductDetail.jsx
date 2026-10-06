@@ -8,9 +8,8 @@ import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
 import ReportForm from '../components/reports/ReportForm'
 import StarRating from '../components/StarRating'
-import { offerings, companies, conversations, reports, reviews } from '../services/api'
+import { offerings, companies, conversations, reports, reviews, users, categories } from '../services/api'
 import ChatPanel from '../components/chat/ChatPanel'
-import { productById, producerById, categoryById } from '../mocks/catalog'
 import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
@@ -22,6 +21,8 @@ export default function ProductDetail() {
   const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)
+  const [publicProducer, setPublicProducer] = useState(undefined)
+  const [categoryList, setCategoryList] = useState([])
   const [producerRating, setProducerRating] = useState(null)
   const [reporting, setReporting] = useState(false)
   const [reported, setReported] = useState(false)
@@ -52,7 +53,32 @@ export default function ProductDetail() {
       .finally(() => setLoading(false))
   }, [productId])
 
-  const product = realOffering || productById(productId)
+  useEffect(() => {
+    if (!realOffering) return undefined
+    let cancelled = false
+    if (realOffering.company_id) {
+      setPublicProducer(null)
+      return undefined
+    }
+    users.getById(realOffering.user_id)
+      .then((data) => {
+        if (!cancelled) setPublicProducer(data ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setPublicProducer(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [realOffering])
+
+  useEffect(() => {
+    categories.getAll()
+      .then(setCategoryList)
+      .catch(() => setCategoryList([]))
+  }, [])
+
+  const product = realOffering
 
   useEffect(() => {
     if (!realOffering) return undefined
@@ -93,10 +119,26 @@ export default function ProductDetail() {
         verified: !!realCompany.verified,
         since: '2025',
       }
-    : product
-      ? { ...producerById(product.producerId), verified: false }
+    : publicProducer
+      ? {
+          name: `${publicProducer.first_name || ''} ${publicProducer.last_name || ''}`.trim() || 'Productor',
+          city: publicProducer.municipality || 'Nicaragua',
+          region: publicProducer.department || '',
+          farm: '',
+          verified: false,
+          since: publicProducer.created_at ? new Date(publicProducer.created_at).getFullYear() : '',
+        }
       : null
-  const category = product ? (categoryById(product.categoryId) || { name: product.type === 1 ? 'Servicio' : 'Producto' }) : null
+
+  const descriptionFromProduct = product?.description || ''
+  const category = product
+    ? {
+        name:
+          categoryList.find((c) => c.id === product.category_id)?.name ||
+          descriptionFromProduct.match(/Category:\s*(.+)/)?.[1] ||
+          (product.type === 1 ? 'Servicio' : 'Producto'),
+      }
+    : null
   const farmerId = realOffering?.user_id || null
 
   const description = product?.description || ''
@@ -154,7 +196,10 @@ export default function ProductDetail() {
     setReported(true)
   }
 
-  if (loading) {
+  const producerPending =
+    !!realOffering && !realCompany && publicProducer === undefined && !realOffering.company_id
+
+  if (loading || producerPending) {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <Navbar />
@@ -188,7 +233,7 @@ export default function ProductDetail() {
     )
   }
 
-  const availabilityText = realOffering ? 'Disponible ahora' : 'Disponible ahora'
+  const availabilityText = 'Disponible ahora'
   const availabilityColor = 'bg-green-100 text-green-700'
 
   return (

@@ -1,7 +1,7 @@
 import SectionHeading from '../../components/SectionHeading'
 import Avatar from '../../components/Avatar'
 import Icon from '../../components/ui/Icon'
-import { testimonials } from '../../mocks/content'
+import { testimonials } from '../../content/landing'
 
 export default function Testimonials() {
   return (

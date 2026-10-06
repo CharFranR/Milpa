@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 import Logo from '../../components/Logo'
-import { regions } from '../../mocks/catalog'
+import { regions } from '../../lib/regions'
 import { auth } from '../../services/api'
 
 const USER_TYPES = [

@@ -1,6 +1,6 @@
 import SectionHeading from '../../components/SectionHeading'
 import Icon from '../../components/ui/Icon'
-import { howItWorks } from '../../mocks/content'
+import { howItWorks } from '../../content/landing'
 
 export default function HowItWorks() {
   return (

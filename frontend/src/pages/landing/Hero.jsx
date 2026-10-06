@@ -2,8 +2,8 @@ import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
-import { trustChips } from '../../mocks/content'
-import { regions } from '../../mocks/catalog'
+import { trustChips } from '../../content/landing'
+import { regions } from '../../lib/regions'
 import fondoCampo from '../../assets/images/fondo-campo.jpeg'
 
 export default function Hero() {
