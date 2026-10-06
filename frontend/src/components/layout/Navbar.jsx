@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
+import { HOME_BY_ROLE } from '../../lib/routes'
+import { useAuth } from '../../context/AuthContext'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
 import Logo from '../../components/Logo'
@@ -16,8 +18,10 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const { isAuthenticated, role } = useAuth()
 
   const isLanding = pathname === '/'
+  const panelPath = HOME_BY_ROLE[role] || '/'
   const transparent = isLanding && !scrolled && !open
 
   useEffect(() => {
@@ -90,12 +94,20 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <a href="#/login">
-            <Button variant={transparent ? 'ghost' : 'ghost'}>Ingresar</Button>
-          </a>
-          <a href="#/register" className="w-full sm:w-auto">
-            <Button variant="accent">Registrarse gratis</Button>
-          </a>
+          {isAuthenticated ? (
+            <Button variant="accent" onClick={() => navigate(panelPath)}>
+              Ir a mi panel
+            </Button>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost">Ingresar</Button>
+              </Link>
+              <Link to="/register" className="w-full sm:w-auto">
+                <Button variant="accent">Registrarse gratis</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -138,16 +150,24 @@ export default function Navbar() {
             )}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
-            <a href="#/login" className="w-full">
-              <Button variant="outline" className="w-full">
-                Ingresar
+            {isAuthenticated ? (
+              <Button variant="accent" className="w-full" onClick={() => { setOpen(false); navigate(panelPath) }}>
+                Ir a mi panel
               </Button>
-            </a>
-            <a href="#/register" className="w-full">
-              <Button variant="accent" className="w-full">
-                Registrarse gratis
-              </Button>
-            </a>
+            ) : (
+              <>
+                <Link to="/login" className="w-full">
+                  <Button variant="outline" className="w-full">
+                    Ingresar
+                  </Button>
+                </Link>
+                <Link to="/register" className="w-full">
+                  <Button variant="accent" className="w-full">
+                    Registrarse gratis
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

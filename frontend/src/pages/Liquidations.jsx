@@ -9,10 +9,12 @@ import { formatPrice } from '../lib/format'
 import { hasExpired, remainingLabel } from '../lib/liquidations'
 import { formatDateTime } from '../lib/supplyStatus'
 import { liquidations } from '../services/liquidations'
+import { useNavigate } from 'react-router-dom'
 
 const REFRESH_MS = 60000
 
 export default function Liquidations() {
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -77,7 +79,7 @@ export default function Liquidations() {
           title="No hay liquidaciones abiertas"
           description="Cuando un productor publique un lote de excedente aparecerá en esta lista."
           action={
-            <Button onClick={() => (window.location.hash = '#/marketplace')}>
+            <Button onClick={() => navigate('/marketplace')}>
               Ir al marketplace
             </Button>
           }

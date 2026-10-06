@@ -1,6 +1,8 @@
 import { Suspense, lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 import RequireRole from './components/auth/RequireRole'
+import PublicLayout from './components/layout/PublicLayout'
 import Spinner from './components/ui/Spinner'
 
 const Login = lazy(() => import('./components/auth/Login'))
@@ -52,34 +54,38 @@ export default function App() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<Landing />} />
+          <Route
+            path="/marketplace"
+            element={
+              <RequireRole roles={buyerRoles}>
+                <Marketplace />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/product/:id"
+            element={
+              <RequireRole roles={buyerRoles}>
+                <ProductDetail />
+              </RequireRole>
+            }
+          />
+        </Route>
+
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/liquidations" element={<Liquidations />} />
 
         <Route
-          path="/marketplace"
-          element={
-            <RequireRole roles={buyerRoles}>
-              <Marketplace />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/product/:id"
-          element={
-            <RequireRole roles={buyerRoles}>
-              <ProductDetail />
-            </RequireRole>
-          }
-        />
-
-        <Route
           path="/dashboard"
           element={
-            <RequireRole roles={buyerRoles}>
-              <BuyerDashboard />
-            </RequireRole>
+            <ProtectedRoute>
+              <RequireRole roles={buyerRoles}>
+                <BuyerDashboard />
+              </RequireRole>
+            </ProtectedRoute>
           }
         >
           <Route
@@ -138,9 +144,11 @@ export default function App() {
         <Route
           path="/producer"
           element={
-            <RequireRole role="producer">
-              <ProducerDashboard />
-            </RequireRole>
+            <ProtectedRoute>
+              <RequireRole role="producer">
+                <ProducerDashboard />
+              </RequireRole>
+            </ProtectedRoute>
           }
         >
           <Route index element={<ProducerHome />} />
@@ -159,9 +167,11 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <RequireRole roles={['admin', 'auditor']}>
-              <AdminDashboard />
-            </RequireRole>
+            <ProtectedRoute>
+              <RequireRole roles={['admin', 'auditor']}>
+                <AdminDashboard />
+              </RequireRole>
+            </ProtectedRoute>
           }
         >
           <Route index element={<AdminHome />} />

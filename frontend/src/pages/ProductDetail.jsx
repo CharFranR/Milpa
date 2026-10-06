@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import Navbar from '../components/layout/Navbar'
-import Footer from '../components/layout/Footer'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -201,35 +199,27 @@ export default function ProductDetail() {
 
   if (loading || producerPending) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <Navbar />
-        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
-          <div className="text-center">
-            <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
-            <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+        <div className="text-center">
+          <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
+          <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
+        </div>
+      </main>
     )
   }
 
   if (!product || !producer || !category) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <Navbar />
-        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
-          <div className="text-center">
-            <Icon name="error" size={48} className="mx-auto text-gray-400" />
-            <h1 className="mt-4 text-xl font-bold text-gray-900">Producto no encontrado</h1>
-            <p className="mt-2 text-gray-500">El producto que buscas no existe o ha sido eliminado.</p>
-            <a href="#/marketplace" className="mt-6 inline-block text-brand hover:underline">
-              Volver al Marketplace
-            </a>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+        <div className="text-center">
+          <Icon name="error" size={48} className="mx-auto text-gray-400" />
+          <h1 className="mt-4 text-xl font-bold text-gray-900">Producto no encontrado</h1>
+          <p className="mt-2 text-gray-500">El producto que buscas no existe o ha sido eliminado.</p>
+          <Link to="/marketplace" className="mt-6 inline-block text-brand hover:underline">
+            Volver al Marketplace
+          </Link>
+        </div>
+      </main>
     )
   }
 
@@ -237,14 +227,12 @@ export default function ProductDetail() {
   const availabilityColor = 'bg-green-100 text-green-700'
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <Navbar />
-
+    <>
       <main className="mx-auto flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Ruta de navegación" className="mb-6 flex items-center gap-1 text-sm text-gray-500">
-          <a href="#/" className="hover:text-brand">Inicio</a>
+          <Link to="/" className="hover:text-brand">Inicio</Link>
           <Icon name="chevron_right" size={16} className="text-gray-300" />
-          <a href="#/marketplace" className="hover:text-brand">Marketplace</a>
+          <Link to="/marketplace" className="hover:text-brand">Marketplace</Link>
           <Icon name="chevron_right" size={16} className="text-gray-300" />
           <span className="font-semibold text-gray-900 truncate max-w-xs">{product.name}</span>
         </nav>
@@ -381,8 +369,6 @@ export default function ProductDetail() {
         </div>
       </main>
 
-      <Footer />
-
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in-200"
@@ -400,6 +386,6 @@ export default function ProductDetail() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

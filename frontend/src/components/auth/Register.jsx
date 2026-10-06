@@ -4,6 +4,7 @@ import Button from '../ui/Button'
 import Logo from '../../components/Logo'
 import { regions } from '../../lib/regions'
 import { auth } from '../../services/api'
+import { Link, useNavigate } from 'react-router-dom'
 
 const USER_TYPES = [
   {
@@ -44,6 +45,7 @@ function normalizePhone(raw) {
 }
 
 export default function Register() {
+  const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [userType, setUserType] = useState('')
   const [form, setForm] = useState({
@@ -116,7 +118,7 @@ export default function Register() {
     auth.register(payload)
       .then(() => {
         alert('Cuenta creada correctamente. Ahora inicia sesión.')
-        window.location.hash = '#/login'
+        navigate('/login')
       })
       .catch((err) => {
         if (err.status === 409) {
@@ -136,9 +138,9 @@ export default function Register() {
     <div className="m-0 flex min-h-screen items-center justify-center bg-gray-50 p-4 sm:p-8 md:m-0 md:min-h-screen md:justify-normal md:items-stretch md:gap-8">
       <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden md:rounded-3xl">
         <div className="p-8">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
+          </Link>
         </div>
 
         <div className="p-10">
@@ -172,14 +174,14 @@ export default function Register() {
 
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
+          </Link>
           <p className="text-sm text-gray-500">
             ¿Ya tienes cuenta?{' '}
-            <a href="#/login" className="font-semibold text-brand hover:text-brand-dark">
+            <Link to="/login" className="font-semibold text-brand hover:text-brand-dark">
               Ingresar
-            </a>
+            </Link>
           </p>
         </header>
 

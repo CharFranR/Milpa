@@ -3,6 +3,7 @@ import SectionHeading from '../../components/SectionHeading'
 import CategoryPill from '../../components/CategoryPill'
 import { categories } from '../../services/categories'
 import { iconForCategory } from '../../lib/categoryIcons'
+import { Link } from 'react-router-dom'
 
 export default function Categories() {
   const [items, setItems] = useState([])
@@ -39,15 +40,15 @@ export default function Categories() {
           eyebrow="Explora"
           title="Categorías principales"
           action={
-            <a
-              href="#/marketplace"
+            <Link
+              to="/marketplace"
               className="group inline-flex items-center gap-1 text-sm font-semibold text-brand hover:text-brand-dark"
             >
               Ver todas
               <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
                 →
               </span>
-            </a>
+            </Link>
           }
         />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

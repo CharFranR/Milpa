@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Logo from '../../components/Logo'
+import { Link } from 'react-router-dom'
 
 const PLATFORM_LINKS = [
-  { label: 'Para compradores', href: '#' },
-  { label: 'Para agricultores', href: '#' },
-  { label: 'Registrarse', href: '#/register' },
-  { label: 'Iniciar sesión', href: '#/login' },
+  { label: 'Para compradores' },
+  { label: 'Para agricultores' },
+  { label: 'Registrarse', to: '/register' },
+  { label: 'Iniciar sesión', to: '/login' },
 ]
 
 const COMPANY_LINKS = ['Sobre nosotros', 'Contacto']
@@ -41,9 +42,13 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               {PLATFORM_LINKS.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-sm text-gray-400 transition-colors hover:text-white">
-                    {link.label}
-                  </a>
+                  {link.to ? (
+                    <Link to={link.to} className="text-sm text-gray-400 transition-colors hover:text-white">
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-gray-400">{link.label}</span>
+                  )}
                 </li>
               ))}
             </ul>

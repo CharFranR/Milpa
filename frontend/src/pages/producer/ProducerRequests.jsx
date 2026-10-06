@@ -6,6 +6,7 @@ import Avatar from '../../components/Avatar'
 import Icon from '../../components/ui/Icon'
 import { inquiries } from '../../services/api'
 import { getCompanyId } from '../../lib/session'
+import { Link, useNavigate } from 'react-router-dom'
 
 const STATUS_MAP = {
   pending: { label: 'Pendiente', tone: 'amber' },
@@ -15,6 +16,7 @@ const STATUS_MAP = {
 }
 
 export default function ProducerRequests() {
+  const navigate = useNavigate()
   const companyId = getCompanyId()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -131,9 +133,9 @@ export default function ProducerRequests() {
                     <p className="font-semibold text-gray-900 truncate">
                       {req.buyer?.first_name} {req.buyer?.last_name}
                     </p>
-                    <a href={`#/product/${req.offering_id}`} className="text-sm font-medium text-brand hover:underline truncate block">
+                    <Link to={`/product/${req.offering_id}`} className="text-sm font-medium text-brand hover:underline truncate block">
                       {req.offering_name || 'Producto'}
-                    </a>
+                    </Link>
                   </div>
                 </div>
 
@@ -151,7 +153,7 @@ export default function ProducerRequests() {
 
               {req.status === 'pending' && (
                 <div className="mt-4 flex items-center justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => window.location.hash = `#/product/${req.offering_id}`}>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/product/${req.offering_id}`)}>
                     Ver producto
                   </Button>
                   <Button variant="primary" size="sm" onClick={() => handleReply(req.id)}>

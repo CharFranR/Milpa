@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeRole } from '../../lib/roles'
+import { HOME_BY_ROLE } from '../../lib/routes'
 
 const ROLES = [
   {
@@ -57,7 +58,8 @@ const GOOGLE_SVG = (
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const location = useLocation()
+  const { login, isAuthenticated, role: sessionRole } = useAuth()
   const [role, setRole] = useState('buyer')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -74,6 +76,11 @@ export default function Login() {
 
   const current = ROLES.find((r) => r.key === role)
 
+  // Con sesión ya iniciada no tiene sentido quedarse en el login.
+  if (isAuthenticated && HOME_BY_ROLE[sessionRole]) {
+    return <Navigate to={HOME_BY_ROLE[sessionRole]} replace />
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!email.trim() || !password) {
@@ -87,14 +94,16 @@ export default function Login() {
       .then((data) => {
         login(data.access_token, data.user)
         const next = normalizeRole(data.user.role)
-        if (next === 'producer') {
-          navigate('/producer')
-        } else if (next === 'admin' || next === 'auditor') {
-          navigate('/admin')
-        } else if (next === 'pending') {
+        const home = HOME_BY_ROLE[next]
+        if (next === 'pending') {
           setError('Tu cuenta está pendiente de aprobación.')
+        } else if (location.state?.from) {
+          // RequireRole nos mandó aquí con un destino: respetarlo.
+          navigate(location.state.from, { replace: true })
+        } else if (home) {
+          navigate(home)
         } else {
-          navigate('/dashboard')
+          setError('No pudimos determinar tu panel. Intenta de nuevo.')
         }
       })
       .catch((err) => {
@@ -117,9 +126,9 @@ export default function Login() {
         className={`hidden md:flex md:w-1/2 md:flex-col md:justify-between ${current.panel} relative overflow-hidden md:rounded-3xl`}
       >
         <div className="p-8">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
+          </Link>
         </div>
 
         <div className="p-10">
@@ -145,12 +154,12 @@ export default function Login() {
 
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
-          <a href="#/register" className="text-sm font-semibold text-brand hover:text-brand-dark">
+          </Link>
+          <Link to="/register" className="text-sm font-semibold text-brand hover:text-brand-dark">
             Regístrate
-          </a>
+          </Link>
         </header>
 
         <div>

@@ -6,6 +6,7 @@ import MessagesInbox from '../../components/messages/MessagesInbox'
 import { inquiries } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/cn'
+import { Link } from 'react-router-dom'
 
 const STATUS_MAP = {
   pending: { label: 'Pendiente', tone: 'amber' },
@@ -151,12 +152,12 @@ function InquiriesPane({ items, loading, error, onRetry, onClose }) {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`#/product/${item.offering_id}`}
+                  <Link
+                    to={`/product/${item.offering_id}`}
                     className="font-semibold text-gray-900 hover:text-brand hover:underline"
                   >
                     {item.offering_name || 'Producto'}
-                  </a>
+                  </Link>
                 </div>
                 <time className="mt-0.5 block text-xs text-gray-400">
                   {new Date(item.created_at).toLocaleDateString('es-NI', {
@@ -179,13 +180,13 @@ function InquiriesPane({ items, loading, error, onRetry, onClose }) {
                 <p className="text-sm text-green-700">
                   El agricultor ha respondido. Para ver la respuesta, contacta directamente por WhatsApp desde la página del producto.
                 </p>
-                <a
-                  href={`#/product/${item.offering_id}`}
+                <Link
+                  to={`/product/${item.offering_id}`}
                   className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-green-800 hover:underline"
                 >
                   <Icon name="open_in_new" size={14} />
                   Ver producto
-                </a>
+                </Link>
               </div>
             )}
 

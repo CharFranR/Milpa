@@ -14,6 +14,12 @@ export default function Hero() {
     e.preventDefault()
   }
 
+  // El hash "#como-funciona" bajo HashRouter se leía como una ruta y sacaba de
+  // la landing; por eso el ancla se resuelve con scroll.
+  function scrollToHowItWorks() {
+    document.getElementById('como-funciona')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
     <section className="relative isolate min-h-screen overflow-hidden">
       <div
@@ -111,9 +117,10 @@ export default function Hero() {
         </ul>
       </div>
 
-      <a
-        href="#como-funciona"
-        className="group absolute bottom-5 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-white sm:flex"
+      <button
+        type="button"
+        onClick={scrollToHowItWorks}
+        className="group absolute bottom-5 left-1/2 hidden -translate-x-1/2 cursor-pointer flex-col items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-white sm:flex"
       >
         Explorar
         <Icon
@@ -121,7 +128,7 @@ export default function Hero() {
           size={20}
           className="animate-bounce text-accent motion-reduce:animate-none"
         />
-      </a>
+      </button>
     </section>
   )
 }
