@@ -82,7 +82,7 @@ export default function Footer() {
                     setSent(false)
                   }}
                   placeholder="tu@correo.com"
-                  className="w-full bg-transparent px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none"
+                  className="w-full bg-transparent px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-white"
                 />
                 <button
                   type="submit"

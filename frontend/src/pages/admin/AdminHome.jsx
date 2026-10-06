@@ -178,7 +178,7 @@ export default function AdminHome() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-label="Registros recientes" className="rounded-xl border border-gray-100 bg-white">
+        <section aria-label="Registros recientes" className="min-w-0 rounded-xl border border-gray-100 bg-white">
           <div className="border-b border-gray-100 px-5 py-3">
             <h2 className="text-lg font-semibold text-gray-900">Registros recientes</h2>
           </div>
@@ -230,7 +230,7 @@ export default function AdminHome() {
           </div>
         </section>
 
-        <section aria-label="Reportes pendientes" className="rounded-xl border border-gray-100 bg-white">
+        <section aria-label="Reportes pendientes" className="min-w-0 rounded-xl border border-gray-100 bg-white">
           <div className="border-b border-gray-100 px-5 py-3">
             <h2 className="text-lg font-semibold text-gray-900">Reportes pendientes</h2>
           </div>
@@ -258,7 +258,7 @@ export default function AdminHome() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-label="Regiones más activas" className="rounded-xl border border-gray-100 bg-white p-6">
+        <section aria-label="Regiones más activas" className="min-w-0 rounded-xl border border-gray-100 bg-white p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Regiones más activas</h2>
             {searchCovered < searchTotal && (
@@ -268,7 +268,7 @@ export default function AdminHome() {
           <BarsList items={regions || []} />
         </section>
 
-        <section aria-label="Municipios con más oferta" className="rounded-xl border border-gray-100 bg-white p-6">
+        <section aria-label="Municipios con más oferta" className="min-w-0 rounded-xl border border-gray-100 bg-white p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Municipios con más oferta</h2>
             {searchCovered < searchTotal && (

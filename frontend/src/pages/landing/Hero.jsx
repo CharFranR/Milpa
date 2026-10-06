@@ -74,7 +74,7 @@ export default function Hero() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Café, frijol rojo, quesillo..."
-                className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:outline-2 focus-visible:outline-brand"
               />
             </div>
             <div className="w-full sm:w-auto">
@@ -85,7 +85,7 @@ export default function Hero() {
                 id="hero-region"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full h-10 bg-transparent px-3 py-0 text-sm text-gray-700 focus:outline-none"
+                className="w-full h-10 bg-transparent px-3 py-0 text-sm text-gray-700 focus:outline-none focus-visible:outline-2 focus-visible:outline-brand"
               >
                 <option value="todas">Todas las regiones</option>
                 {regions.slice(0, 6).map((r) => (

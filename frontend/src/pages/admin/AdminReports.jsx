@@ -197,6 +197,7 @@ export default function AdminReports() {
           <select
             value={actionFilter}
             onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+            aria-label="Filtrar por acción"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="all">Todas las acciones</option>
@@ -211,6 +212,7 @@ export default function AdminReports() {
           <select
             value={targetTypeFilter}
             onChange={(e) => { setTargetTypeFilter(e.target.value); setPage(1); }}
+            aria-label="Filtrar por tipo"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="all">Todos los tipos</option>
