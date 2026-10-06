@@ -30,7 +30,7 @@ export default function AdminModeration() {
     setLoading(true)
     setError(null)
     try {
-      const params = { page, page_size: pageSize }
+      const params = { page, pageSize }
       if (statusFilter !== 'all') params.status = statusFilter
       if (targetTypeFilter !== 'all') params.targetType = targetTypeFilter
       const data = await reports.list(params)

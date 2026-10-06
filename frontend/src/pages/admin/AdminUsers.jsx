@@ -29,7 +29,7 @@ export default function AdminUsers() {
     setLoading(true)
     setError(null)
     try {
-      const data = await admin.listUsers({ page, page_size: pageSize })
+      const data = await admin.listUsers({ page, pageSize })
       setUsers(data.items || [])
       setTotal(data.total || 0)
     } catch (e) {
