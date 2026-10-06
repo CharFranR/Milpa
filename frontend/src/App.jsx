@@ -72,6 +72,9 @@ export default function App() {
               </RequireRole>
             }
           />
+          {/* Sin ruta que coincide, la landing conserva su header: fuera del
+              layout se quedaria sin Navbar ni Footer. */}
+          <Route path="*" element={<Landing />} />
         </Route>
 
         <Route path="/login" element={<Login />} />
@@ -183,7 +186,6 @@ export default function App() {
           <Route path="settings" element={<AdminConfig />} />
         </Route>
 
-        <Route path="*" element={<Landing />} />
       </Routes>
     </Suspense>
   )

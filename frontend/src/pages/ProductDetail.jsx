@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
@@ -15,6 +15,7 @@ import { resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated } = useAuth()
   const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
@@ -157,11 +158,8 @@ export default function ProductDetail() {
       return
     }
     if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-    if (!farmerId) {
-      setChatError('Este anuncio no tiene un productor registrado todavía.')
+      // Sin destino, el login tiraba al panel y se perdia el producto.
+      navigate('/login', { state: { from: location.pathname } })
       return
     }
 

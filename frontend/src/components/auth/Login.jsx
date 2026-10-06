@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
+import { RETURN_TO_KEY } from '../../services/http'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeRole } from '../../lib/roles'
 import { HOME_BY_ROLE } from '../../lib/routes'
@@ -38,6 +39,12 @@ const ROLES = [
     ],
   },
 ]
+
+function consumeReturnTo() {
+  const to = sessionStorage.getItem(RETURN_TO_KEY)
+  if (to) sessionStorage.removeItem(RETURN_TO_KEY)
+  return to || ''
+}
 
 const GOOGLE_SVG = (
   <svg width="18" height="18" viewBox="0 0 44 44" aria-hidden="true" fill="none">
@@ -76,10 +83,18 @@ export default function Login() {
 
   const current = ROLES.find((r) => r.key === role)
 
-  // Con sesión ya iniciada no tiene sentido quedarse en el login.
+  // Con sesión ya iniciada no tiene sentido quedarse en el login. El destino
+  // guardado manda sobre el panel: este redirect se dispara en el mismo render
+  // que sigue al login() y, si apuntara al panel, pisaba la navegación al
+  // producto o a la pagina donde se vencio la sesion.
+  const pendingFrom = location.state?.from || sessionStorage.getItem(RETURN_TO_KEY) || ''
   if (isAuthenticated && HOME_BY_ROLE[sessionRole]) {
-    return <Navigate to={HOME_BY_ROLE[sessionRole]} replace />
+    return <Navigate to={pendingFrom || HOME_BY_ROLE[sessionRole]} replace />
   }
+
+  useEffect(() => {
+    if (isAuthenticated) sessionStorage.removeItem(RETURN_TO_KEY)
+  }, [isAuthenticated])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -95,11 +110,13 @@ export default function Login() {
         login(data.access_token, data.user)
         const next = normalizeRole(data.user.role)
         const home = HOME_BY_ROLE[next]
+        // RequireRole deja el destino en el state; si el salto a login vino de
+        // un 401 (hash escrito a mano), queda guardado en sessionStorage.
+        const from = location.state?.from || consumeReturnTo()
         if (next === 'pending') {
           setError('Tu cuenta está pendiente de aprobación.')
-        } else if (location.state?.from) {
-          // RequireRole nos mandó aquí con un destino: respetarlo.
-          navigate(location.state.from, { replace: true })
+        } else if (from) {
+          navigate(from, { replace: true })
         } else if (home) {
           navigate(home)
         } else {
