@@ -97,6 +97,10 @@ func (r *ownershipUserRepo) Update(ctx context.Context, user *domain.User) error
 	return nil
 }
 
+func (r *ownershipUserRepo) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	return nil, 0, nil
+}
+
 var _ port.UserRepository = (*ownershipUserRepo)(nil)
 
 type ownershipClock struct{}

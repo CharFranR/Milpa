@@ -55,6 +55,10 @@ func (stubUserRepo) Update(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+func (stubUserRepo) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	return nil, 0, nil
+}
+
 type stubConversationUC struct {
 	err   error
 	gotID uuid.UUID
