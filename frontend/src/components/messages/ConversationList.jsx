@@ -30,10 +30,46 @@ function initialsOf(name) {
 }
 
 function formatDate(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = toDate(value)
+  if (!date) return ''
+  const today = new Date()
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  if (sameDay) {
+    return date.toLocaleTimeString('es-NI', { hour: 'numeric', minute: '2-digit' })
+  }
   return date.toLocaleDateString('es-NI', { day: 'numeric', month: 'short' })
+}
+
+function toDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+// El preview y el contador de no leídos llegan con el listado; la fecha que
+// importa es la del último mensaje, no la de creación de la conversación.
+function lastActivityOf(conversation) {
+  return conversation.last_message?.created_at || conversation.updated_at || conversation.created_at
+}
+
+function previewOf(conversation) {
+  const content = conversation.last_message?.content
+  return content ? content.trim() : 'Sin mensajes aún'
+}
+
+function UnreadBadge({ count }) {
+  if (!count) return null
+  return (
+    <span
+      aria-label={`${count} mensajes sin leer`}
+      className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-bold text-white"
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  )
 }
 
 export default function ConversationList({ onSelect, selectedId, className }) {
@@ -89,9 +125,7 @@ export default function ConversationList({ onSelect, selectedId, className }) {
           if (!live.has(id)) decorated.delete(id)
         }
 
-        enriched.sort(
-          (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
-        )
+        enriched.sort((a, b) => new Date(lastActivityOf(b)) - new Date(lastActivityOf(a)))
         setItems(enriched)
         if (initial) setError('')
       } catch (err) {
@@ -170,6 +204,8 @@ export default function ConversationList({ onSelect, selectedId, className }) {
       {items.map((conversation) => {
         const selected = conversation.id === selectedId
         const isMatch = Boolean(conversation.match_id)
+        const unread = conversation.unread_count || 0
+        const preview = previewOf(conversation)
         return (
           <button
             key={conversation.id}
@@ -186,18 +222,31 @@ export default function ConversationList({ onSelect, selectedId, className }) {
             <Avatar initials={initialsOf(conversation.peerName)} name={conversation.peerName} size="md" />
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-2">
-                <span className="truncate font-semibold text-gray-900">{conversation.peerName}</span>
-                <time className="shrink-0 text-xs text-gray-400">
-                  {formatDate(conversation.updated_at || conversation.created_at)}
-                </time>
+                <span
+                  className={cn(
+                    'truncate text-gray-900',
+                    unread ? 'font-bold' : 'font-semibold',
+                  )}
+                >
+                  {conversation.peerName}
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <time className="text-xs text-gray-400">{formatDate(lastActivityOf(conversation))}</time>
+                  <UnreadBadge count={unread} />
+                </span>
               </span>
               <span className="mt-0.5 flex items-center gap-2">
                 <Badge tone={isMatch ? 'brand' : 'gray'} className="shrink-0">
                   {isMatch ? 'Match' : conversation.offeringName || 'Producto'}
                 </Badge>
-                {!isMatch && conversation.offeringName && (
-                  <span className="truncate text-xs text-gray-500">Consulta de producto</span>
-                )}
+                <span
+                  className={cn(
+                    'truncate text-xs',
+                    unread ? 'font-medium text-gray-700' : 'text-gray-500',
+                  )}
+                >
+                  {preview}
+                </span>
               </span>
             </span>
           </button>
