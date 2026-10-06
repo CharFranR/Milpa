@@ -9,16 +9,18 @@ const TONES = {
   green: 'bg-green-100 text-green-700',
 }
 
-export default function Badge({ children, tone = 'brand', className }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-        TONES[tone],
-        className,
-      )}
-    >
-      {children}
-    </span>
+export default function Badge({ children, tone = 'brand', className, onClick }) {
+  const classes = cn(
+    'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+    TONES[tone],
+    className,
   )
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {children}
+      </button>
+    )
+  }
+  return <span className={classes}>{children}</span>
 }
