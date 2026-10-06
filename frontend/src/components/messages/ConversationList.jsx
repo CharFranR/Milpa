@@ -60,18 +60,6 @@ function previewOf(conversation) {
   return content ? content.trim() : 'Sin mensajes aún'
 }
 
-function UnreadBadge({ count }) {
-  if (!count) return null
-  return (
-    <span
-      aria-label={`${count} mensajes sin leer`}
-      className="inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-brand px-1.5 py-0.5 text-[11px] font-bold text-white"
-    >
-      {count > 99 ? '99+' : count}
-    </span>
-  )
-}
-
 export default function ConversationList({ onSelect, selectedId, className }) {
   const { user } = useAuth()
   const [items, setItems] = useState([])
@@ -230,10 +218,9 @@ export default function ConversationList({ onSelect, selectedId, className }) {
                 >
                   {conversation.peerName}
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <time className="text-xs text-gray-400">{formatDate(lastActivityOf(conversation))}</time>
-                  <UnreadBadge count={unread} />
-                </span>
+                <time className="shrink-0 text-xs text-gray-400">
+                  {formatDate(lastActivityOf(conversation))}
+                </time>
               </span>
               <span className="mt-0.5 flex items-center gap-2">
                 <Badge tone={isMatch ? 'brand' : 'gray'} className="shrink-0">
