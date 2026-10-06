@@ -247,7 +247,7 @@ export default function ProducerProducts() {
           <p className="mt-2 max-w-sm mx-auto text-sm text-gray-500">
             Para publicar productos, necesitas tener una empresa creada.
           </p>
-          <Button type="button" variant="primary" className="mt-6" onClick={() => window.location.hash = '#/producer'} icon={<Icon name="storefront" size={18} />}>
+          <Button type="button" variant="primary" className="mt-6" onClick={() => window.location.hash = '#/producer/business'} icon={<Icon name="storefront" size={18} />}>
             Ir a Mi negocio
           </Button>
         </div>
