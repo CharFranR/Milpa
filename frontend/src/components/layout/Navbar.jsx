@@ -10,7 +10,6 @@ import Logo from '../../components/Logo'
 const NAV_LINKS = [
   { id: 'inicio', label: 'Inicio' },
   { id: 'como-funciona', label: 'Cómo funciona' },
-  { href: '/liquidations', label: 'Liquidaciones' },
 ]
 
 export default function Navbar() {

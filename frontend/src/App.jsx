@@ -22,7 +22,6 @@ const BuyerRequestForm = lazy(() => import('./pages/buyer/BuyerRequestForm'))
 const BuyerRequests = lazy(() => import('./pages/buyer/BuyerRequests'))
 const BuyerHome = lazy(() => import('./pages/buyer/BuyerHome'))
 const Landing = lazy(() => import('./pages/Landing'))
-const Liquidations = lazy(() => import('./pages/Liquidations'))
 const MatchDetail = lazy(() => import('./pages/matches/MatchDetail'))
 const Marketplace = lazy(() => import('./pages/Marketplace'))
 const ProductDetail = lazy(() => import('./pages/ProductDetail'))
@@ -79,7 +78,6 @@ export default function App() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/liquidations" element={<Liquidations />} />
 
         <Route
           path="/dashboard"
