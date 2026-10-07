@@ -31,3 +31,9 @@ type UpdateCategoryRequest struct {
 type CategoryStatusRequest struct {
 	IsActive bool `json:"is_active"`
 }
+
+type UnitOfMeasureDTO struct {
+	ID   uuid.UUID `json:"id"`
+	Code string    `json:"code"`
+	Name string    `json:"name"`
+}

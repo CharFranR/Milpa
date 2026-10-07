@@ -1,27 +1,27 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import Navbar from '../components/layout/Navbar'
-import Footer from '../components/layout/Footer'
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom'
 import Icon from '../components/ui/Icon'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
 import ProductImage from '../components/product/ProductImage'
 import ReportForm from '../components/reports/ReportForm'
 import StarRating from '../components/StarRating'
-import { offerings, companies, conversations, reports, reviews } from '../services/api'
+import { offerings, companies, conversations, reports, reviews, users, categories } from '../services/api'
 import ChatPanel from '../components/chat/ChatPanel'
-import { productById, producerById, categoryById } from '../mocks/catalog'
 import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
-import { resolveOfferingImage } from '../lib/productImages'
+import { extractImageFromDescription, resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated } = useAuth()
   const { id: productId } = useParams()
   const [realOffering, setRealOffering] = useState(null)
   const [realCompany, setRealCompany] = useState(null)
+  const [publicProducer, setPublicProducer] = useState(undefined)
+  const [categoryList, setCategoryList] = useState([])
   const [producerRating, setProducerRating] = useState(null)
   const [reporting, setReporting] = useState(false)
   const [reported, setReported] = useState(false)
@@ -52,7 +52,32 @@ export default function ProductDetail() {
       .finally(() => setLoading(false))
   }, [productId])
 
-  const product = realOffering || productById(productId)
+  useEffect(() => {
+    if (!realOffering) return undefined
+    let cancelled = false
+    if (realOffering.company_id) {
+      setPublicProducer(null)
+      return undefined
+    }
+    users.getById(realOffering.user_id)
+      .then((data) => {
+        if (!cancelled) setPublicProducer(data ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setPublicProducer(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [realOffering])
+
+  useEffect(() => {
+    categories.getAll()
+      .then(setCategoryList)
+      .catch(() => setCategoryList([]))
+  }, [])
+
+  const product = realOffering
 
   useEffect(() => {
     if (!realOffering) return undefined
@@ -93,10 +118,26 @@ export default function ProductDetail() {
         verified: !!realCompany.verified,
         since: '2025',
       }
-    : product
-      ? { ...producerById(product.producerId), verified: false }
+    : publicProducer
+      ? {
+          name: `${publicProducer.first_name || ''} ${publicProducer.last_name || ''}`.trim() || 'Productor',
+          city: publicProducer.municipality || 'Nicaragua',
+          region: publicProducer.department || '',
+          farm: '',
+          verified: false,
+          since: publicProducer.created_at ? new Date(publicProducer.created_at).getFullYear() : '',
+        }
       : null
-  const category = product ? (categoryById(product.categoryId) || { name: product.type === 1 ? 'Servicio' : 'Producto' }) : null
+
+  const descriptionFromProduct = product?.description || ''
+  const category = product
+    ? {
+        name:
+          categoryList.find((c) => c.id === product.category_id)?.name ||
+          descriptionFromProduct.match(/Category:\s*(.+)/)?.[1] ||
+          (product.type === 1 ? 'Servicio' : 'Producto'),
+      }
+    : null
   const farmerId = realOffering?.user_id || null
 
   const description = product?.description || ''
@@ -104,7 +145,11 @@ export default function ProductDetail() {
   const unit = unitMatch?.[1] || 'un'
   const qtyMatch = description.match(/Qty:\s*(\d+)/)
   const quantity = qtyMatch?.[1] || null
-  const cleanDescription = description.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+  // La imagen va incrustada en la descripción detrás del marcador ImageBase64
+  // (ProductImage la saca aparte con resolveOfferingImage). Sin quitarlo aquí,
+  // el base64 completo se imprimía como texto del producto.
+  const withoutImage = extractImageFromDescription(description).clean
+  const cleanDescription = withoutImage.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
 
   // The direct chat is the only contact path on this page. Post-match chat does
   // not exist yet, so this opens a conversation immediately instead of waiting
@@ -117,11 +162,8 @@ export default function ProductDetail() {
       return
     }
     if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
-    if (!farmerId) {
-      setChatError('Este anuncio no tiene un productor registrado todavía.')
+      // Sin destino, el login tiraba al panel y se perdia el producto.
+      navigate('/login', { state: { from: location.pathname } })
       return
     }
 
@@ -154,52 +196,45 @@ export default function ProductDetail() {
     setReported(true)
   }
 
-  if (loading) {
+  const producerPending =
+    !!realOffering && !realCompany && publicProducer === undefined && !realOffering.company_id
+
+  if (loading || producerPending) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <Navbar />
-        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
-          <div className="text-center">
-            <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
-            <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+        <div className="text-center">
+          <div className="h-12 w-12 mx-auto rounded-full bg-brand-soft animate-pulse" />
+          <p className="mt-4 text-sm text-gray-500">Cargando producto...</p>
+        </div>
+      </main>
     )
   }
 
   if (!product || !producer || !category) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
-        <Navbar />
-        <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
-          <div className="text-center">
-            <Icon name="error" size={48} className="mx-auto text-gray-400" />
-            <h1 className="mt-4 text-xl font-bold text-gray-900">Producto no encontrado</h1>
-            <p className="mt-2 text-gray-500">El producto que buscas no existe o ha sido eliminado.</p>
-            <a href="#/marketplace" className="mt-6 inline-block text-brand hover:underline">
-              Volver al Marketplace
-            </a>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <main className="mx-auto flex-1 flex items-center justify-center px-4 py-16">
+        <div className="text-center">
+          <Icon name="error" size={48} className="mx-auto text-gray-400" />
+          <h1 className="mt-4 text-xl font-bold text-gray-900">Producto no encontrado</h1>
+          <p className="mt-2 text-gray-500">El producto que buscas no existe o ha sido eliminado.</p>
+          <Link to="/marketplace" className="mt-6 inline-block text-brand hover:underline">
+            Volver al Marketplace
+          </Link>
+        </div>
+      </main>
     )
   }
 
-  const availabilityText = realOffering ? 'Disponible ahora' : 'Disponible ahora'
+  const availabilityText = 'Disponible ahora'
   const availabilityColor = 'bg-green-100 text-green-700'
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <Navbar />
-
+    <>
       <main className="mx-auto flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Ruta de navegación" className="mb-6 flex items-center gap-1 text-sm text-gray-500">
-          <a href="#/" className="hover:text-brand">Inicio</a>
+          <Link to="/" className="hover:text-brand">Inicio</Link>
           <Icon name="chevron_right" size={16} className="text-gray-300" />
-          <a href="#/marketplace" className="hover:text-brand">Marketplace</a>
+          <Link to="/marketplace" className="hover:text-brand">Marketplace</Link>
           <Icon name="chevron_right" size={16} className="text-gray-300" />
           <span className="font-semibold text-gray-900 truncate max-w-xs">{product.name}</span>
         </nav>
@@ -336,8 +371,6 @@ export default function ProductDetail() {
         </div>
       </main>
 
-      <Footer />
-
       {isModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in-200"
@@ -355,6 +388,6 @@ export default function ProductDetail() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -83,7 +83,7 @@ func TestE2ESupplyRequestToCompletedTransaction(t *testing.T) {
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(requestRepo, offerRepo, matchRepo, clock)
 	supplyOfferUC := usecases.NewSupplyOfferUseCase(offerRepo, requestRepo, matchRepo, clock)
 	recommendationUC := usecases.NewRecommendationUseCase(offerRepo, requestRepo, userRepo, inventoryRepo, matchRepo, nil)
-	matchUC := usecases.NewMatchUseCase(requestRepo, offerRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
+	matchUC := usecases.NewMatchUseCase(requestRepo, offerRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork, nil)
 	transactionUC := usecases.NewTransactionUseCase(transactionRepo, matchRepo, requestRepo, offerRepo, clock, unitOfWork)
 
 	totalAmount := float64(100)

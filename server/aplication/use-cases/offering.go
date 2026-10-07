@@ -282,6 +282,44 @@ func (uc *OfferingUseCaseImpl) DeleteOffering(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
+// ReindexAll repopulates Elasticsearch with every offering the catalogue
+// shows. Only CreateOffering and UpdateOffering write to the index, so an index
+// that gets recreated (or an ES volume that starts empty) leaves the whole
+// catalogue invisible to search with no way back short of editing every
+// product by hand. Returns how many documents were indexed; if any failed the
+// error says the index is not fully populated.
+func (uc *OfferingUseCaseImpl) ReindexAll(ctx context.Context) (int, error) {
+	offerings, err := uc.offeringRepo.FindAll(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("ReindexAll: %w", err)
+	}
+
+	indexed := 0
+	var failed int
+	for i := range offerings {
+		offering := offerings[i]
+
+		user, err := uc.userRepo.FindByID(ctx, offering.UserID)
+		if err != nil {
+			failed++
+			continue
+		}
+
+		if err := uc.fuzzyRetrival.Index(ctx, indexRequestFor(&offering, user)); err != nil {
+			failed++
+			continue
+		}
+
+		indexed++
+	}
+
+	if failed > 0 {
+		return indexed, fmt.Errorf("ReindexAll: %d of %d offerings were not indexed", failed, len(offerings))
+	}
+
+	return indexed, nil
+}
+
 func (uc *OfferingUseCaseImpl) DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error) {
 	principal, err := auth.RequirePrincipal(ctx)
 	if err != nil {

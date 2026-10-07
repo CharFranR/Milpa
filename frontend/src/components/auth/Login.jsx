@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
 import { auth } from '../../services/api'
+import { RETURN_TO_KEY } from '../../services/http'
 import { useAuth } from '../../context/AuthContext'
 import { normalizeRole } from '../../lib/roles'
+import { HOME_BY_ROLE } from '../../lib/routes'
 
 const ROLES = [
   {
@@ -38,6 +40,12 @@ const ROLES = [
   },
 ]
 
+function consumeReturnTo() {
+  const to = sessionStorage.getItem(RETURN_TO_KEY)
+  if (to) sessionStorage.removeItem(RETURN_TO_KEY)
+  return to || ''
+}
+
 const GOOGLE_SVG = (
   <svg width="18" height="18" viewBox="0 0 44 44" aria-hidden="true" fill="none">
     <path
@@ -57,15 +65,42 @@ const GOOGLE_SVG = (
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const location = useLocation()
+  const { login, isAuthenticated, role: sessionRole } = useAuth()
   const [role, setRole] = useState('buyer')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    const notice = sessionStorage.getItem('milpa_notice')
+    if (notice) {
+      sessionStorage.removeItem('milpa_notice')
+      return notice
+    }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
 
   const current = ROLES.find((r) => r.key === role)
+
+  // Destino al que hay que volver tras entrar: el que RequireRole dejo en el
+  // state o, si el salto a login vino del 401 de http.js (que escribe el hash a
+  // mano), el que quedo guardado ahi.
+  const pendingFrom = location.state?.from || sessionStorage.getItem(RETURN_TO_KEY) || ''
+
+  // Antes del return temprano, como todo hook: si el numero de hooks cambiara
+  // entre renders, React lo detecta y tumba la pagina.
+  useEffect(() => {
+    if (isAuthenticated) sessionStorage.removeItem(RETURN_TO_KEY)
+  }, [isAuthenticated])
+
+  // Con sesión ya iniciada no tiene sentido quedarse en el login. El destino
+  // guardado manda sobre el panel: este redirect se dispara en el mismo render
+  // que sigue al login() y, si apuntara al panel, pisaba la navegación al
+  // producto o a la pagina donde se vencio la sesion.
+  if (isAuthenticated && HOME_BY_ROLE[sessionRole]) {
+    return <Navigate to={pendingFrom || HOME_BY_ROLE[sessionRole]} replace />
+  }
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -80,14 +115,18 @@ export default function Login() {
       .then((data) => {
         login(data.access_token, data.user)
         const next = normalizeRole(data.user.role)
-        if (next === 'producer') {
-          navigate('/producer')
-        } else if (next === 'admin' || next === 'auditor') {
-          navigate('/admin')
-        } else if (next === 'pending') {
+        const home = HOME_BY_ROLE[next]
+        // RequireRole deja el destino en el state; si el salto a login vino de
+        // un 401 (hash escrito a mano), queda guardado en sessionStorage.
+        const from = location.state?.from || consumeReturnTo()
+        if (next === 'pending') {
           setError('Tu cuenta está pendiente de aprobación.')
+        } else if (from) {
+          navigate(from, { replace: true })
+        } else if (home) {
+          navigate(home)
         } else {
-          navigate('/dashboard')
+          setError('No pudimos determinar tu panel. Intenta de nuevo.')
         }
       })
       .catch((err) => {
@@ -110,9 +149,9 @@ export default function Login() {
         className={`hidden md:flex md:w-1/2 md:flex-col md:justify-between ${current.panel} relative overflow-hidden md:rounded-3xl`}
       >
         <div className="p-8">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
+          </Link>
         </div>
 
         <div className="p-10">
@@ -138,12 +177,12 @@ export default function Login() {
 
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
             <Logo className="h-9 w-auto" />
-          </a>
-          <a href="#/register" className="text-sm font-semibold text-brand hover:text-brand-dark">
+          </Link>
+          <Link to="/register" className="text-sm font-semibold text-brand hover:text-brand-dark">
             Regístrate
-          </a>
+          </Link>
         </header>
 
         <div>

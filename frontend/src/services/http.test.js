@@ -92,6 +92,27 @@ describe('services/http', () => {
     })
   })
 
+  it('403 de cuenta suspendida cierra la sesión, deja aviso y manda a login', async () => {
+    localStorage.setItem('milpa_token', 'tok-suspendido')
+    localStorage.setItem('milpa_user', JSON.stringify({ id: 'u1' }))
+    fetchMock.mockResolvedValue(jsonResponse(403, { error: 'your account has been suspended' }))
+
+    const notified = vi.fn()
+    window.addEventListener(LOGOUT_EVENT, notified)
+
+    await expect(request('/things')).rejects.toMatchObject({
+      message: 'Tu cuenta está suspendida',
+      status: 403,
+    })
+
+    window.removeEventListener(LOGOUT_EVENT, notified)
+    expect(notified).toHaveBeenCalledTimes(1)
+    expect(localStorage.getItem('milpa_token')).toBeNull()
+    expect(sessionStorage.getItem('milpa_notice')).toBe('Tu cuenta está suspendida. Contacta al administrador.')
+    expect(window.location.hash).toBe('#/login')
+    sessionStorage.clear()
+  })
+
   it('5xx responde con el mensaje de servicio no disponible', async () => {
     fetchMock.mockResolvedValue(jsonResponse(500, { error: 'redis: connection refused' }))
 

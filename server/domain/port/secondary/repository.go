@@ -30,6 +30,7 @@ type CompanyRepository interface {
 type OfferingRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
 	FindByUserID(ctx context.Context, companyID uuid.UUID, includeHidden bool) ([]domain.Offering, error)
+	FindAll(ctx context.Context) ([]domain.Offering, error)
 	Save(ctx context.Context, offering *domain.Offering) error
 	Update(ctx context.Context, offering *domain.Offering) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -49,6 +50,10 @@ type CategoryRepository interface {
 	FindAll(ctx context.Context) ([]domain.Category, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Category, error)
 	Save(ctx context.Context, category *domain.Category) error
+}
+
+type UnitOfMeasureRepository interface {
+	List(ctx context.Context) ([]domain.UnitOfMeasure, error)
 }
 
 type InquiryRepository interface {
@@ -120,6 +125,9 @@ type ConversationRepository interface {
 	List(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
 	ListMessage(ctx context.Context, conversastionID uuid.UUID) ([]domain.Message, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	// MarkRead sella la conversación como leída para userID. Devuelve false si
+	// el usuario no participa: no es un error, el use case ya validó el acceso.
+	MarkRead(ctx context.Context, conversationID uuid.UUID, userID uuid.UUID, at time.Time) (bool, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 

@@ -30,7 +30,7 @@ export default function AdminModeration() {
     setLoading(true)
     setError(null)
     try {
-      const params = { page, page_size: pageSize }
+      const params = { page, pageSize }
       if (statusFilter !== 'all') params.status = statusFilter
       if (targetTypeFilter !== 'all') params.targetType = targetTypeFilter
       const data = await reports.list(params)
@@ -89,6 +89,7 @@ const getSeverityTone = (severity) => severity === 'Alta' ? 'red' : severity ===
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          aria-label="Filtrar por estado"
           className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
         >
           <option value="all">Todos los estados</option>
@@ -99,6 +100,7 @@ const getSeverityTone = (severity) => severity === 'Alta' ? 'red' : severity ===
         <select
           value={targetTypeFilter}
           onChange={(e) => { setTargetTypeFilter(e.target.value); setPage(1); }}
+          aria-label="Filtrar por tipo"
           className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
         >
           <option value="all">Todos los tipos</option>

@@ -20,6 +20,7 @@ type MatchUseCaseImpl struct {
 	transactionRepo port.TransactionRepository
 	recommendations primary.RecommendationUseCase
 	tx              port.UnitOfWork
+	cache           port.Cache
 }
 
 func NewMatchUseCase(
@@ -29,6 +30,7 @@ func NewMatchUseCase(
 	transactionRepo port.TransactionRepository,
 	recommendations primary.RecommendationUseCase,
 	tx port.UnitOfWork,
+	cache port.Cache,
 ) *MatchUseCaseImpl {
 	return &MatchUseCaseImpl{
 		requestRepo:     requestRepo,
@@ -37,6 +39,7 @@ func NewMatchUseCase(
 		transactionRepo: transactionRepo,
 		recommendations: recommendations,
 		tx:              tx,
+		cache:           cache,
 	}
 }
 
@@ -52,6 +55,8 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 	var (
 		createdMatch       *domain.Match
 		createdTransaction *domain.Transaction
+		buyerID            uuid.UUID
+		supplierID         uuid.UUID
 	)
 
 	err = uc.tx.WithinTx(ctx, func(scope port.TxScope) error {
@@ -124,6 +129,9 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 			return err
 		}
 
+		buyerID = request.BuyerID
+		supplierID = offer.SupplierID
+
 		if err := offer.MarkMatched(); err != nil {
 			return err
 		}
@@ -156,6 +164,14 @@ func (uc *MatchUseCaseImpl) Like(ctx context.Context, supplyOfferID uuid.UUID) (
 	})
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// La conversación del match nació en la transacción, pero el listado de
+	// conversaciones vive cacheado: sin evictar a las dos partes el chat
+	// aparecería recién al vencer el TTL (5 min).
+	if uc.cache != nil {
+		_ = uc.cache.Delete(ctx, "conversations:byuser:"+buyerID.String())
+		_ = uc.cache.Delete(ctx, "conversations:byuser:"+supplierID.String())
 	}
 
 	return matchToDTO(createdMatch), matchTransactionToDTO(createdTransaction), nil

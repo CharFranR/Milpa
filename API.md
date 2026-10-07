@@ -318,6 +318,7 @@ Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspen
 | Route | Auth | Params | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/categories` | Public | — | `200` → `[CategoryDTO]` | `500` |
+| `GET /api/v1/units-of-measure` | Public | — | `200` → `[UnitOfMeasureDTO]` (`id`, `code`, `name`; solo `is_active`) | `500` |
 
 > `default_expiry_days` on the admin category endpoints (`POST /api/v1/admin/categories`, `PATCH /api/v1/admin/categories/{id}`) is a positive day count. On create, `0` (or an omitted key) means the category has no default; on update, an explicit `0` clears the stored default (writes `NULL`) and an omitted key leaves the current value unchanged. A negative value is `400` on both.
 

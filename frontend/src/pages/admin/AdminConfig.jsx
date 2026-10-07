@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { admin } from '../../services/api'
 import { categories } from '../../services/api'
+import { units } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 
-const emptyForm = { name: '', description: '', is_active: true, use_default_expiry: false, default_expiry_days: '' }
+const emptyForm = { name: '', description: '', is_active: true, use_default_expiry: false, default_expiry_days: '', default_unit_of_measure_id: '' }
 
 export default function AdminConfig() {
   const [cats, setCats] = useState([])
@@ -12,14 +13,16 @@ export default function AdminConfig() {
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [unitsList, setUnitsList] = useState([])
   const [form, setForm] = useState(emptyForm)
 
   const fetchCategories = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await categories.getAll()
+      const [data, unitList] = await Promise.all([categories.getAll(), units.getAll()])
       setCats(data)
+      setUnitsList(unitList)
     } catch (e) {
       setError('No se pudieron cargar las categorías')
       console.error(e)
@@ -41,10 +44,11 @@ export default function AdminConfig() {
     }
     payload.default_expiry_days = use_default_expiry ? Number(payload.default_expiry_days) : 0
     try {
+      const unitId = form.default_unit_of_measure_id || null
       if (editing) {
-        await admin.updateCategory(editing.id, payload)
+        await admin.updateCategory(editing.id, { ...payload, default_unit_of_measure_id: unitId })
       } else {
-        await admin.createCategory(payload)
+        await admin.createCategory({ ...payload, default_unit_of_measure_id: unitId })
       }
       setShowModal(false)
       setEditing(null)
@@ -81,6 +85,7 @@ export default function AdminConfig() {
       is_active: cat.is_active,
       use_default_expiry: hasDefault,
       default_expiry_days: hasDefault ? cat.default_expiry_days : '',
+      default_unit_of_measure_id: cat.default_unit_of_measure_id || '',
     })
     setShowModal(true)
   }
@@ -117,6 +122,7 @@ export default function AdminConfig() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Nombre</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Descripción</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-500">Unidad</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Estado</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Acciones</th>
               </tr>
@@ -124,13 +130,18 @@ export default function AdminConfig() {
             <tbody className="divide-y divide-gray-100">
               {cats.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-gray-500">No hay categorías</td>
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">No hay categorías</td>
                 </tr>
               ) : (
                 cats.map((cat) => (
                   <tr key={cat.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{cat.description || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {cat.default_unit_of_measure_id
+                        ? (unitsList.find((u) => u.id === cat.default_unit_of_measure_id)?.code ?? '—')
+                        : <span className="text-amber-600">Sin unidad</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge tone={cat.is_active ? 'brand' : 'amber'} onClick={() => handleStatusChange(cat.id, !cat.is_active)} className="cursor-pointer">
                         {cat.is_active ? 'Activa' : 'Inactiva'}
@@ -199,16 +210,35 @@ export default function AdminConfig() {
                   />
                   <p className="mt-1 text-xs text-gray-500">Actívalo para asignar un vencimiento automático a los productos nuevos que no tengan una fecha propia. Desactívalo para quitar el vencimiento predeterminado de la categoría.</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-200 text-brand focus:ring-brand"
-                />
-                <label htmlFor="is_active" className="text-sm text-gray-700">Activa</label>
+                <div>
+                  <label htmlFor="unit_of_measure" className="block text-sm font-medium text-gray-700 mb-1">
+                    Unidad de medida por defecto
+                  </label>
+                  <select
+                    id="unit_of_measure"
+                    value={form.default_unit_of_measure_id}
+                    onChange={(e) => setForm({ ...form, default_unit_of_measure_id: e.target.value })}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    <option value="">Sin unidad (no se podrá publicar productos)</option>
+                    {unitsList.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.code})</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Los productores heredan esta unidad al crear un producto con la categoría.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={form.is_active}
+                    onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-200 text-brand focus:ring-brand"
+                  />
+                  <label htmlFor="is_active" className="text-sm text-gray-700">Activa</label>
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm(emptyForm); }}>Cancelar</Button>

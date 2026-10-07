@@ -331,6 +331,7 @@ func (f *fakeCompanyRepo) Update(ctx context.Context, company *domain.Company) e
 type fakeOfferingRepo struct {
 	findByID              func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
 	findByUserID          func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	findAll               func(ctx context.Context) ([]domain.Offering, error)
 	deactivateExpired     func(ctx context.Context, now time.Time) ([]domain.Offering, error)
 	save                  func(ctx context.Context, offering *domain.Offering) error
 	update                func(ctx context.Context, offering *domain.Offering) error
@@ -349,6 +350,9 @@ func newFakeOfferingRepo() *fakeOfferingRepo {
 		return offering, nil
 	}
 	f.findByUserID = func(ctx context.Context, UserID uuid.UUID) ([]domain.Offering, error) {
+		return []domain.Offering{*mustOffering()}, nil
+	}
+	f.findAll = func(ctx context.Context) ([]domain.Offering, error) {
 		return []domain.Offering{*mustOffering()}, nil
 	}
 	f.save = func(ctx context.Context, offering *domain.Offering) error {
@@ -373,6 +377,10 @@ func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID, includeHidden bool) ([]domain.Offering, error) {
 	f.lastFindIncludeHidden = includeHidden
 	return f.findByUserID(ctx, companyID)
+}
+
+func (f *fakeOfferingRepo) FindAll(ctx context.Context) ([]domain.Offering, error) {
+	return f.findAll(ctx)
 }
 
 func (f *fakeOfferingRepo) Save(ctx context.Context, offering *domain.Offering) error {
@@ -549,10 +557,12 @@ type fakeConversationRepo struct {
 	list        func(ctx context.Context, userID uuid.UUID) ([]domain.Conversation, error)
 	listMessage func(ctx context.Context, conversationID uuid.UUID) ([]domain.Message, error)
 	getByID     func(ctx context.Context, id uuid.UUID) (*domain.Conversation, error)
+	markRead    func(ctx context.Context, conversationID uuid.UUID, userID uuid.UUID, at time.Time) (bool, error)
 	delete      func(ctx context.Context, id uuid.UUID) error
 	saved       []*domain.Conversation
 	listedIDs   []uuid.UUID
 	deleted     []uuid.UUID
+	markedRead  []uuid.UUID
 }
 
 func newFakeConversationRepo() *fakeConversationRepo {
@@ -571,6 +581,10 @@ func newFakeConversationRepo() *fakeConversationRepo {
 		conversation := mustConversation()
 		conversation.ID = id
 		return conversation, nil
+	}
+	f.markRead = func(ctx context.Context, conversationID uuid.UUID, userID uuid.UUID, at time.Time) (bool, error) {
+		f.markedRead = append(f.markedRead, userID)
+		return true, nil
 	}
 	f.delete = func(ctx context.Context, id uuid.UUID) error {
 		f.deleted = append(f.deleted, id)
@@ -594,6 +608,10 @@ func (f *fakeConversationRepo) ListMessage(ctx context.Context, conversationID u
 
 func (f *fakeConversationRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Conversation, error) {
 	return f.getByID(ctx, id)
+}
+
+func (f *fakeConversationRepo) MarkRead(ctx context.Context, conversationID uuid.UUID, userID uuid.UUID, at time.Time) (bool, error) {
+	return f.markRead(ctx, conversationID, userID, at)
 }
 
 func (f *fakeConversationRepo) Delete(ctx context.Context, id uuid.UUID) error {

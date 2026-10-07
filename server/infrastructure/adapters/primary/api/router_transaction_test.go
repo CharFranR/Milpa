@@ -63,7 +63,7 @@ func newTxTestRouter(t *testing.T, uc *stubTransactionUseCase) http.Handler {
 	authMW := middleware.NewAuthMiddleware(stubJWT{})
 	suspensionMW := middleware.NewSuspensionMiddleware(stubUserRepo{})
 
-	r := NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	r := NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	RegisterTransactionRoutes(r, handler.NewTransactionHandler(uc), authMW, suspensionMW)
 	return r
 }
