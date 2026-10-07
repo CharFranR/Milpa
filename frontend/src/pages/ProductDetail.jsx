@@ -11,7 +11,7 @@ import ChatPanel from '../components/chat/ChatPanel'
 import { useAuth } from '../context/AuthContext'
 import { formatPrice } from '../lib/format'
 import { cn } from '../lib/cn'
-import { resolveOfferingImage } from '../lib/productImages'
+import { extractImageFromDescription, resolveOfferingImage } from '../lib/productImages'
 
 export default function ProductDetail() {
   const navigate = useNavigate()
@@ -145,7 +145,11 @@ export default function ProductDetail() {
   const unit = unitMatch?.[1] || 'un'
   const qtyMatch = description.match(/Qty:\s*(\d+)/)
   const quantity = qtyMatch?.[1] || null
-  const cleanDescription = description.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
+  // La imagen va incrustada en la descripción detrás del marcador ImageBase64
+  // (ProductImage la saca aparte con resolveOfferingImage). Sin quitarlo aquí,
+  // el base64 completo se imprimía como texto del producto.
+  const withoutImage = extractImageFromDescription(description).clean
+  const cleanDescription = withoutImage.replace(/Unit:\s*\S+\n?/, '').replace(/Qty:\s*\d+\n?/, '').replace(/Category:\s*.+\n?/, '').trim()
 
   // The direct chat is the only contact path on this page. Post-match chat does
   // not exist yet, so this opens a conversation immediately instead of waiting
