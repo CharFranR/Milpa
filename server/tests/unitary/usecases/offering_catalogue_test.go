@@ -69,7 +69,7 @@ func TestOfferingCreateRefusesAnIncompleteProduct(t *testing.T) {
 			t.Parallel()
 
 			offeringRepo := newFakeOfferingRepo()
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			_, err := uc.CreateOffering(farmerCtx(), tt.blank(completeCatalogueRequest()))
 
@@ -134,7 +134,7 @@ func TestOfferingUpdateRefusesAnIncompleteProduct(t *testing.T) {
 			t.Parallel()
 
 			offeringRepo := newFakeOfferingRepo()
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			err := uc.UpdateOffering(farmerCtx(), testOfferingID, tt.blank(dto.UpdateOfferingRequest{}))
 
@@ -152,7 +152,7 @@ func TestOfferingCreateStoresEveryCatalogueField(t *testing.T) {
 	t.Parallel()
 
 	offeringRepo := newFakeOfferingRepo()
-	uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+	uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 	expiresAt := fixedTime.Add(72 * time.Hour)
 	companyID := testCompanyID
@@ -219,7 +219,7 @@ func TestOfferingDeactivateIsIdempotentAndOwnerOnly(t *testing.T) {
 			t.Parallel()
 
 			offeringRepo := newFakeOfferingRepo()
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			var err error
 			if tt.ctx == nil {
@@ -289,7 +289,7 @@ func TestOfferingRenewIsOwnerOnlyAndReactivatesTheProduct(t *testing.T) {
 				offering.ExpiresAt = &expiry
 				return offering, nil
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			result, err := uc.RenewOffering(tt.ctx, testOfferingID, dto.RenewOfferingRequest{ExpiresAt: newExpiry})
 
@@ -359,6 +359,7 @@ func TestIndexRequestPrefersTheProductLocation(t *testing.T) {
 			uc := usecases.NewOfferingUseCase(
 				newFakeOfferingRepo(),
 				farmerAt(farmerLatitude, farmerLongitude),
+				newFakeCategoryRepo(),
 				newFakeTimer(),
 				indexed,
 				&fakeInvalidator{},

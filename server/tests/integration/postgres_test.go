@@ -65,6 +65,7 @@ func TestMain(m *testing.M) {
 			filepath.Join(dbCredentials.migrationsPath, "000021_add_user_photo.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000031_liquidations_buyer_visibility.up.sql"),
 			filepath.Join(dbCredentials.migrationsPath, "000032_liquidation_interests.up.sql"),
+			filepath.Join(dbCredentials.migrationsPath, "000034_category_default_expiry.up.sql"),
 		),
 		postgres.WithDatabase(dbCredentials.dbName),
 		postgres.WithUsername(dbCredentials.dbUser),

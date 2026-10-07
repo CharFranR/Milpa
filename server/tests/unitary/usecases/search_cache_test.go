@@ -178,6 +178,7 @@ func TestOfferingInvalidatesSearchCache(t *testing.T) {
 			uc := usecases.NewOfferingUseCase(
 				newFakeOfferingRepo(),
 				newFakeUserRepo(),
+				newFakeCategoryRepo(),
 				newFakeTimer(),
 				&fakeFuzzyRetrival{},
 				inv,

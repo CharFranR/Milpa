@@ -12,7 +12,7 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
-const categoryColumns = `id, name, description, main_category, is_active, default_unit_of_measure_id`
+const categoryColumns = `id, name, description, main_category, is_active, default_unit_of_measure_id, default_expiry_days`
 
 type CategoryRepositoryImpl struct {
 	pool DB
@@ -27,6 +27,7 @@ func scanCategory(scan func(dest ...any) error) (domain.Category, error) {
 	err := scan(
 		&category.ID, &category.Name, &category.Description,
 		&category.MainCategory, &category.IsActive, &category.DefaultUnitOfMeasureID,
+		&category.DefaultExpiryDays,
 	)
 	return category, err
 }
@@ -72,18 +73,20 @@ func (r *CategoryRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*d
 
 func (r *CategoryRepositoryImpl) Save(ctx context.Context, category *domain.Category) error {
 	query := `
-		INSERT INTO categories (id, name, description, main_category, is_active, default_unit_of_measure_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO categories (id, name, description, main_category, is_active, default_unit_of_measure_id, default_expiry_days)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			description = EXCLUDED.description,
 			main_category = EXCLUDED.main_category,
 			is_active = EXCLUDED.is_active,
-			default_unit_of_measure_id = EXCLUDED.default_unit_of_measure_id
+			default_unit_of_measure_id = EXCLUDED.default_unit_of_measure_id,
+			default_expiry_days = EXCLUDED.default_expiry_days
 	`
 	_, err := r.pool.Exec(ctx, query,
 		category.ID, category.Name, category.Description,
 		category.MainCategory, category.IsActive, category.DefaultUnitOfMeasureID,
+		category.DefaultExpiryDays,
 	)
 	if err != nil {
 		if isUniqueViolation(err) {

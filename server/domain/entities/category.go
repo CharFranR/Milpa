@@ -11,6 +11,7 @@ type Category struct {
 	MainCategory           string
 	IsActive               bool
 	DefaultUnitOfMeasureID *uuid.UUID
+	DefaultExpiryDays      *int
 }
 
 func NewCategory(name string) (*Category, error) {

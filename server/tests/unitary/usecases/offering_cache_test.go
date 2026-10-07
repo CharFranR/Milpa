@@ -16,6 +16,7 @@ func cachedOfferingUC(c port.Cache) *usecases.CachedOfferingUseCase {
 		usecases.NewOfferingUseCase(
 			newFakeOfferingRepo(),
 			newFakeUserRepo(),
+			newFakeCategoryRepo(),
 			newFakeTimer(),
 			&fakeFuzzyRetrival{},
 			&fakeInvalidator{},

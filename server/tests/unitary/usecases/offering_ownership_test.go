@@ -53,7 +53,7 @@ func TestOfferingUseCaseDeleteOfferingOwnership(t *testing.T) {
 				}
 			}
 
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			err := uc.DeleteOffering(tt.ctx, testOfferingID)
 
@@ -104,7 +104,7 @@ func TestOfferingUseCaseUpdateOfferingOwnership(t *testing.T) {
 			t.Parallel()
 
 			offeringRepo := newFakeOfferingRepo()
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			err := uc.UpdateOffering(tt.ctx, testOfferingID, dto.UpdateOfferingRequest{Name: strPtr("Renamed")})
 

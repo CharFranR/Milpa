@@ -12,8 +12,8 @@ import (
 )
 
 func catalogueRow(id uuid.UUID, name string) *pgxmock.Rows {
-	return pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id"}).
-		AddRow(id, name, "desc", "granos", true, nil)
+	return pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id", "default_expiry_days"}).
+		AddRow(id, name, "desc", "granos", true, nil, nil)
 }
 
 func TestCategoryFindAll(t *testing.T) {
@@ -27,7 +27,7 @@ func TestCategoryFindAll(t *testing.T) {
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectQuery("FROM categories").WillReturnRows(
 					catalogueRow(testCategoryID, "Cat").
-						AddRow(uuid.MustParse("55555555-5555-5555-5555-555555555556"), "Cat2", "desc2", "granos", true, nil),
+						AddRow(uuid.MustParse("55555555-5555-5555-5555-555555555556"), "Cat2", "desc2", "granos", true, nil, nil),
 				)
 			},
 		},
@@ -79,7 +79,7 @@ func TestCategoryFindByID(t *testing.T) {
 			wantErr: true,
 			expect: func(m pgxmock.PgxPoolIface) {
 				m.ExpectQuery("FROM categories").WithArgs(testCategoryID).WillReturnRows(
-					pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id"}),
+					pgxmock.NewRows([]string{"id", "name", "description", "main_category", "is_active", "default_unit_of_measure_id", "default_expiry_days"}),
 				)
 			},
 		},

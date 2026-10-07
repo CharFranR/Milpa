@@ -216,6 +216,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 	uc := usecases.NewOfferingUseCase(
 		offeringRepo,
 		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleAgricultor}},
+		&catalogueRepo{},
 		ownershipClock{},
 		ownershipSearch{},
 		ownershipInvalidator{},

@@ -88,7 +88,7 @@ func main() {
 
 	userUC := usecases.NewUserUseCase(userRepo, hasher, jwtProvider, clock)
 	cachedSearch := usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
-	offeringUC := usecases.NewOfferingUseCase(offeringRepo, userRepo, clock, searchRepo, cachedSearch)
+	offeringUC := usecases.NewOfferingUseCase(offeringRepo, userRepo, categoryRepo, clock, searchRepo, cachedSearch)
 	inventoryUC := usecases.NewSupplierInventoryUseCase(supplierInventoryRepo)
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
 	supplyOfferUC := usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)

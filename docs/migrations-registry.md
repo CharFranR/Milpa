@@ -9,8 +9,11 @@ is already applied in somebody's database. This document is the arbitration: the
 numbers below are assigned, and a workstream that wants one takes the one it was
 given.
 
-The highest migration currently on disk is `000023`
-(`000023_supplier_inventory_quantity_check`). Everything from `000024` up is
+The highest migration currently on disk is `000032`
+(`000032_liquidation_interests`). This run adds `000034`
+(`000034_category_default_expiry`), agreed with the user on 2026-10-06.
+`000033` is `conversation_read_state` on `origin/feat/frontend/auth-admin`,
+diverging from the old `report_target_types` row. Everything from `000024` up is
 allocated here.
 
 ## Registry
@@ -27,10 +30,22 @@ allocated here.
 | `000031` | `liquidations_buyer_visibility` (+ `closed_at` backfill) | RF-14 | `users` exists (000003) |
 | `000032` | `liquidation_interests` (+ `assigned_buyer_id`) | RF-14 | `000031` |
 | `000033` | `report_target_types` | RF-16 | — |
-| `000034` | `users_registration_invariants` | RF-01 | — |
-| `000035` | `companies_agricultural` | RF-04 | `companies` exists (000004) |
-| `000036` | `conversations_match_link` | RF-13 | `matches` exists (000018) |
-| `000037`+ | **RESERVED BLOCK — roles/RBAC stream** | RF-01, RF-03, RF-08, RF-14, RF-17 | — |
+| `000034` | `category_default_expiry` | RF-05 | — |
+| `000035` | `users_registration_invariants` | RF-01 | — |
+| `000036` | `companies_agricultural` | RF-04 | `companies` exists (000004) |
+| `000037` | `conversations_match_link` | RF-13 | `matches` exists (000018) |
+| `000038`+ | **RESERVED BLOCK — roles/RBAC stream** | RF-01, RF-03, RF-08, RF-14, RF-17 | — |
+
+## Notes
+
+- 2026-10-06: `000034` (`category_default_expiry`) was agreed with the user
+  before any SQL was written. The still-unwritten reservations shifted:
+  `users_registration_invariants` → `000035`, `companies_agricultural` →
+  `000036`, `conversations_match_link` → `000037`, and the RBAC block now
+  starts at `000038`.
+- 2026-10-06: `000033` is `conversation_read_state` on
+  `origin/feat/frontend/auth-admin`, diverging from the `report_target_types`
+  row in this registry; that old assignment did not land on `develop`.
 
 ## Rules
 
@@ -62,13 +77,13 @@ comment.
 
 ### The blocks do not overlap
 
-- The workstream handling **RF-01 … RF-14** owns `000024`–`000036`.
-- The workstream handling the **roles / RBAC** migration owns `000037` and above.
+- The workstream handling **RF-01 … RF-14** owns `000024`–`000037`.
+- The workstream handling the **roles / RBAC** migration owns `000038` and above.
 - Neither may use the other's block. If a workstream needs a migration outside
   its range, that is a change to this document, agreed first — not a number
   picked at the keyboard.
 
-`000037`+ is a block and not a single migration because the RBAC stream is
+`000038`+ is a block and not a single migration because the RBAC stream is
 expected to need more than one: roles, permissions, and the user-to-role
 assignment are three separate changes and they will not land in one commit.
 

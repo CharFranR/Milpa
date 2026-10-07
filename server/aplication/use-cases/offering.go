@@ -18,14 +18,16 @@ type OfferingUseCaseImpl struct {
 	offeringRepo      port.OfferingRepository
 	fuzzyRetrival     port.FuzzyRetrival
 	userRepo          port.UserRepository
+	categoryRepo      port.CategoryRepository
 	timer             port.TimeProvider
 	searchInvalidator port.Invalidator
 }
 
-func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival, searchInvalidator port.Invalidator) *OfferingUseCaseImpl {
+func NewOfferingUseCase(offeringRepo port.OfferingRepository, userRepo port.UserRepository, categoryRepo port.CategoryRepository, timer port.TimeProvider, fuzzyRetrival port.FuzzyRetrival, searchInvalidator port.Invalidator) *OfferingUseCaseImpl {
 	return &OfferingUseCaseImpl{
 		offeringRepo:      offeringRepo,
 		userRepo:          userRepo,
+		categoryRepo:      categoryRepo,
 		timer:             timer,
 		fuzzyRetrival:     fuzzyRetrival,
 		searchInvalidator: searchInvalidator,
@@ -79,7 +81,21 @@ func (uc *OfferingUseCaseImpl) CreateOffering(ctx context.Context, req dto.Creat
 	offering.SetVariety(req.Variety, now)
 	offering.SetUnitOfMeasure(req.UnitOfMeasureID, now)
 	offering.SetQuantity(req.QuantityAvailable, now)
-	offering.SetExpiry(req.ExpiresAt, now)
+	if req.ExpiresAt != nil {
+		offering.SetExpiry(req.ExpiresAt, now)
+	} else if req.CategoryID != nil {
+		category, err := uc.categoryRepo.FindByID(ctx, *req.CategoryID)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return nil, domain.ErrNotFound
+			}
+			return nil, err
+		}
+		if category.DefaultExpiryDays != nil && *category.DefaultExpiryDays > 0 {
+			expires := now.AddDate(0, 0, *category.DefaultExpiryDays)
+			offering.SetExpiry(&expires, now)
+		}
+	}
 	offering.SetCategory(req.CategoryID, now)
 	offering.SetCompany(req.CompanyID, now)
 

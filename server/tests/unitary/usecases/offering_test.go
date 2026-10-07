@@ -71,7 +71,7 @@ func TestOfferingUseCaseCreateOffering(t *testing.T) {
 					return tt.saveErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.CreateOffering(tt.ctx, tt.req)
 
@@ -173,7 +173,7 @@ func TestOfferingUseCaseCreateOfferingRequiresCompleteAddress(t *testing.T) {
 				return user, nil
 			}
 			offeringRepo := newFakeOfferingRepo()
-			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.CreateOffering(farmerCtx(), completeCatalogueRequest())
 
@@ -226,7 +226,7 @@ func TestOfferingUseCaseGetByID(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.GetByID(context.Background(), testOfferingID)
 
@@ -310,7 +310,7 @@ func TestOfferingUseCaseGetByCompany(t *testing.T) {
 					return tt.offerings, nil
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			got, err := uc.GetByUserID(context.Background(), testCompanyID, false)
 
@@ -395,7 +395,7 @@ func TestOfferingUseCaseUpdateOffering(t *testing.T) {
 					return nil, tt.repoErr
 				}
 			}
-			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
 			ctx := tt.ctx
 			if ctx == nil {

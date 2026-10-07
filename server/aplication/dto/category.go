@@ -9,6 +9,7 @@ type CategoryDTO struct {
 	MainCategory           string     `json:"main_category"`
 	IsActive               bool       `json:"is_active"`
 	DefaultUnitOfMeasureID *uuid.UUID `json:"default_unit_of_measure_id,omitempty"`
+	DefaultExpiryDays      *int       `json:"default_expiry_days,omitempty"`
 }
 
 type CreateCategoryRequest struct {
@@ -16,6 +17,7 @@ type CreateCategoryRequest struct {
 	Description            string     `json:"description"`
 	MainCategory           string     `json:"main_category"`
 	DefaultUnitOfMeasureID *uuid.UUID `json:"default_unit_of_measure_id"`
+	DefaultExpiryDays      *int       `json:"default_expiry_days"`
 }
 
 type UpdateCategoryRequest struct {
@@ -23,6 +25,7 @@ type UpdateCategoryRequest struct {
 	Description            *string    `json:"description"`
 	MainCategory           *string    `json:"main_category"`
 	DefaultUnitOfMeasureID *uuid.UUID `json:"default_unit_of_measure_id"`
+	DefaultExpiryDays      *int       `json:"default_expiry_days"`
 }
 
 type CategoryStatusRequest struct {

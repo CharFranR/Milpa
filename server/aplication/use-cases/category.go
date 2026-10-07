@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -53,9 +54,14 @@ func (uc *CategoryUseCaseImpl) Create(ctx context.Context, req dto.CreateCategor
 		return nil, err
 	}
 
+	if err := validateDefaultExpiryDays(req.DefaultExpiryDays); err != nil {
+		return nil, err
+	}
+
 	category.Description = req.Description
 	category.MainCategory = resolveMainCategory(req.MainCategory)
 	category.DefaultUnitOfMeasureID = req.DefaultUnitOfMeasureID
+	category.DefaultExpiryDays = req.DefaultExpiryDays
 
 	if err := uc.categoryRepo.Save(ctx, category); err != nil {
 		return nil, err
@@ -92,6 +98,12 @@ func (uc *CategoryUseCaseImpl) Update(ctx context.Context, id uuid.UUID, req dto
 	}
 	if req.DefaultUnitOfMeasureID != nil {
 		category.DefaultUnitOfMeasureID = req.DefaultUnitOfMeasureID
+	}
+	if req.DefaultExpiryDays != nil {
+		if err := validateDefaultExpiryDays(req.DefaultExpiryDays); err != nil {
+			return nil, err
+		}
+		category.DefaultExpiryDays = req.DefaultExpiryDays
 	}
 
 	if err := uc.categoryRepo.Save(ctx, category); err != nil {
@@ -137,6 +149,13 @@ func resolveMainCategory(mainCategory string) string {
 	return mainCategory
 }
 
+func validateDefaultExpiryDays(days *int) error {
+	if days != nil && *days <= 0 {
+		return fmt.Errorf("%w: default_expiry_days must be greater than zero", domain.ErrInvalidInput)
+	}
+	return nil
+}
+
 func categoryToDTO(category *domain.Category) *dto.CategoryDTO {
 	return &dto.CategoryDTO{
 		ID:                     category.ID,
@@ -145,5 +164,6 @@ func categoryToDTO(category *domain.Category) *dto.CategoryDTO {
 		MainCategory:           category.MainCategory,
 		IsActive:               category.IsActive,
 		DefaultUnitOfMeasureID: category.DefaultUnitOfMeasureID,
+		DefaultExpiryDays:      category.DefaultExpiryDays,
 	}
 }

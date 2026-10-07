@@ -163,6 +163,7 @@ func newOwnershipRouter(t *testing.T) (http.Handler, *ownershipOfferingRepo) {
 	uc := usecases.NewOfferingUseCase(
 		repo,
 		&ownershipUserRepo{user: &domain.User{ID: ownerFarmerID, Role: domain.RoleAgricultor}},
+		&catalogueRepo{},
 		ownershipClock{},
 		ownershipSearch{},
 		ownershipInvalidator{},
