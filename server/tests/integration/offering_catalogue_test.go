@@ -54,7 +54,7 @@ func TestOfferingCatalogueReadHidesExpiredAndDeactivated(t *testing.T) {
 		}
 	}
 
-	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	listed, err := repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() error: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestOfferingCatalogueReadHidesExpiredAndDeactivated(t *testing.T) {
 		t.Fatalf("renew: %v", err)
 	}
 
-	listed, err = repo.FindByUserID(ctx, testOwnerID)
+	listed, err = repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() after the renewal error: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestOfferingSaveRefusesADuplicateActiveProduct(t *testing.T) {
 		t.Fatalf("save duplicate = %v, want ErrDuplicate", err)
 	}
 
-	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	listed, err := repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() error: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestOfferingSaveRefusesADuplicateActiveProductPublishedLater(t *testing.T) 
 		t.Errorf("the driver error leaked past the repository: %v", pgErr)
 	}
 
-	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	listed, err := repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() error: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestOfferingSaveAcceptsTheSameNameOnceTheFirstIsDeactivated(t *testing.T) {
 		t.Fatalf("save after deactivating the first: %v", err)
 	}
 
-	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	listed, err := repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() error: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestOfferingGrandfatheredRowIsHiddenUntilItIsCompleted(t *testing.T) {
 		t.Fatalf("update legacy row: %v", err)
 	}
 
-	listed, err := repo.FindByUserID(ctx, testOwnerID)
+	listed, err := repo.FindByUserID(ctx, testOwnerID, false)
 	if err != nil {
 		t.Fatalf("FindByUserID() error: %v", err)
 	}

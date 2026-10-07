@@ -115,8 +115,18 @@ func (uc *OfferingUseCaseImpl) GetByID(ctx context.Context, id uuid.UUID) (*dto.
 	return offeringToDTO(offering), nil
 }
 
-func (uc *OfferingUseCaseImpl) GetByUserID(ctx context.Context, UserID uuid.UUID) ([]*dto.OfferingDTO, error) {
-	offerings, err := uc.offeringRepo.FindByUserID(ctx, UserID)
+func (uc *OfferingUseCaseImpl) GetByUserID(ctx context.Context, userID uuid.UUID, includeHidden bool) ([]*dto.OfferingDTO, error) {
+	if includeHidden {
+		principal, err := auth.RequirePrincipal(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if principal.UserID != userID {
+			return nil, domain.ErrForbidden
+		}
+	}
+
+	offerings, err := uc.offeringRepo.FindByUserID(ctx, userID, includeHidden)
 	if err != nil {
 		return nil, err
 	}

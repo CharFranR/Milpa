@@ -127,7 +127,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 			repo := repository.NewOfferingRepository(mockPool)
 
 			tt.expect(mockPool)
-			_, err = repo.FindByUserID(context.Background(), companyID)
+			_, err = repo.FindByUserID(context.Background(), companyID, false)
 
 			if (tt.wantErr) != (err != nil) {
 				t.Errorf("FindByCompany() error = %v, wantErr %v", err, tt.wantErr)

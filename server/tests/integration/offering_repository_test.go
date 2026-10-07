@@ -232,7 +232,7 @@ func TestOfferingFindByCompany(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			offerings, err := db.FindByUserID(context.Background(), tt.CompanyID)
+			offerings, err := db.FindByUserID(context.Background(), tt.CompanyID, false)
 
 			if err != nil {
 				t.Errorf("FindByCompany() unexpected error: %v", err)

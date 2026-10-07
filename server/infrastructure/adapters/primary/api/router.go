@@ -76,7 +76,7 @@ func NewRouter(
 
 			r.Route("/offerings", func(r chi.Router) {
 				r.Get("/{id}", offering.GetByID)
-				r.Get("/", offering.GetByUserID)
+				r.With(authMW.AuthenticateOptional).Get("/", offering.GetByUserID)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/", offering.Create)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/create2/", offering.Create_v2)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/{id}/status", offering.Deactivate)

@@ -41,7 +41,7 @@ func warmOfferingCache(t *testing.T, uc *usecases.CachedOfferingUseCase) {
 	if _, err := uc.GetByID(principalCtx(), testOfferingID); err != nil {
 		t.Fatalf("warm the offering entry: %v", err)
 	}
-	if _, err := uc.GetByUserID(principalCtx(), testUserID); err != nil {
+	if _, err := uc.GetByUserID(principalCtx(), testUserID, false); err != nil {
 		t.Fatalf("warm the farmer list entry: %v", err)
 	}
 }

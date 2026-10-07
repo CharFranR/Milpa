@@ -55,10 +55,15 @@ func (r *OfferingRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*d
 	return &offering, nil
 }
 
-func (r *OfferingRepositoryImpl) FindByUserID(ctx context.Context, userID uuid.UUID) ([]domain.Offering, error) {
+func (r *OfferingRepositoryImpl) FindByUserID(ctx context.Context, userID uuid.UUID, includeHidden bool) ([]domain.Offering, error) {
+	predicate := ` AND ` + cataloguePredicate
+	if includeHidden {
+		predicate = ""
+	}
+
 	query := `SELECT ` + offeringColumns + `
 		FROM offerings
-		WHERE user_id = $1 AND ` + cataloguePredicate + `
+		WHERE user_id = $1` + predicate + `
 		ORDER BY created_at DESC
 	`
 

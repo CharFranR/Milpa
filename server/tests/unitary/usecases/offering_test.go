@@ -312,7 +312,7 @@ func TestOfferingUseCaseGetByCompany(t *testing.T) {
 			}
 			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
 
-			got, err := uc.GetByUserID(context.Background(), testCompanyID)
+			got, err := uc.GetByUserID(context.Background(), testCompanyID, false)
 
 			if tt.wantErr != nil {
 				if err == nil {

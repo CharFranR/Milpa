@@ -45,7 +45,7 @@ func (r *ownershipOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*do
 	return &copied, nil
 }
 
-func (r *ownershipOfferingRepo) FindByUserID(ctx context.Context, userID uuid.UUID) ([]domain.Offering, error) {
+func (r *ownershipOfferingRepo) FindByUserID(ctx context.Context, userID uuid.UUID, _ bool) ([]domain.Offering, error) {
 	return nil, nil
 }
 

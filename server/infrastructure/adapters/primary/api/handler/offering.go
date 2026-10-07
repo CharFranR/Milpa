@@ -200,7 +200,17 @@ func (h *OfferingHandler) GetByUserID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.uc.GetByUserID(r.Context(), userID)
+	includeHidden := false
+	switch value := r.URL.Query().Get("include_hidden"); value {
+	case "":
+	case "true", "1":
+		includeHidden = true
+	default:
+		respondError(w, http.StatusBadRequest, "invalid include_hidden")
+		return
+	}
+
+	result, err := h.uc.GetByUserID(r.Context(), userID, includeHidden)
 	if err != nil {
 		handleError(w, err)
 		return

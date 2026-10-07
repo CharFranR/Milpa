@@ -233,7 +233,7 @@ func loadCategoryIDs(ctx context.Context, categoryRepo *repo.CategoryRepositoryI
 }
 
 func seedOfferings(ctx context.Context, offeringRepo *repo.OfferingRepositoryImpl, offeringUC *usecases.OfferingUseCaseImpl, farmerID uuid.UUID, kgID uuid.UUID, categoryIDs map[string]uuid.UUID) (int, int, error) {
-	existing, err := offeringRepo.FindByUserID(ctx, farmerID)
+	existing, err := offeringRepo.FindByUserID(ctx, farmerID, false)
 	if err != nil {
 		return 0, 0, err
 	}

@@ -368,7 +368,7 @@ func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 	return f.findByID(ctx, id)
 }
 
-func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID, _ bool) ([]domain.Offering, error) {
 	return f.findByUserID(ctx, companyID)
 }
 

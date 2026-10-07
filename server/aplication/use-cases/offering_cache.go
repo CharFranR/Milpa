@@ -44,16 +44,20 @@ func (uc *CachedOfferingUseCase) GetByID(ctx context.Context, id uuid.UUID) (*dt
 	return offering, err
 }
 
-func (uc *CachedOfferingUseCase) GetByUserID(ctx context.Context, companyID uuid.UUID) ([]*dto.OfferingDTO, error) {
+func (uc *CachedOfferingUseCase) GetByUserID(ctx context.Context, userID uuid.UUID, includeHidden bool) ([]*dto.OfferingDTO, error) {
+	if includeHidden {
+		return uc.next.GetByUserID(ctx, userID, includeHidden)
+	}
+
 	var offering []*dto.OfferingDTO
 
 	_, err := uc.cache.Remember(
 		ctx,
-		"offerings:byuser:"+companyID.String(),
+		"offerings:byuser:"+userID.String(),
 		5*time.Minute,
 		&offering,
 		func() error {
-			result, err := uc.next.GetByUserID(ctx, companyID)
+			result, err := uc.next.GetByUserID(ctx, userID, includeHidden)
 			if err != nil {
 				return err
 			}
