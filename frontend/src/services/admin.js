@@ -1,5 +1,16 @@
 import { request } from './http'
 
+const categoryBody = (data) => {
+  const body = { ...data }
+  const days = body.default_expiry_days
+  if (days === undefined || days === null || days === '') {
+    delete body.default_expiry_days
+  } else {
+    body.default_expiry_days = Number(days)
+  }
+  return body
+}
+
 export const admin = {
   listUsers: (params = {}) => {
     const searchParams = new URLSearchParams()
@@ -21,7 +32,7 @@ export const admin = {
     const qs = searchParams.toString()
     return request(`/admin/audit-logs${qs ? '?' + qs : ''}`)
   },
-  createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }),
-  updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PATCH', body: data }),
+  createCategory: (data) => request('/admin/categories', { method: 'POST', body: categoryBody(data) }),
+  updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PATCH', body: categoryBody(data) }),
   setCategoryStatus: (id, isActive) => request(`/admin/categories/${id}/status`, { method: 'PATCH', body: { is_active: isActive } }),
 }

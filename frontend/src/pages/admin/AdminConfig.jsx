@@ -10,7 +10,7 @@ export default function AdminConfig() {
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', is_active: true })
+  const [form, setForm] = useState({ name: '', description: '', is_active: true, default_expiry_days: '' })
 
   const fetchCategories = useCallback(async () => {
     setLoading(true)
@@ -32,15 +32,20 @@ export default function AdminConfig() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const days = form.default_expiry_days
+    if (days !== '' && (!Number.isInteger(Number(days)) || Number(days) <= 0)) {
+      alert('Los días de vencimiento predeterminados deben ser un número entero mayor a 0')
+      return
+    }
     try {
       if (editing) {
         await admin.updateCategory(editing.id, form)
       } else {
-        await admin.createCategory({ name: form.name, description: form.description, is_active: form.is_active })
+        await admin.createCategory(form)
       }
       setShowModal(false)
       setEditing(null)
-      setForm({ name: '', description: '', is_active: true })
+      setForm({ name: '', description: '', is_active: true, default_expiry_days: '' })
       fetchCategories()
     } catch (e) {
       alert('Error al guardar la categoría')
@@ -60,13 +65,13 @@ export default function AdminConfig() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', is_active: true })
+    setForm({ name: '', description: '', is_active: true, default_expiry_days: '' })
     setShowModal(true)
   }
 
   const openEdit = (cat) => {
     setEditing(cat)
-    setForm({ name: cat.name, description: cat.description || '', is_active: cat.is_active })
+    setForm({ name: cat.name, description: cat.description || '', is_active: cat.is_active, default_expiry_days: cat.default_expiry_days ?? '' })
     setShowModal(true)
   }
 
@@ -158,6 +163,20 @@ export default function AdminConfig() {
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
+              <div>
+                <label htmlFor="default_expiry_days" className="block text-sm font-medium text-gray-700 mb-1">Días de vencimiento predeterminados</label>
+                <input
+                  type="number"
+                  id="default_expiry_days"
+                  min="1"
+                  step="1"
+                  value={form.default_expiry_days}
+                  onChange={(e) => setForm({ ...form, default_expiry_days: e.target.value })}
+                  placeholder="Sin vencimiento predeterminado"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+                <p className="mt-1 text-xs text-gray-500">Opcional. Solo se aplica a los productos nuevos que no tengan una fecha de vencimiento propia.</p>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -169,7 +188,7 @@ export default function AdminConfig() {
                 <label htmlFor="is_active" className="text-sm text-gray-700">Activa</label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm({ name: '', description: '', is_active: true }); }}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm({ name: '', description: '', is_active: true, default_expiry_days: '' }); }}>Cancelar</Button>
                 <Button type="submit">{editing ? 'Guardar' : 'Crear'}</Button>
               </div>
             </form>
