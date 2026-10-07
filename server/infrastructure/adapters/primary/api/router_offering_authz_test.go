@@ -179,6 +179,7 @@ func newOwnershipRouter(t *testing.T) (http.Handler, *ownershipOfferingRepo) {
 		authMW, suspensionMW,
 		nil, nil, nil, nil, nil, nil, chat,
 		nil, nil, nil, nil, nil,
+		nil,
 	)
 
 	return router, repo

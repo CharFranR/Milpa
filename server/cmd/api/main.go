@@ -85,6 +85,7 @@ func main() {
 	offeringRepo := repo.NewOfferingRepository(pool)
 	reviewRepo := repo.NewReviewRepository(pool)
 	categoryRepo := repo.NewCategoryRepository(pool)
+	unitOfMeasureRepo := repo.NewUnitOfMeasureRepository(pool)
 	inquiryRepo := repo.NewInquiryRepository(pool)
 	liquidationRepo := repo.NewLiquidationRepository(pool)
 	reportRepo := repo.NewReportRepository(pool)
@@ -110,6 +111,7 @@ func main() {
 	var companyUC primary.CompanyUseCase = usecases.NewCompanyUseCase(companyRepo, userRepo, categoryRepo, clock)
 	var reviewUC primary.ReviewUseCase = usecases.NewReviewUseCase(reviewRepo, transactionRepo, matchRepo, supplyOfferRepo, supplyRequestRepo, companyRepo, clock)
 	var categoryUC primary.CategoryUseCase = usecases.NewCategoryUseCase(categoryRepo)
+	var unitOfMeasureUC primary.UnitOfMeasureUseCase = usecases.NewUnitOfMeasureUseCase(unitOfMeasureRepo)
 	var inquiryUC primary.InquiryUseCase = usecases.NewInquiryUseCase(inquiryRepo, offeringRepo, clock)
 	var searchUC primary.FuzzyUseCase = usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
 
@@ -145,6 +147,7 @@ func main() {
 	offeringHandler := handler.NewOfferingHandler(offeringUC, imageStore)
 	reviewHandler := handler.NewReviewHandler(reviewUC)
 	categoryHandler := handler.NewCategoryHandler(categoryUC)
+	unitOfMeasureHandler := handler.NewUnitOfMeasureHandler(unitOfMeasureUC)
 	inquiryHandler := handler.NewInquiryHandler(inquiryUC)
 	liquidationHandler := handler.NewLiquidationHandler(liquidationUC)
 	imageHandler := handler.NewImageHandler(imageStore)
@@ -169,7 +172,7 @@ func main() {
 	authMW := middleware.NewAuthMiddleware(jwtProvider)
 	suspensionMW := middleware.NewSuspensionMiddleware(userRepo)
 
-	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, inventoryHandler, matchHandler, recommendationHandler)
+	r := api.NewRouter(userHandler, companyHandler, offeringHandler, reviewHandler, categoryHandler, inquiryHandler, liquidationHandler, authMW, suspensionMW, imageHandler, searchHandler, reportHandler, moderationHandler, conversationHandler, messageHandler, chatHandler, supplyRequestHandler, supplyOfferHandler, inventoryHandler, matchHandler, recommendationHandler, unitOfMeasureHandler)
 	api.RegisterTransactionRoutes(r, transactionHandler, authMW, suspensionMW)
 
 	srv := &http.Server{

@@ -51,6 +51,10 @@ type CategoryRepository interface {
 	Save(ctx context.Context, category *domain.Category) error
 }
 
+type UnitOfMeasureRepository interface {
+	List(ctx context.Context) ([]domain.UnitOfMeasure, error)
+}
+
 type InquiryRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Inquiry, error)
 	FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Inquiry, error)

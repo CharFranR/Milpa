@@ -318,6 +318,7 @@ Auth column: **Public** = no token; **Bearer** = `Authorization` header + suspen
 | Route | Auth | Params | Success | Notable statuses |
 |---|---|---|---|---|
 | `GET /api/v1/categories` | Public | — | `200` → `[CategoryDTO]` | `500` |
+| `GET /api/v1/units-of-measure` | Public | — | `200` → `[UnitOfMeasureDTO]` (`id`, `code`, `name`; solo `is_active`) | `500` |
 
 ### Companies
 
