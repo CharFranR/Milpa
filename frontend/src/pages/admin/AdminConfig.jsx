@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { admin } from '../../services/api'
 import { categories } from '../../services/api'
+import { units } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 
@@ -10,14 +11,18 @@ export default function AdminConfig() {
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', is_active: true })
+  const [unitsList, setUnitsList] = useState([])
+  const [form, setForm] = useState({ name: '', description: '', default_unit_of_measure_id: '' })
+
+  const emptyForm = { name: '', description: '', default_unit_of_measure_id: '' }
 
   const fetchCategories = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await categories.getAll()
+      const [data, unitList] = await Promise.all([categories.getAll(), units.getAll()])
       setCats(data)
+      setUnitsList(unitList)
     } catch (e) {
       setError('No se pudieron cargar las categorías')
       console.error(e)
@@ -33,14 +38,23 @@ export default function AdminConfig() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      const unitId = form.default_unit_of_measure_id || null
       if (editing) {
-        await admin.updateCategory(editing.id, form)
+        await admin.updateCategory(editing.id, {
+          name: form.name,
+          description: form.description,
+          default_unit_of_measure_id: unitId,
+        })
       } else {
-        await admin.createCategory({ name: form.name, description: form.description, is_active: form.is_active })
+        await admin.createCategory({
+          name: form.name,
+          description: form.description,
+          default_unit_of_measure_id: unitId,
+        })
       }
       setShowModal(false)
       setEditing(null)
-      setForm({ name: '', description: '', is_active: true })
+      setForm(emptyForm)
       fetchCategories()
     } catch (e) {
       alert('Error al guardar la categoría')
@@ -60,13 +74,17 @@ export default function AdminConfig() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', is_active: true })
+    setForm(emptyForm)
     setShowModal(true)
   }
 
   const openEdit = (cat) => {
     setEditing(cat)
-    setForm({ name: cat.name, description: cat.description || '', is_active: cat.is_active })
+    setForm({
+      name: cat.name,
+      description: cat.description || '',
+      default_unit_of_measure_id: cat.default_unit_of_measure_id || '',
+    })
     setShowModal(true)
   }
 
@@ -102,6 +120,7 @@ export default function AdminConfig() {
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Nombre</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Descripción</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-500">Unidad</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Estado</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-500">Acciones</th>
               </tr>
@@ -109,13 +128,18 @@ export default function AdminConfig() {
             <tbody className="divide-y divide-gray-100">
               {cats.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-gray-500">No hay categorías</td>
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">No hay categorías</td>
                 </tr>
               ) : (
                 cats.map((cat) => (
                   <tr key={cat.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{cat.description || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {cat.default_unit_of_measure_id
+                        ? (unitsList.find((u) => u.id === cat.default_unit_of_measure_id)?.code ?? '—')
+                        : <span className="text-amber-600">Sin unidad</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge tone={cat.is_active ? 'brand' : 'amber'} onClick={() => handleStatusChange(cat.id, !cat.is_active)} className="cursor-pointer">
                         {cat.is_active ? 'Activa' : 'Inactiva'}
@@ -158,18 +182,27 @@ export default function AdminConfig() {
                   className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={form.is_active}
-                  onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-200 text-brand focus:ring-brand"
-                />
-                <label htmlFor="is_active" className="text-sm text-gray-700">Activa</label>
+              <div>
+                <label htmlFor="unit_of_measure" className="block text-sm font-medium text-gray-700 mb-1">
+                  Unidad de medida por defecto
+                </label>
+                <select
+                  id="unit_of_measure"
+                  value={form.default_unit_of_measure_id}
+                  onChange={(e) => setForm({ ...form, default_unit_of_measure_id: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                >
+                  <option value="">Sin unidad (no se podrá publicar productos)</option>
+                  {unitsList.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.code})</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Los productores heredan esta unidad al crear un producto con la categoría.
+                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm({ name: '', description: '', is_active: true }); }}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm(emptyForm); }}>Cancelar</Button>
                 <Button type="submit">{editing ? 'Guardar' : 'Crear'}</Button>
               </div>
             </form>
