@@ -83,18 +83,24 @@ export default function Login() {
 
   const current = ROLES.find((r) => r.key === role)
 
+  // Destino al que hay que volver tras entrar: el que RequireRole dejo en el
+  // state o, si el salto a login vino del 401 de http.js (que escribe el hash a
+  // mano), el que quedo guardado ahi.
+  const pendingFrom = location.state?.from || sessionStorage.getItem(RETURN_TO_KEY) || ''
+
+  // Antes del return temprano, como todo hook: si el numero de hooks cambiara
+  // entre renders, React lo detecta y tumba la pagina.
+  useEffect(() => {
+    if (isAuthenticated) sessionStorage.removeItem(RETURN_TO_KEY)
+  }, [isAuthenticated])
+
   // Con sesión ya iniciada no tiene sentido quedarse en el login. El destino
   // guardado manda sobre el panel: este redirect se dispara en el mismo render
   // que sigue al login() y, si apuntara al panel, pisaba la navegación al
   // producto o a la pagina donde se vencio la sesion.
-  const pendingFrom = location.state?.from || sessionStorage.getItem(RETURN_TO_KEY) || ''
   if (isAuthenticated && HOME_BY_ROLE[sessionRole]) {
     return <Navigate to={pendingFrom || HOME_BY_ROLE[sessionRole]} replace />
   }
-
-  useEffect(() => {
-    if (isAuthenticated) sessionStorage.removeItem(RETURN_TO_KEY)
-  }, [isAuthenticated])
 
   function handleSubmit(e) {
     e.preventDefault()
