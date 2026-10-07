@@ -8,6 +8,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import ErrorState from '../../components/ui/ErrorState'
 import Icon from '../../components/ui/Icon'
 import Skeleton from '../../components/ui/Skeleton'
+import Spinner from '../../components/ui/Spinner'
 import Toast from '../../components/ui/Toast'
 import ReviewForm from '../../components/reviews/ReviewForm'
 import ReportForm from '../../components/reports/ReportForm'
@@ -39,6 +40,11 @@ const TIMELINE_LABELS = {
   3: 'Cancelada',
 }
 
+// El servidor cachea la lista de conversaciones 5 minutos y el match se crea
+// después del último paso de caché, así que la conversación se busca con
+// reintentos que cubren esa ventana antes de rendirse.
+const CHAT_RETRY_DELAYS = [0, 10, 30, 60, 120, 180, 240, 300]
+
 function ConfirmRow({ title, buyerAt, supplierAt }) {
   const buyerDone = !isZeroTime(buyerAt)
   const supplierDone = !isZeroTime(supplierAt)
@@ -65,6 +71,8 @@ export default function MatchDetail() {
   const [match, setMatch] = useState(null)
   const [transaction, setTransaction] = useState(null)
   const [conversationId, setConversationId] = useState(null)
+  const [chatState, setChatState] = useState('searching')
+  const [chatAttempt, setChatAttempt] = useState(0)
   const [myReviews, setMyReviews] = useState([])
   const [counterpartyId, setCounterpartyId] = useState(null)
   const [counterpartyCompany, setCounterpartyCompany] = useState(null)
@@ -85,16 +93,12 @@ export default function MatchDetail() {
     Promise.all([
       matches.getById(matchId),
       transactions.getByMatch(matchId),
-      conversations.list().catch(() => []),
       user?.id ? reviews.listByUser(user.id).catch(() => []) : Promise.resolve([]),
     ])
-      .then(([matchData, transactionData, conversationList, reviewList]) => {
+      .then(([matchData, transactionData, reviewList]) => {
         setMatch(matchData)
         setTransaction(transactionData)
         setMyReviews(Array.isArray(reviewList) ? reviewList : [])
-        const list = Array.isArray(conversationList) ? conversationList : []
-        const conversation = list.find((item) => item.match_id === matchId)
-        setConversationId(conversation ? conversation.id : null)
       })
       .catch((err) => setError(err.message || 'No se pudo cargar el match.'))
       .finally(() => setLoading(false))
@@ -103,6 +107,47 @@ export default function MatchDetail() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  useEffect(() => {
+    if (!matchId || !match || conversationId) return undefined
+    let alive = true
+    let timer = null
+
+    const search = (step) => {
+      conversations.list().then(
+        (list) => {
+          if (!alive) return
+          const rows = Array.isArray(list) ? list : []
+          const found = rows.find((item) => item.match_id === matchId)
+          if (found) {
+            setConversationId(found.id)
+            return
+          }
+          const next = step + 1
+          if (next >= CHAT_RETRY_DELAYS.length) {
+            setChatState('missing')
+            return
+          }
+          setChatState('searching')
+          timer = setTimeout(() => search(next), CHAT_RETRY_DELAYS[next] * 1000)
+        },
+        () => {
+          if (!alive) return
+          const next = Math.min(step + 1, CHAT_RETRY_DELAYS.length - 1)
+          setChatState('searching')
+          timer = setTimeout(() => search(next), CHAT_RETRY_DELAYS[next] * 1000)
+        },
+      )
+    }
+
+    setChatState('searching')
+    search(0)
+
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [match, matchId, conversationId, chatAttempt])
 
   useEffect(() => {
     if (!match) return undefined
@@ -339,14 +384,29 @@ export default function MatchDetail() {
           <ChatPanel
             conversationId={conversationId}
             title={buyerRole ? 'Con el agricultor' : 'Con el comprador'}
-            hint="La conversación se creó al confirmar el match. Coordina aquí el despacho."
+            hint="La conversación se creó con el match. Coordina aquí el despacho."
           />
-        ) : (
+        ) : chatState === 'missing' ? (
           <EmptyState
             icon="chat"
-            title="Sin conversación"
-            description="El chat se crea automáticamente cuando el match queda confirmado."
+            title="Chat no disponible todavía"
+            description="La conversación del match todavía no aparece en tu bandeja. El servidor la guarda en caché unos minutos; reintenta en un momento."
+            action={
+              <Button variant="outline" onClick={() => setChatAttempt((value) => value + 1)}>
+                Reintentar ahora
+              </Button>
+            }
           />
+        ) : (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white p-10 text-center">
+            <Spinner size={28} label="Buscando el chat del match…" />
+            <p className="max-w-md text-sm text-gray-500">
+              Estamos comprobando si la conversación ya está en tu bandeja.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setChatAttempt((value) => value + 1)}>
+              Buscar ahora
+            </Button>
+          </div>
         )}
       </section>
 

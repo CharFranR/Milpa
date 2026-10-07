@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 
@@ -76,6 +77,12 @@ func (uc *MessageUseCaseImpl) ListMessage(ctx context.Context, conversationID uu
 
 	if !conversation.IsConversationParticipant(principal.UserID) {
 		return nil, domain.ErrForbidden
+	}
+
+	// Abrir el chat es lo que marca la conversación como leída. Best-effort: un
+	// fallo en el recibo no debe impedir leer el historial.
+	if _, err := uc.conversationRepo.MarkRead(ctx, conversationID, principal.UserID, uc.timer.Now()); err != nil {
+		log.Printf("message.ListMessage: mark read failed for %s/%s: %v", conversationID, principal.UserID, err)
 	}
 
 	messages, err := uc.messageRepo.ListByConversationID(ctx, conversationID)

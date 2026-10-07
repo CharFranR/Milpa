@@ -20,7 +20,7 @@ export default function AdminProducts() {
         page_size: pageSize,
         sort: 'relevance',
       })
-      setProducts(data.items || data.offerings || [])
+      setProducts(data.results || [])
       setTotal(data.total_hits || data.total || 0)
     } catch (e) {
       setError('No se pudieron cargar los productos')

@@ -1,34 +1,54 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { cn } from '../../lib/cn'
 import Icon from '../../components/ui/Icon'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/StatCard'
 import { useAuth } from '../../context/AuthContext'
 import { getDisplayName } from '../../lib/user'
 import { useOfferings } from '../../hooks/useOfferings'
-import { inquiries } from '../../services/api'
-import { producerRequests } from '../../mocks/producer'
+import { inquiries, reviews } from '../../services/api'
+import { getCompanyId } from '../../lib/session'
 import { formatPrice } from '../../lib/format'
 
 export default function ProducerHome() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { offeringsList } = useOfferings(user?.id)
-  const [inquiryCount, setInquiryCount] = useState(0)
+  const [requests, setRequests] = useState([])
+  const [producerRating, setProducerRating] = useState(null)
+
+  useEffect(() => {
+    const companyId = getCompanyId()
+    if (!companyId) {
+      setRequests([])
+      return
+    }
+    inquiries.getByCompany(companyId)
+      .then((data) => setRequests(Array.isArray(data) ? data : []))
+      .catch(() => setRequests([]))
+  }, [user?.id])
 
   useEffect(() => {
     if (!user?.id) return
-    inquiries.getByUser(user.id).then((data) => {
-      setInquiryCount(Array.isArray(data) ? data.length : 0)
-    }).catch(() => {})
+    reviews.average('user', user.id)
+      .then(setProducerRating)
+      .catch(() => setProducerRating(null))
   }, [user?.id])
+
+  const inquiryCount = requests.length
+  const hasCompany = !!getCompanyId()
 
   const stats = [
     { icon: 'inventory_2', value: String(offeringsList.length), label: 'Productos activos', tone: 'brand', trend: offeringsList.length > 0 ? `${offeringsList.length} publicados` : 'Sin productos' },
-    { icon: 'mail', value: String(inquiryCount || producerRequests.length), label: 'Solicitudes recibidas', tone: 'amber', trend: 'Últimos 30 días' },
-    { icon: 'storefront', value: '1', label: 'Organización', tone: 'green', trend: 'Activa' },
-    { icon: 'star', value: '4.8', label: 'Valoración', tone: 'brand', trend: '+0.2 este mes' },
+    { icon: 'mail', value: String(inquiryCount), label: 'Solicitudes recibidas', tone: 'amber', trend: inquiryCount > 0 ? 'Pendientes de respuesta' : 'Sin solicitudes' },
+    { icon: 'storefront', value: hasCompany ? '1' : '0', label: 'Organización', tone: 'green', trend: hasCompany ? 'Activa' : 'Sin organización' },
+    {
+      icon: 'star',
+      value: producerRating?.count > 0 ? String(producerRating.average) : '—',
+      label: 'Valoración',
+      tone: 'brand',
+      trend: producerRating?.count > 0 ? `${producerRating.count} reseñas` : 'Sin reseñas',
+    },
   ]
 
   return (
@@ -62,49 +82,41 @@ export default function ProducerHome() {
           {inquiryCount > 0 && <Badge tone="red">{inquiryCount} nuevas</Badge>}
         </div>
         <div className="mt-3 rounded-xl border border-gray-100 bg-white overflow-x-auto">
-          <table className="w-full text-sm min-w-[600px]" role="table">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-500">Comprador</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-500">Producto</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-500">Cantidad</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-500">Estado</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-500">Tiempo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {producerRequests.slice(0, 3).map((req) => (
-                <tr key={req.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold',
-                          req.buyer.tone === 'red' && 'bg-red-100 text-red-600',
-                          req.buyer.tone === 'brand' && 'bg-brand-soft text-brand',
-                          req.buyer.tone === 'amber' && 'bg-amber-100 text-amber-600',
-                          req.buyer.tone === 'blue' && 'bg-blue-100 text-blue-600',
-                        )}
-                      >
-                        {req.buyer.avatar}
-                      </span>
-                      <span className="font-medium text-gray-900">{req.buyer.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{req.product}</td>
-                  <td className="px-4 py-3 text-gray-600">{req.qty}</td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      tone={req.status === 'pending' ? 'amber' : 'brand'}
-                    >
-                      {req.status === 'pending' ? 'Nuevo' : 'Respondido'}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{req.time}</td>
+          {requests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <Icon name="inbox" size={40} />
+              <p className="mt-2 text-sm">Sin solicitudes por ahora</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm min-w-[600px]" role="table">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-500">Mensaje</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-500">Producto</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-500">Estado</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-500">Tiempo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {requests.slice(0, 3).map((req) => (
+                  <tr key={req.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-600 max-w-[260px] truncate">{req.message || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{req.offering_name || 'Producto'}</td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        tone={req.status === 'pending' ? 'amber' : 'brand'}
+                      >
+                        {req.status === 'pending' ? 'Nuevo' : 'Respondido'}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {new Date(req.created_at).toLocaleDateString('es-NI')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 

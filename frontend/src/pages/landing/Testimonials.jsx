@@ -1,7 +1,7 @@
 import SectionHeading from '../../components/SectionHeading'
 import Avatar from '../../components/Avatar'
 import Icon from '../../components/ui/Icon'
-import { testimonials } from '../../mocks/content'
+import { testimonials } from '../../content/landing'
 
 export default function Testimonials() {
   return (
@@ -15,7 +15,7 @@ export default function Testimonials() {
               className="relative flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
             >
               <Icon
-                name="Check_Circle"
+                name="check_circle"
                 size={30}
                 className="absolute right-5 top-5 text-brand/10"
               />

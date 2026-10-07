@@ -30,7 +30,10 @@ func (uc *CachedConversationUseCase) CreateConversation(ctx context.Context, req
 		return nil, err
 	}
 
+	// Ambas partes ven la conversación en su bandeja: sin esto el agricultor
+	// leería la lista cacheada y el chat nuevo le aparecería al vencer el TTL.
 	_ = uc.cache.Delete(ctx, "conversations:byuser:"+result.BuyerID.String())
+	_ = uc.cache.Delete(ctx, "conversations:byuser:"+result.FarmerID.String())
 
 	return result, nil
 }

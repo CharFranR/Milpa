@@ -93,7 +93,8 @@ func main() {
 	supplyRequestUC := usecases.NewSupplyRequestUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, clock)
 	supplyOfferUC := usecases.NewSupplyOfferUseCase(supplyOfferRepo, supplyRequestRepo, matchRepo, clock)
 	recommendationUC := usecases.NewRecommendationUseCase(supplyOfferRepo, supplyRequestRepo, userRepo, supplierInventoryRepo, matchRepo, usecases.DefaultScoreFactors(reviewRepo))
-	matchUC := usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork)
+	// nil: la siembra no habla con Redis, y sin caché no hay lista stale que invalidar.
+	matchUC := usecases.NewMatchUseCase(supplyRequestRepo, supplyOfferRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork, nil)
 	transactionUC := usecases.NewTransactionUseCase(transactionRepo, matchRepo, supplyRequestRepo, supplyOfferRepo, clock, unitOfWork)
 	liquidationUC := usecases.NewLiquidationUseCase(liquidationRepo, userRepo, clock)
 

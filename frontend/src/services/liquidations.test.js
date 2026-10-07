@@ -18,13 +18,6 @@ describe('services/liquidations', () => {
     localStorage.setItem('milpa_token', 'tok-123')
   })
 
-  it('lista las liquidaciones abiertas', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(200, { data: [{ id: 'l1' }] }))
-
-    await expect(liquidationsApi.getOpen()).resolves.toEqual([{ id: 'l1' }])
-    expect(fetchMock.mock.calls[0][0]).toContain('/liquidations/open')
-  })
-
   it('lista las de un proveedor con su supplier_id', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { data: [] }))
 

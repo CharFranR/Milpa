@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { admin } from '../../services/api'
-import { growthStats, regionRanking, categoryStats } from '../../mocks/admin'
+import { admin, offerings, reports } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 
@@ -29,12 +28,48 @@ export default function AdminReports() {
   const [error, setError] = useState(null)
   const [actionFilter, setActionFilter] = useState('all')
   const [targetTypeFilter, setTargetTypeFilter] = useState('all')
+  const [kpis, setKpis] = useState(null)
+  const [searchAgg, setSearchAgg] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      admin.listUsers({ page: 1, pageSize: 1 }).catch(() => null),
+      reports.list({ page: 1, pageSize: 1 }).catch(() => null),
+      offerings.search({ page: 1, page_size: 100 }).catch(() => null),
+    ]).then(([usersRes, reportsRes, searchRes]) => {
+      if (cancelled) return
+      setKpis({
+        totalUsers: usersRes?.total ?? null,
+        totalReports: reportsRes?.total ?? null,
+        totalOfferings: searchRes?.total_hits ?? null,
+      })
+      const results = searchRes?.results || []
+      const byDept = new Map()
+      const byType = new Map()
+      for (const item of results) {
+        const dept = item.department || 'Sin departamento'
+        byDept.set(dept, (byDept.get(dept) || 0) + 1)
+        const type = item.type === 'service' ? 'Servicios' : 'Productos'
+        byType.set(type, (byType.get(type) || 0) + 1)
+      }
+      setSearchAgg({
+        regions: [...byDept.entries()].map(([region, count]) => ({ region, count })).sort((a, b) => b.count - a.count).slice(0, 5),
+        types: [...byType.entries()].map(([type, count]) => ({ type, count })),
+        covered: results.length,
+        totalHits: searchRes?.total_hits ?? results.length,
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const fetchAuditLogs = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const params = { page, page_size: pageSize }
+      const params = { page, pageSize }
       if (actionFilter !== 'all') params.action = actionFilter
       if (targetTypeFilter !== 'all') params.targetType = targetTypeFilter
       const data = await admin.listAuditLogs(params)
@@ -75,67 +110,82 @@ export default function AdminReports() {
       <h1 className="text-3xl font-bold text-gray-900">Reportes y estadísticas</h1>
 
       <section aria-label="KPIs del sistema" className="grid gap-5 sm:grid-cols-3">
-        {growthStats.map((stat, i) => (
-          <article
-            key={i}
-            className="rounded-xl border border-gray-100 bg-white p-5 relative"
-          >
-            <Badge tone="amber" className="absolute top-3 right-3 text-xs">Demo</Badge>
-            <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-            <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-brand">{stat.value}</p>
-              <p className="text-sm text-gray-500">{stat.total}</p>
+        {kpis === null ? (
+          [1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border border-gray-100 bg-white p-5 animate-pulse">
+              <div className="h-4 w-28 rounded bg-gray-200" />
+              <div className="mt-3 h-8 w-20 rounded bg-gray-200" />
             </div>
-            <div className="mt-3 h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-brand"
-                style={{ width: `${Math.min(stat.progress * 100, 100)}%` }}
-              />
-            </div>
-          </article>
-        ))}
+          ))
+        ) : (
+          [
+            { label: 'Usuarios totales', value: kpis.totalUsers },
+            { label: 'Publicaciones totales', value: kpis.totalOfferings },
+            { label: 'Reportes recibidos', value: kpis.totalReports },
+          ].map((stat) => (
+            <article key={stat.label} className="rounded-xl border border-gray-100 bg-white p-5">
+              <p className="text-sm font-medium text-gray-500">{stat.label}</p>
+              <p className="mt-2 text-2xl font-bold text-brand">
+                {stat.value === null ? '—' : stat.value}
+              </p>
+            </article>
+          ))
+        )}
       </section>
 
-      <section aria-label="Regiones más activas" className="rounded-xl border border-gray-100 bg-white p-5 relative">
+      <section aria-label="Regiones más activas" className="rounded-xl border border-gray-100 bg-white p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Regiones más activas</h2>
-          <Badge tone="amber" className="text-xs">Demo</Badge>
+          {searchAgg && searchAgg.covered < searchAgg.totalHits && (
+            <span className="text-xs text-gray-400">Primeros {searchAgg.covered} de {searchAgg.totalHits} anuncios</span>
+          )}
         </div>
-        <div className="mt-4 space-y-3">
-          {regionRanking.map((reg, i) => (
-            <div key={i} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">{reg.region}</span>
-                <span className="text-sm text-gray-500">{reg.count}</span>
+        {searchAgg === null ? (
+          <div className="mt-4 space-y-3 animate-pulse">
+            <div className="h-5 w-full rounded bg-gray-100" />
+            <div className="h-5 w-full rounded bg-gray-100" />
+          </div>
+        ) : searchAgg.regions.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">Sin publicaciones para mostrar.</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {searchAgg.regions.map((reg) => (
+              <div key={reg.region} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">{reg.region}</span>
+                  <span className="text-sm text-gray-500">{reg.count}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-brand"
+                    style={{ width: `${(reg.count / searchAgg.regions[0].count) * 100}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-brand"
-                  style={{ width: `${(reg.count / 420) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      <section aria-label="Productos por categoría" className="rounded-xl border border-gray-100 bg-white p-5 relative">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Productos por categoría</h2>
-          <Badge tone="amber" className="text-xs">Demo</Badge>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {categoryStats.map((cat, i) => (
-            <article
-              key={i}
-              className="rounded-lg bg-brand-soft/50 p-4 text-center"
-            >
-              <p className="text-2xl font-bold text-brand">{cat.count}</p>
-              <p className="text-xs text-gray-500">{cat.category}</p>
-              <p className="text-xs text-brand">{cat.percent}%</p>
-            </article>
-          ))}
-        </div>
+      <section aria-label="Publicaciones por tipo" className="rounded-xl border border-gray-100 bg-white p-5">
+        <h2 className="text-lg font-semibold text-gray-900">Publicaciones por tipo</h2>
+        {searchAgg === null ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 animate-pulse">
+            <div className="h-20 rounded-lg bg-gray-100" />
+            <div className="h-20 rounded-lg bg-gray-100" />
+          </div>
+        ) : searchAgg.types.length === 0 ? (
+          <p className="mt-4 text-sm text-gray-500">Sin publicaciones para mostrar.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {searchAgg.types.map((t) => (
+              <article key={t.type} className="rounded-lg bg-brand-soft/50 p-4 text-center">
+                <p className="text-2xl font-bold text-brand">{t.count}</p>
+                <p className="text-xs text-gray-500">{t.type}</p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section aria-label="Logs de auditoría" className="space-y-4">
@@ -147,6 +197,7 @@ export default function AdminReports() {
           <select
             value={actionFilter}
             onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+            aria-label="Filtrar por acción"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="all">Todas las acciones</option>
@@ -161,6 +212,7 @@ export default function AdminReports() {
           <select
             value={targetTypeFilter}
             onChange={(e) => { setTargetTypeFilter(e.target.value); setPage(1); }}
+            aria-label="Filtrar por tipo"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="all">Todos los tipos</option>

@@ -555,7 +555,7 @@ func TestSupplyOfferUseCaseListByRequestHidesPassedOffer(t *testing.T) {
 
 	// The buyer passes on one supplier.
 	matchUC := usecases.NewMatchUseCase(
-		requestRepo, offerRepo, newSupplyFakeMatchRepo(), newFakeMatchTransactionRepo(), nil, nil,
+		requestRepo, offerRepo, newSupplyFakeMatchRepo(), newFakeMatchTransactionRepo(), nil, nil, nil,
 	)
 	if err := matchUC.Pass(principalCtx(), passedOffer.ID); err != nil {
 		t.Fatalf("pass: %v", err)

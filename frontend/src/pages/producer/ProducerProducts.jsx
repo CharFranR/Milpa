@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext'
 import { categories } from '../../services/api'
 import { formatPrice } from '../../lib/format'
 import { setProductImage, getProductImage, embedImageInDescription, extractImageFromDescription, resolveOfferingImage } from '../../lib/productImages'
+import { compressImage } from '../../lib/imageCompression'
+import { Link, useNavigate } from 'react-router-dom'
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
 const RENEW_DAYS = 30
@@ -46,6 +48,7 @@ const EMPTY_FORM = {
 }
 
 export default function ProducerProducts() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const userId = user?.id
   // La empresa se resuelve por owner: sin esto, un login nuevo no encuentra su
@@ -75,7 +78,7 @@ export default function ProducerProducts() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleImageSelect(e) {
+  async function handleImageSelect(e) {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -84,13 +87,13 @@ export default function ProducerProducts() {
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const dataUrl = reader.result
+    try {
+      const dataUrl = await compressImage(file)
       setForm((f) => ({ ...f, image_url: dataUrl }))
       setImagePreview(dataUrl)
+    } catch {
+      setFormError('No se pudo leer la imagen.')
     }
-    reader.readAsDataURL(file)
   }
 
   function handleRemoveImage() {
@@ -246,7 +249,7 @@ export default function ProducerProducts() {
           <p className="mt-2 max-w-sm mx-auto text-sm text-gray-500">
             Para publicar productos, necesitas tener una empresa creada.
           </p>
-          <Button type="button" variant="primary" className="mt-6" onClick={() => window.location.hash = '#/producer'} icon={<Icon name="storefront" size={18} />}>
+          <Button type="button" variant="primary" className="mt-6" onClick={() => navigate('/producer/business')} icon={<Icon name="storefront" size={18} />}>
             Ir a Mi negocio
           </Button>
         </div>
@@ -281,7 +284,7 @@ export default function ProducerProducts() {
             <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
               <p>{formError}</p>
               {/dirección completa/i.test(formError) && (
-                <a href="#/producer" className="mt-1 inline-block font-semibold underline">Ir a Mi negocio</a>
+                <Link to="/producer/business" className="mt-1 inline-block font-semibold underline">Completar dirección en Mi negocio</Link>
               )}
             </div>
           )}

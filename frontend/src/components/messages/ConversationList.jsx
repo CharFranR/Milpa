@@ -10,6 +10,7 @@ import { conversations, offerings, users } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000'
+const POLL_INTERVAL_MS = 20000
 
 function peerIdOf(conversation, myId) {
   return conversation.buyer_id === myId ? conversation.farmer_id : conversation.buyer_id
@@ -29,10 +30,34 @@ function initialsOf(name) {
 }
 
 function formatDate(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
+  const date = toDate(value)
+  if (!date) return ''
+  const today = new Date()
+  const sameDay =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  if (sameDay) {
+    return date.toLocaleTimeString('es-NI', { hour: 'numeric', minute: '2-digit' })
+  }
   return date.toLocaleDateString('es-NI', { day: 'numeric', month: 'short' })
+}
+
+function toDate(value) {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+// El preview y el contador de no leídos llegan con el listado; la fecha que
+// importa es la del último mensaje, no la de creación de la conversación.
+function lastActivityOf(conversation) {
+  return conversation.last_message?.created_at || conversation.updated_at || conversation.created_at
+}
+
+function previewOf(conversation) {
+  const content = conversation.last_message?.content
+  return content ? content.trim() : 'Sin mensajes aún'
 }
 
 export default function ConversationList({ onSelect, selectedId, className }) {
@@ -46,47 +71,80 @@ export default function ConversationList({ onSelect, selectedId, className }) {
 
   useEffect(() => {
     let alive = true
-    setLoading(true)
-    setError('')
+    let timer = null
+    const decorated = new Map()
 
-    conversations
-      .list()
-      .then(async (list) => {
+    // El servidor cachea la lista 5 minutos, así que una conversación nueva
+    // puede tardar en aparecer. Se sondea y se reintenta al volver a la pestaña.
+    const decorate = async (conversation) => {
+      const peerId = peerIdOf(conversation, user?.id)
+      const offeringId =
+        conversation.offering_id && conversation.offering_id !== NIL_UUID
+          ? conversation.offering_id
+          : null
+      const stamp = `${peerId}|${offeringId || ''}`
+      const cached = decorated.get(conversation.id)
+      if (cached && cached.stamp === stamp) return { ...conversation, ...cached.row }
+
+      const [peer, offering] = await Promise.all([
+        users.getById(peerId).catch(() => null),
+        offeringId ? offerings.getById(offeringId).catch(() => null) : Promise.resolve(null),
+      ])
+      const row = { peerId, peerName: nameOf(peer), offeringName: offering?.name || '' }
+      decorated.set(conversation.id, { stamp, row })
+      return { ...conversation, ...row }
+    }
+
+    const schedule = () => {
+      if (!alive || document.hidden) return
+      timer = setTimeout(() => load({ initial: false }), POLL_INTERVAL_MS)
+    }
+
+    async function load({ initial }) {
+      try {
+        const list = await conversations.list()
+        if (!alive) return
         const rows = Array.isArray(list) ? list : []
-        const enriched = await Promise.all(
-          rows.map(async (conversation) => {
-            const peerId = peerIdOf(conversation, user?.id)
-            const offeringId =
-              conversation.offering_id && conversation.offering_id !== NIL_UUID
-                ? conversation.offering_id
-                : null
-            const [peer, offering] = await Promise.all([
-              users.getById(peerId).catch(() => null),
-              offeringId ? offerings.getById(offeringId).catch(() => null) : null,
-            ])
-            return {
-              ...conversation,
-              peerId,
-              peerName: nameOf(peer),
-              offeringName: offering?.name || '',
-            }
-          }),
-        )
-        enriched.sort(
-          (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
-        )
+        const enriched = await Promise.all(rows.map(decorate))
         if (!alive) return
+
+        const live = new Set(rows.map((conversation) => conversation.id))
+        for (const id of decorated.keys()) {
+          if (!live.has(id)) decorated.delete(id)
+        }
+
+        enriched.sort((a, b) => new Date(lastActivityOf(b)) - new Date(lastActivityOf(a)))
         setItems(enriched)
-        setLoading(false)
-      })
-      .catch((err) => {
+        if (initial) setError('')
+      } catch (err) {
         if (!alive) return
-        setError(err?.message || 'No se pudieron cargar las conversaciones.')
-        setLoading(false)
-      })
+        // Tras la primera carga los items visibles siguen siendo válidos: un fallo
+        // puntual no debe dejar la bandeja en blanco.
+        if (initial) setError(err?.message || 'No se pudieron cargar las conversaciones.')
+      }
+
+      if (!alive) return
+      setLoading(false)
+      schedule()
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) return
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      load({ initial: false })
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    setLoading(true)
+    load({ initial: true })
 
     return () => {
       alive = false
+      if (timer) clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [attempt, user?.id])
 
@@ -134,6 +192,8 @@ export default function ConversationList({ onSelect, selectedId, className }) {
       {items.map((conversation) => {
         const selected = conversation.id === selectedId
         const isMatch = Boolean(conversation.match_id)
+        const unread = conversation.unread_count || 0
+        const preview = previewOf(conversation)
         return (
           <button
             key={conversation.id}
@@ -150,18 +210,30 @@ export default function ConversationList({ onSelect, selectedId, className }) {
             <Avatar initials={initialsOf(conversation.peerName)} name={conversation.peerName} size="md" />
             <span className="min-w-0 flex-1">
               <span className="flex items-center justify-between gap-2">
-                <span className="truncate font-semibold text-gray-900">{conversation.peerName}</span>
+                <span
+                  className={cn(
+                    'truncate text-gray-900',
+                    unread ? 'font-bold' : 'font-semibold',
+                  )}
+                >
+                  {conversation.peerName}
+                </span>
                 <time className="shrink-0 text-xs text-gray-400">
-                  {formatDate(conversation.updated_at || conversation.created_at)}
+                  {formatDate(lastActivityOf(conversation))}
                 </time>
               </span>
               <span className="mt-0.5 flex items-center gap-2">
                 <Badge tone={isMatch ? 'brand' : 'gray'} className="shrink-0">
                   {isMatch ? 'Match' : conversation.offeringName || 'Producto'}
                 </Badge>
-                {!isMatch && conversation.offeringName && (
-                  <span className="truncate text-xs text-gray-500">Consulta de producto</span>
-                )}
+                <span
+                  className={cn(
+                    'truncate text-xs',
+                    unread ? 'font-medium text-gray-700' : 'text-gray-500',
+                  )}
+                >
+                  {preview}
+                </span>
               </span>
             </span>
           </button>

@@ -100,6 +100,9 @@ export default function MarketplaceCatalog() {
   }
 
   if (totalHits === 0 && !hasActiveSearch) {
+    // El catálogo solo se monta en rutas de comprador (/marketplace y el panel
+    // del comprador, las dos con RequireRole de comprador), así que aquí nunca
+    // hay un agricultor: el texto va dirigido a quien va a comprar.
     return (
       <>
         <header className="mt-4">
@@ -111,7 +114,7 @@ export default function MarketplaceCatalog() {
           <Icon name="storefront" size={48} className="mx-auto text-gray-400" />
           <h2 className="mt-4 text-lg font-semibold text-gray-900">No hay productos disponibles</h2>
           <p className="mt-2 max-w-sm mx-auto text-sm text-gray-500">
-            Sé el primero en publicar productos en el Marketplace.
+            Aquí aparecerán los productos que publiquen los agricultores locales.
           </p>
         </div>
       </>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"milpa/aplication/use-cases"
 	domain "milpa/domain/entities"
+	"milpa/infrastructure/adapters/secondary/cache"
 	"milpa/infrastructure/adapters/secondary/repository"
 	timepkg "milpa/infrastructure/adapters/secondary/time"
 	"milpa/internal/auth"
@@ -81,13 +83,14 @@ func newConcFixture(t *testing.T) *concFixture {
 	unitOfWork := repository.NewUnitOfWork(TestPool)
 
 	recommendationUC := usecases.NewRecommendationUseCase(offerRepo, requestRepo, userRepo, inventoryRepo, matchRepo, nil)
+	cacheClient := cache.NewCacheImpl(TestRedisAddr, os.Getenv("REDIS_PASSWORD"), 0)
 
 	return &concFixture{
 		requestRepo:   requestRepo,
 		offerRepo:     offerRepo,
 		matchRepo:     matchRepo,
 		transactionRe: transactionRepo,
-		matchUC:       usecases.NewMatchUseCase(requestRepo, offerRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork),
+		matchUC:       usecases.NewMatchUseCase(requestRepo, offerRepo, matchRepo, transactionRepo, recommendationUC, unitOfWork, cacheClient),
 		transactionUC: usecases.NewTransactionUseCase(transactionRepo, matchRepo, requestRepo, offerRepo, clock, unitOfWork),
 		clock:         clock,
 	}

@@ -1,54 +1,121 @@
 import { useState, useEffect, useCallback } from 'react'
 import { admin, reports, offerings } from '../../services/api'
 import { cn } from '../../lib/cn'
+import { normalizeRole, ROLE_LABELS } from '../../lib/roles'
 import Badge from '../../components/ui/Badge'
 import StatCard from '../../components/StatCard'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function BarsList({ items, caption }) {
+  if (items.length === 0) {
+    return <div className="py-6 text-center text-sm text-gray-500">Sin datos aún</div>
+  }
+  return (
+    <>
+      <div className="mt-4 space-y-3">
+        {items.map((it) => (
+          <div key={it.name} className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-900">{it.name}</span>
+              <span className="text-sm text-gray-500">{it.count}</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-brand"
+                style={{ width: `${(it.count / items[0].count) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      {caption && <p className="mt-4 text-xs text-gray-400">{caption}</p>}
+    </>
+  )
+}
+
 export default function AdminHome() {
   const [stats, setStats] = useState({
-    totalUsers: { value: '—', loading: true },
-    totalProducers: { value: '—', loading: true },
-    totalProducts: { value: '—', loading: true },
-    pendingReports: { value: '—', loading: true },
+    totalUsers: '—',
+    totalProducers: '—',
+    totalProducts: '—',
+    pendingReports: '—',
+    newToday: '—',
+    new30d: '—',
+    municipalities: '—',
+    departments: '—',
   })
   const [recentUsers, setRecentUsers] = useState([])
   const [pendingReportsList, setPendingReportsList] = useState([])
+  const [regions, setRegions] = useState(null)
+  const [municipalities, setMunicipalities] = useState(null)
+  const [searchCovered, setSearchCovered] = useState(0)
+  const [searchTotal, setSearchTotal] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [usersRes, productsRes, reportsRes] = await Promise.allSettled([
-        admin.listUsers({ page: 1, page_size: 1 }),
-        offerings.search({ page: 1, page_size: 1, sort: 'relevance' }),
-        reports.list({ status: 'pending', page: 1, page_size: 10 }),
+      const [usersRes, productsRes, reportsRes, searchRes] = await Promise.allSettled([
+        admin.listUsers({ page: 1, pageSize: 100 }),
+        offerings.search({ page: 1, page_size: 1 }),
+        reports.list({ status: 'pending', page: 1, pageSize: 10 }),
+        offerings.search({ page: 1, page_size: 100 }),
       ])
 
-      const totalUsers = usersRes.status === 'fulfilled' ? usersRes.value.total : 0
+      const allUsers = []
+      let totalUsers = 0
+      if (usersRes.status === 'fulfilled') {
+        totalUsers = usersRes.value.total || 0
+        allUsers.push(...(usersRes.value.items || []))
+        let page = 2
+        while (allUsers.length < totalUsers && page <= 20) {
+          const next = await admin.listUsers({ page, pageSize: 100 }).catch(() => null)
+          if (!next || !next.items || next.items.length === 0) break
+          allUsers.push(...next.items)
+          page += 1
+        }
+      }
+
       const totalProducts = productsRes.status === 'fulfilled' ? (productsRes.value.total_hits || productsRes.value.total || 0) : 0
       const pendingReportsCount = reportsRes.status === 'fulfilled' ? reportsRes.value.total : 0
 
-      // Get producers count from users (role 1 = producer)
-      let totalProducers = 0
-      if (usersRes.status === 'fulfilled' && usersRes.value.items) {
-        const { normalizeRole } = await import('../../lib/roles')
-        totalProducers = usersRes.value.items.filter(u => normalizeRole(u.role) === 'producer').length
+      const producers = allUsers.filter((u) => normalizeRole(u.role) === 'producer')
+      const now = Date.now()
+      const newToday = allUsers.filter((u) => u.created_at && now - new Date(u.created_at).getTime() < DAY_MS).length
+      const new30d = allUsers.filter((u) => u.created_at && now - new Date(u.created_at).getTime() < 30 * DAY_MS).length
+
+      const results = searchRes.status === 'fulfilled' ? searchRes.value.results || [] : []
+      const byDept = new Map()
+      const byMun = new Map()
+      for (const item of results) {
+        const dept = item.department || 'Sin departamento'
+        byDept.set(dept, (byDept.get(dept) || 0) + 1)
+        const key = item.municipality ? `${item.municipality}, ${dept}` : dept
+        byMun.set(key, (byMun.get(key) || 0) + 1)
       }
+      const toList = (m) => [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+      const regionList = toList(byDept).slice(0, 5)
+      const munList = toList(byMun).slice(0, 5)
 
       setStats({
-        totalUsers: { value: totalUsers.toLocaleString(), loading: false },
-        totalProducers: { value: totalProducers.toLocaleString(), loading: false },
-        totalProducts: { value: totalProducts.toLocaleString(), loading: false },
-        pendingReports: { value: pendingReportsCount.toLocaleString(), loading: false },
+        totalUsers: totalUsers.toLocaleString(),
+        totalProducers: producers.length.toLocaleString(),
+        totalProducts: totalProducts.toLocaleString(),
+        pendingReports: pendingReportsCount.toLocaleString(),
+        newToday: newToday.toLocaleString(),
+        new30d: new30d.toLocaleString(),
+        municipalities: byMun.size.toLocaleString(),
+        departments: byDept.size.toLocaleString(),
       })
+      setRegions(regionList)
+      setMunicipalities(munList)
+      setSearchCovered(results.length)
+      setSearchTotal(searchRes.status === 'fulfilled' ? searchRes.value.total_hits || results.length : 0)
 
-      // Fetch recent users (first page)
-      const recentRes = await admin.listUsers({ page: 1, page_size: 5 })
-      setRecentUsers(recentRes.items || [])
-
-      // Fetch pending reports details
+      setRecentUsers(allUsers.slice(0, 8))
       if (reportsRes.status === 'fulfilled') {
-        setPendingReportsList(reportsRes.items || [])
+        setPendingReportsList(reportsRes.value.items || [])
       }
     } catch (e) {
       console.error('Error fetching admin home stats:', e)
@@ -62,17 +129,17 @@ export default function AdminHome() {
   }, [fetchAll])
 
   const primaryStats = [
-    { label: 'Usuarios totales', value: stats.totalUsers.value, sub: stats.totalUsers.loading ? 'Cargando...' : '↑ Datos reales', tone: 'blue', icon: 'group' },
-    { label: 'Productores activos', value: stats.totalProducers.value, sub: stats.totalProducers.loading ? 'Cargando...' : '↑ Datos reales', tone: 'brand', icon: 'agriculture' },
-    { label: 'Productos publicados', value: stats.totalProducts.value, sub: stats.totalProducts.loading ? 'Cargando...' : '↑ Datos reales', tone: 'amber', icon: 'inventory_2' },
-    { label: 'Reportes pendientes', value: stats.pendingReports.value, sub: stats.pendingReports.loading ? 'Cargando...' : '↑ Datos reales', tone: 'red', icon: 'flag' },
+    { label: 'Usuarios totales', value: stats.totalUsers, tone: 'blue', icon: 'group' },
+    { label: 'Productores activos', value: stats.totalProducers, tone: 'brand', icon: 'agriculture' },
+    { label: 'Productos publicados', value: stats.totalProducts, tone: 'amber', icon: 'inventory_2' },
+    { label: 'Reportes pendientes', value: stats.pendingReports, tone: 'red', icon: 'flag' },
   ]
 
   const secondaryStats = [
-    { label: 'Municipios activos', value: '—', icon: 'map', tone: 'brand', demo: true },
-    { label: 'Mensajes enviados', value: '—', icon: 'chat_bubble', tone: 'blue', demo: true },
-    { label: 'Nuevos hoy', value: '—', icon: 'person_add', tone: 'amber', demo: true },
-    { label: 'Valoración media', value: '—', icon: 'star', tone: 'red', demo: true },
+    { label: 'Nuevos hoy', value: stats.newToday, icon: 'person_add', tone: 'amber' },
+    { label: 'Nuevos (30 días)', value: stats.new30d, icon: 'group', tone: 'blue' },
+    { label: 'Municipios con oferta', value: stats.municipalities, icon: 'map', tone: 'brand' },
+    { label: 'Departamentos con oferta', value: stats.departments, icon: 'storefront', tone: 'red' },
   ]
 
   if (loading) {
@@ -84,9 +151,7 @@ export default function AdminHome() {
         </header>
         <section aria-label="KPIs principales" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {primaryStats.map((stat, i) => (
-            <StatCard key={stat.label} icon={stat.icon} value="—" label={stat.label} index={i} tone={stat.tone}>
-              <div className="mt-2 text-xs font-medium animate-pulse">Cargando...</div>
-            </StatCard>
+            <StatCard key={stat.label} icon={stat.icon} value="—" label={stat.label} index={i} tone={stat.tone} />
           ))}
         </section>
       </div>
@@ -102,41 +167,20 @@ export default function AdminHome() {
 
       <section aria-label="KPIs principales" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {primaryStats.map((stat, i) => (
-          <StatCard
-            key={stat.label}
-            icon={stat.icon}
-            value={stat.value}
-            label={stat.label}
-            index={i}
-            tone={stat.tone}
-          >
-            <div className="mt-2 text-xs font-medium text-green-600">
-              {stat.sub}
-            </div>
-          </StatCard>
+          <StatCard key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} index={i} tone={stat.tone} />
         ))}
       </section>
 
       <section aria-label="KPIs secundarios" className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
         {secondaryStats.map((stat, i) => (
-          <StatCard
-            key={stat.label}
-            icon={stat.icon}
-            value={stat.value}
-            label={stat.label}
-            index={i + 4}
-            tone={stat.tone}
-          >
-            {stat.demo && <Badge tone="amber" className="mt-2 text-xs">Demo</Badge>}
-          </StatCard>
+          <StatCard key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} index={i + 4} tone={stat.tone} />
         ))}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-label="Registros recientes" className="rounded-xl border border-gray-100 bg-white">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+        <section aria-label="Registros recientes" className="min-w-0 rounded-xl border border-gray-100 bg-white">
+          <div className="border-b border-gray-100 px-5 py-3">
             <h2 className="text-lg font-semibold text-gray-900">Registros recientes</h2>
-            <Badge tone="blue" className="text-xs">Real</Badge>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" role="table">
@@ -155,7 +199,6 @@ export default function AdminHome() {
                   </tr>
                 ) : (
                   recentUsers.map((user, i) => {
-                    const { normalizeRole, ROLE_LABELS } = require('../../lib/roles')
                     const role = normalizeRole(user.role)
                     const label = ROLE_LABELS[role] || 'Desconocido'
                     return (
@@ -187,10 +230,9 @@ export default function AdminHome() {
           </div>
         </section>
 
-        <section aria-label="Reportes pendientes" className="rounded-xl border border-gray-100 bg-white">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+        <section aria-label="Reportes pendientes" className="min-w-0 rounded-xl border border-gray-100 bg-white">
+          <div className="border-b border-gray-100 px-5 py-3">
             <h2 className="text-lg font-semibold text-gray-900">Reportes pendientes</h2>
-            <Badge tone="blue" className="text-xs">Real</Badge>
           </div>
           <div className="divide-y divide-gray-100 p-3">
             {pendingReportsList.length === 0 ? (
@@ -215,93 +257,25 @@ export default function AdminHome() {
         </section>
       </div>
 
-      <section aria-label="Crecimiento mensual" className="rounded-xl border border-gray-100 bg-white p-6 relative">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Crecimiento mensual</h2>
-          <Badge tone="amber" className="text-xs">Demo</Badge>
-        </div>
-        <div className="mt-4 space-y-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-900">Nuevos usuarios</span>
-              <span className="text-sm text-gray-500">—</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-900">Nuevos productores</span>
-              <span className="text-sm text-gray-500">—</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-900">Nuevos productos</span>
-              <span className="text-sm text-gray-500">—</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-label="Regiones más activas" className="rounded-xl border border-gray-100 bg-white p-6 relative">
+        <section aria-label="Regiones más activas" className="min-w-0 rounded-xl border border-gray-100 bg-white p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Regiones más activas</h2>
-            <Badge tone="amber" className="text-xs">Demo</Badge>
+            {searchCovered < searchTotal && (
+              <span className="text-xs text-gray-400">Primeros {searchCovered} de {searchTotal} anuncios</span>
+            )}
           </div>
-          <div className="mt-4 space-y-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">Matagalpa</span>
-                <span className="text-sm text-gray-500">—</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">Jinotega</span>
-                <span className="text-sm text-gray-500">—</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">Nueva Segovia</span>
-                <span className="text-sm text-gray-500">—</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                <div className="h-full rounded-full bg-brand" style={{ width: '0%' }} />
-              </div>
-            </div>
-          </div>
+          <BarsList items={regions || []} />
         </section>
 
-        <section aria-label="Productos por categoría" className="rounded-xl border border-gray-100 bg-white p-6 relative">
+        <section aria-label="Municipios con más oferta" className="min-w-0 rounded-xl border border-gray-100 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Productos por categoría</h2>
-            <Badge tone="amber" className="text-xs">Demo</Badge>
+            <h2 className="text-lg font-semibold text-gray-900">Municipios con más oferta</h2>
+            {searchCovered < searchTotal && (
+              <span className="text-xs text-gray-400">Primeros {searchCovered} de {searchTotal} anuncios</span>
+            )}
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {['Granos Básicos', 'Café', 'Frutas Tropicales', 'Lácteos y Quesos', 'Hortalizas', 'Carnes y Ganadería', 'Plátanos y Cocos', 'Miel y Apicultura'].map((cat) => (
-              <div key={cat} className="rounded-lg bg-brand-soft/50 p-4 text-center">
-                <p className="text-2xl font-bold text-brand">—</p>
-                <p className="text-xs text-gray-500">{cat}</p>
-                <p className="text-xs text-brand">—%</p>
-              </div>
-            ))}
-          </div>
+          <BarsList items={municipalities || []} />
         </section>
       </div>
     </div>

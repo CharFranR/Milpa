@@ -1,13 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-
-const HOME_BY_ROLE = {
-  producer: '/producer',
-  admin: '/admin',
-  auditor: '/admin',
-  minorista: '/dashboard',
-  mayorista: '/dashboard',
-}
+import { HOME_BY_ROLE } from '../../lib/routes'
 
 export default function RequireRole({ role, roles, children }) {
   const location = useLocation()

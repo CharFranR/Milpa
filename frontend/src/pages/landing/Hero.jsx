@@ -2,8 +2,8 @@ import { useState } from 'react'
 import Icon from '../../components/ui/Icon'
 import Button from '../../components/ui/Button'
 import Logo from '../../components/Logo'
-import { trustChips } from '../../mocks/content'
-import { regions } from '../../mocks/catalog'
+import { trustChips } from '../../content/landing'
+import { regions } from '../../lib/regions'
 import fondoCampo from '../../assets/images/fondo-campo.jpeg'
 
 export default function Hero() {
@@ -12,6 +12,12 @@ export default function Hero() {
 
   function handleSearch(e) {
     e.preventDefault()
+  }
+
+  // El hash "#como-funciona" bajo HashRouter se leía como una ruta y sacaba de
+  // la landing; por eso el ancla se resuelve con scroll.
+  function scrollToHowItWorks() {
+    document.getElementById('como-funciona')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -74,7 +80,7 @@ export default function Hero() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Café, frijol rojo, quesillo..."
-                className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                className="w-full h-10 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus-visible:outline-2 focus-visible:outline-brand"
               />
             </div>
             <div className="w-full sm:w-auto">
@@ -85,7 +91,7 @@ export default function Hero() {
                 id="hero-region"
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full h-10 bg-transparent px-3 py-0 text-sm text-gray-700 focus:outline-none"
+                className="w-full h-10 bg-transparent px-3 py-0 text-sm text-gray-700 focus:outline-none focus-visible:outline-2 focus-visible:outline-brand"
               >
                 <option value="todas">Todas las regiones</option>
                 {regions.slice(0, 6).map((r) => (
@@ -111,9 +117,10 @@ export default function Hero() {
         </ul>
       </div>
 
-      <a
-        href="#como-funciona"
-        className="group absolute bottom-5 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-white sm:flex"
+      <button
+        type="button"
+        onClick={scrollToHowItWorks}
+        className="group absolute bottom-5 left-1/2 hidden -translate-x-1/2 cursor-pointer flex-col items-center gap-1 text-xs font-medium text-white/60 transition-colors hover:text-white sm:flex"
       >
         Explorar
         <Icon
@@ -121,7 +128,7 @@ export default function Hero() {
           size={20}
           className="animate-bounce text-accent motion-reduce:animate-none"
         />
-      </a>
+      </button>
     </section>
   )
 }

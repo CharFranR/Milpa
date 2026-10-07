@@ -34,6 +34,7 @@ func NewRouter(
 	inventory *handler.SupplierInventoryHandler,
 	match *handler.MatchHandler,
 	recommendation *handler.RecommendationHandler,
+	unitOfMeasure *handler.UnitOfMeasureHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 	auditorMW := middleware.NewAuditorMiddleware()
@@ -58,6 +59,7 @@ func NewRouter(
 			r.Post("/auth/login", user.Login)
 
 			r.Get("/categories", category.GetAll)
+			r.Get("/units-of-measure", unitOfMeasure.List)
 
 			r.Route("/users", func(r chi.Router) {
 				// The read stays open to the marketplace; optional authentication is

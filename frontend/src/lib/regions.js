@@ -1,0 +1,21 @@
+export const regions = [
+  'Managua',
+  'León',
+  'Chinandega',
+  'Granada',
+  'Masaya',
+  'Carazo',
+  'Rivas',
+  'Matagalpa',
+  'Jinotega',
+  'Estelí',
+  'Nueva Segovia',
+  'Madriz',
+  'Chontales',
+  'Boaco',
+  'Río San Juan',
+  'Costa Caribe Norte (RACCN)',
+  'Costa Caribe Sur (RACCS)',
+  'Otro departamento',
+]
+

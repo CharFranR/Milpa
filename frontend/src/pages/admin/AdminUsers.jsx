@@ -29,7 +29,7 @@ export default function AdminUsers() {
     setLoading(true)
     setError(null)
     try {
-      const data = await admin.listUsers({ page, page_size: pageSize })
+      const data = await admin.listUsers({ page, pageSize })
       setUsers(data.items || [])
       setTotal(data.total || 0)
     } catch (e) {
@@ -119,12 +119,14 @@ export default function AdminUsers() {
             value={search}
             onChange={handleSearch}
             placeholder="Buscar usuario..."
+            aria-label="Buscar usuario"
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           />
         </div>
         <select
           value={roleFilter}
           onChange={handleRoleFilter}
+          aria-label="Filtrar por rol"
           className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
         >
           {ROLE_FILTER_OPTIONS.map((opt) => (

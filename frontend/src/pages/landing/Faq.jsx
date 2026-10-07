@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import SectionHeading from '../../components/SectionHeading'
 import Icon from '../../components/ui/Icon'
-import { faqs } from '../../mocks/content'
+import { faqs } from '../../content/landing'
 
 export default function Faq() {
   const [open, setOpen] = useState(0)

@@ -55,6 +55,10 @@ func (stubUserRepo) Update(ctx context.Context, user *domain.User) error {
 	return nil
 }
 
+func (stubUserRepo) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	return nil, 0, nil
+}
+
 type stubConversationUC struct {
 	err   error
 	gotID uuid.UUID
@@ -84,7 +88,7 @@ func newTestRouter(t *testing.T, convUC *stubConversationUC) http.Handler {
 	authMW := middleware.NewAuthMiddleware(stubJWT{})
 	suspensionMW := middleware.NewSuspensionMiddleware(stubUserRepo{})
 
-	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, nil, nil, nil)
+	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, nil, nil, nil, nil)
 }
 
 func TestChatWebSocketRouteRequiresToken(t *testing.T) {

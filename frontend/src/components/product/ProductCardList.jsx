@@ -3,6 +3,7 @@ import Button from '../ui/Button'
 import ProductImage from './ProductImage'
 import { formatPrice } from '../../lib/format'
 import { resolveOfferingImage } from '../../lib/productImages'
+import { Link } from 'react-router-dom'
 
 export default function ProductCardList({ offering }) {
   if (!offering) return null
@@ -40,11 +41,11 @@ export default function ProductCardList({ offering }) {
           {formatPrice(offering.price)}
           {unit && <span className="ml-1 text-sm font-medium text-gray-400">/ {unit}</span>}
         </p>
-        <a href={`#/product/${offering.id}`} aria-label={`Ver detalle de ${offering.name}`}>
+        <Link to={`/product/${offering.id}`} aria-label={`Ver detalle de ${offering.name}`}>
           <Button variant="primary" size="sm">
             Ver detalle
           </Button>
-        </a>
+        </Link>
       </div>
     </article>
   )

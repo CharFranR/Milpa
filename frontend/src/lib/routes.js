@@ -26,3 +26,11 @@ export const ADMIN_TAB_PATHS = {
   reportes: '/admin/reports',
   configuracion: '/admin/settings',
 }
+
+export const HOME_BY_ROLE = {
+  producer: '/producer',
+  admin: '/admin',
+  auditor: '/admin',
+  minorista: '/dashboard',
+  mayorista: '/dashboard',
+}
