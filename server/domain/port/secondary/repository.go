@@ -30,6 +30,7 @@ type CompanyRepository interface {
 type OfferingRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
 	FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	FindAll(ctx context.Context) ([]domain.Offering, error)
 	Save(ctx context.Context, offering *domain.Offering) error
 	Update(ctx context.Context, offering *domain.Offering) error
 	Delete(ctx context.Context, id uuid.UUID) error

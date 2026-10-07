@@ -331,6 +331,7 @@ func (f *fakeCompanyRepo) Update(ctx context.Context, company *domain.Company) e
 type fakeOfferingRepo struct {
 	findByID     func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
 	findByUserID func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	findAll      func(ctx context.Context) ([]domain.Offering, error)
 	save         func(ctx context.Context, offering *domain.Offering) error
 	update       func(ctx context.Context, offering *domain.Offering) error
 	delete       func(ctx context.Context, id uuid.UUID) error
@@ -347,6 +348,9 @@ func newFakeOfferingRepo() *fakeOfferingRepo {
 		return offering, nil
 	}
 	f.findByUserID = func(ctx context.Context, UserID uuid.UUID) ([]domain.Offering, error) {
+		return []domain.Offering{*mustOffering()}, nil
+	}
+	f.findAll = func(ctx context.Context) ([]domain.Offering, error) {
 		return []domain.Offering{*mustOffering()}, nil
 	}
 	f.save = func(ctx context.Context, offering *domain.Offering) error {
@@ -370,6 +374,10 @@ func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 
 func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
 	return f.findByUserID(ctx, companyID)
+}
+
+func (f *fakeOfferingRepo) FindAll(ctx context.Context) ([]domain.Offering, error) {
+	return f.findAll(ctx)
 }
 
 func (f *fakeOfferingRepo) Save(ctx context.Context, offering *domain.Offering) error {

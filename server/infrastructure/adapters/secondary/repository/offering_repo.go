@@ -83,6 +83,38 @@ func (r *OfferingRepositoryImpl) FindByUserID(ctx context.Context, userID uuid.U
 	return offerings, nil
 }
 
+// FindAll returns every offering that the catalogue shows: the same set that
+// FindByUserID filters per user. Used by the reindex command to repopulate
+// Elasticsearch after the index is lost.
+func (r *OfferingRepositoryImpl) FindAll(ctx context.Context) ([]domain.Offering, error) {
+	query := `SELECT ` + offeringColumns + `
+		FROM offerings
+		WHERE ` + cataloguePredicate + `
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("offering.FindAll: %w", err)
+	}
+	defer rows.Close()
+
+	var offerings []domain.Offering
+	for rows.Next() {
+		offering, err := scanOffering(rows.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("offering.FindAll: %w", err)
+		}
+		offerings = append(offerings, offering)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("offering.FindAll: %w", err)
+	}
+
+	return offerings, nil
+}
+
 func (r *OfferingRepositoryImpl) Save(ctx context.Context, offering *domain.Offering) error {
 	query := `
 		INSERT INTO offerings (id, user_id, type, name, description, price, image_url,

@@ -12,6 +12,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /app/api ./cmd/api && \
     go build -ldflags="-w -s" -o /app/migrate ./cmd/migrate && \
+    go build -ldflags="-w -s" -o /app/reindex ./cmd/reindex && \
     go build -ldflags="-w -s" -o /app/seed ./cmd/seed
 
 
@@ -23,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /app/api .
 COPY --from=builder /app/migrate .
+COPY --from=builder /app/reindex .
 COPY --from=builder /app/seed .
 COPY --from=builder /app/infrastructure/adapters/secondary/repository/migrations ./infrastructure/adapters/secondary/repository/migrations
 

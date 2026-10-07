@@ -49,6 +49,10 @@ func (r *ownershipOfferingRepo) FindByUserID(ctx context.Context, userID uuid.UU
 	return nil, nil
 }
 
+func (r *ownershipOfferingRepo) FindAll(ctx context.Context) ([]domain.Offering, error) {
+	return nil, nil
+}
+
 func (r *ownershipOfferingRepo) Save(ctx context.Context, offering *domain.Offering) error {
 	return nil
 }
