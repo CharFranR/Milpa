@@ -61,7 +61,9 @@ func (uc *CategoryUseCaseImpl) Create(ctx context.Context, req dto.CreateCategor
 	category.Description = req.Description
 	category.MainCategory = resolveMainCategory(req.MainCategory)
 	category.DefaultUnitOfMeasureID = req.DefaultUnitOfMeasureID
-	category.DefaultExpiryDays = req.DefaultExpiryDays
+	if req.DefaultExpiryDays != nil && *req.DefaultExpiryDays > 0 {
+		category.DefaultExpiryDays = req.DefaultExpiryDays
+	}
 
 	if err := uc.categoryRepo.Save(ctx, category); err != nil {
 		return nil, err
@@ -103,7 +105,11 @@ func (uc *CategoryUseCaseImpl) Update(ctx context.Context, id uuid.UUID, req dto
 		if err := validateDefaultExpiryDays(req.DefaultExpiryDays); err != nil {
 			return nil, err
 		}
-		category.DefaultExpiryDays = req.DefaultExpiryDays
+		if *req.DefaultExpiryDays == 0 {
+			category.DefaultExpiryDays = nil
+		} else {
+			category.DefaultExpiryDays = req.DefaultExpiryDays
+		}
 	}
 
 	if err := uc.categoryRepo.Save(ctx, category); err != nil {
@@ -150,8 +156,8 @@ func resolveMainCategory(mainCategory string) string {
 }
 
 func validateDefaultExpiryDays(days *int) error {
-	if days != nil && *days <= 0 {
-		return fmt.Errorf("%w: default_expiry_days must be greater than zero", domain.ErrInvalidInput)
+	if days != nil && *days < 0 {
+		return fmt.Errorf("%w: default_expiry_days must not be negative", domain.ErrInvalidInput)
 	}
 	return nil
 }
