@@ -4,13 +4,15 @@ import { categories } from '../../services/api'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 
+const emptyForm = { name: '', description: '', is_active: true, use_default_expiry: false, default_expiry_days: '' }
+
 export default function AdminConfig() {
   const [cats, setCats] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', is_active: true, default_expiry_days: '' })
+  const [form, setForm] = useState(emptyForm)
 
   const fetchCategories = useCallback(async () => {
     setLoading(true)
@@ -32,20 +34,21 @@ export default function AdminConfig() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    const days = form.default_expiry_days
-    if (days !== '' && (!Number.isInteger(Number(days)) || Number(days) <= 0)) {
+    const { use_default_expiry, ...payload } = form
+    if (use_default_expiry && (!Number.isInteger(Number(payload.default_expiry_days)) || Number(payload.default_expiry_days) <= 0)) {
       alert('Los días de vencimiento predeterminados deben ser un número entero mayor a 0')
       return
     }
+    payload.default_expiry_days = use_default_expiry ? Number(payload.default_expiry_days) : 0
     try {
       if (editing) {
-        await admin.updateCategory(editing.id, form)
+        await admin.updateCategory(editing.id, payload)
       } else {
-        await admin.createCategory(form)
+        await admin.createCategory(payload)
       }
       setShowModal(false)
       setEditing(null)
-      setForm({ name: '', description: '', is_active: true, default_expiry_days: '' })
+      setForm(emptyForm)
       fetchCategories()
     } catch (e) {
       alert('Error al guardar la categoría')
@@ -65,13 +68,20 @@ export default function AdminConfig() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', description: '', is_active: true, default_expiry_days: '' })
+    setForm(emptyForm)
     setShowModal(true)
   }
 
   const openEdit = (cat) => {
+    const hasDefault = Number(cat.default_expiry_days) > 0
     setEditing(cat)
-    setForm({ name: cat.name, description: cat.description || '', is_active: cat.is_active, default_expiry_days: cat.default_expiry_days ?? '' })
+    setForm({
+      name: cat.name,
+      description: cat.description || '',
+      is_active: cat.is_active,
+      use_default_expiry: hasDefault,
+      default_expiry_days: hasDefault ? cat.default_expiry_days : '',
+    })
     setShowModal(true)
   }
 
@@ -164,18 +174,31 @@ export default function AdminConfig() {
                 />
               </div>
               <div>
-                <label htmlFor="default_expiry_days" className="block text-sm font-medium text-gray-700 mb-1">Días de vencimiento predeterminados</label>
-                <input
-                  type="number"
-                  id="default_expiry_days"
-                  min="1"
-                  step="1"
-                  value={form.default_expiry_days}
-                  onChange={(e) => setForm({ ...form, default_expiry_days: e.target.value })}
-                  placeholder="Sin vencimiento predeterminado"
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                />
-                <p className="mt-1 text-xs text-gray-500">Opcional. Solo se aplica a los productos nuevos que no tengan una fecha de vencimiento propia.</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="use_default_expiry"
+                    checked={form.use_default_expiry}
+                    onChange={(e) => setForm({ ...form, use_default_expiry: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-200 text-brand focus:ring-brand"
+                  />
+                  <label htmlFor="use_default_expiry" className="text-sm text-gray-700">Vencimiento predeterminado</label>
+                </div>
+                <div className="mt-3">
+                  <label htmlFor="default_expiry_days" className="block text-sm font-medium text-gray-700 mb-1">Días de vencimiento predeterminados</label>
+                  <input
+                    type="number"
+                    id="default_expiry_days"
+                    min="1"
+                    step="1"
+                    value={form.default_expiry_days}
+                    onChange={(e) => setForm({ ...form, default_expiry_days: e.target.value })}
+                    disabled={!form.use_default_expiry}
+                    placeholder="Ej. 30"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Actívalo para asignar un vencimiento automático a los productos nuevos que no tengan una fecha propia. Desactívalo para quitar el vencimiento predeterminado de la categoría.</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -188,7 +211,7 @@ export default function AdminConfig() {
                 <label htmlFor="is_active" className="text-sm text-gray-700">Activa</label>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm({ name: '', description: '', is_active: true, default_expiry_days: '' }); }}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowModal(false); setEditing(null); setForm(emptyForm); }}>Cancelar</Button>
                 <Button type="submit">{editing ? 'Guardar' : 'Crear'}</Button>
               </div>
             </form>
