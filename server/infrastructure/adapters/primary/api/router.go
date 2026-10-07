@@ -35,6 +35,7 @@ func NewRouter(
 	match *handler.MatchHandler,
 	recommendation *handler.RecommendationHandler,
 	unitOfMeasure *handler.UnitOfMeasureHandler,
+	stats *handler.AdminStatsHandler,
 ) *chi.Mux {
 	r := chi.NewRouter()
 	auditorMW := middleware.NewAuditorMiddleware()
@@ -175,16 +176,17 @@ func NewRouter(
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/availability", recommendation.Availability)
 			})
 
-r.Route("/admin", func(r chi.Router) {
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/users", moderation.ListUsers)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/users/{id}/suspend", moderation.SuspendUser)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/users/{id}/role", moderation.SetUserRole)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Delete("/offerings/{id}", moderation.DeleteOffering)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/audit-logs", moderation.ListAuditLogs)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/categories", category.Create)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/categories/{id}", category.Update)
-			r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/categories/{id}/status", category.SetStatus)
-		})
+			r.Route("/admin", func(r chi.Router) {
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/users", moderation.ListUsers)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/users/{id}/suspend", moderation.SuspendUser)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/users/{id}/role", moderation.SetUserRole)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Delete("/offerings/{id}", moderation.DeleteOffering)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/audit-logs", moderation.ListAuditLogs)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/categories", category.Create)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/categories/{id}", category.Update)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Patch("/categories/{id}/status", category.SetStatus)
+				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/stats", stats.Get)
+			})
 		})
 
 		r.Route("/ws", func(r chi.Router) {

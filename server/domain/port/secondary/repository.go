@@ -181,6 +181,10 @@ type TransactionRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
+type AdminStatsRepository interface {
+	Counts(ctx context.Context) (domain.AdminStats, error)
+}
+
 type SupplierInventoryRepository interface {
 	Create(ctx context.Context, inventory *domain.SupplierInventory) error
 	ListBySupplier(ctx context.Context, supplierID uuid.UUID) ([]domain.SupplierInventory, error)

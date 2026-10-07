@@ -88,7 +88,7 @@ func newTestRouter(t *testing.T, convUC *stubConversationUC) http.Handler {
 	authMW := middleware.NewAuthMiddleware(stubJWT{})
 	suspensionMW := middleware.NewSuspensionMiddleware(stubUserRepo{})
 
-	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, nil, nil, nil, nil)
+	return NewRouter(nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat, nil, nil, nil, nil, nil, nil, nil)
 }
 
 func TestChatWebSocketRouteRequiresToken(t *testing.T) {

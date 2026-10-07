@@ -23,6 +23,31 @@ func (r *stubUnitRepo) List(ctx context.Context) ([]domain.UnitOfMeasure, error)
 	return r.units, nil
 }
 
+func (r *stubUnitRepo) FindAll(ctx context.Context) ([]domain.UnitOfMeasure, error) {
+	return r.units, nil
+}
+
+func (r *stubUnitRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.UnitOfMeasure, error) {
+	for i := range r.units {
+		if r.units[i].ID == id {
+			copied := r.units[i]
+			return &copied, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func (r *stubUnitRepo) Save(ctx context.Context, unit *domain.UnitOfMeasure) error {
+	for i := range r.units {
+		if r.units[i].ID == unit.ID {
+			r.units[i] = *unit
+			return nil
+		}
+	}
+	r.units = append(r.units, *unit)
+	return nil
+}
+
 func newUnitsRouter(t *testing.T) http.Handler {
 	t.Helper()
 
@@ -36,6 +61,7 @@ func newUnitsRouter(t *testing.T) http.Handler {
 		middleware.NewAuthMiddleware(piiJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		handler.NewUnitOfMeasureHandler(uc),
+		nil,
 	)
 }
 

@@ -69,6 +69,7 @@ func newCatalogueRouter(t *testing.T) (http.Handler, *catalogueRepo) {
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil,
 		nil,
+		nil,
 	)
 
 	return router, repo
@@ -194,6 +195,7 @@ func TestPublicCatalogueExcludesDeactivatedEntries(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil,
 		nil,
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
@@ -231,6 +233,7 @@ func TestOfferingDeactivateRouteReachesTheDomain(t *testing.T) {
 		middleware.NewAuthMiddleware(ownershipJWT{}), middleware.NewSuspensionMiddleware(stubUserRepo{}),
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil,
+		nil,
 		nil,
 	)
 

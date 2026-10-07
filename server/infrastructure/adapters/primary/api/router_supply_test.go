@@ -129,6 +129,7 @@ func newSupplyTestRouter(t *testing.T, requestUC *stubSupplyRequestUC, offerUC *
 		nil, nil, nil, nil, nil, nil, nil, authMW, suspensionMW, nil, nil, nil, nil, nil, nil, chat,
 		handler.NewSupplyRequestHandler(requestUC), handler.NewSupplyOfferHandler(offerUC), nil,
 		nil, nil, nil,
+		nil,
 	)
 }
 
