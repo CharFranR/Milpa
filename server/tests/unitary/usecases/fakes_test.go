@@ -329,14 +329,16 @@ func (f *fakeCompanyRepo) Update(ctx context.Context, company *domain.Company) e
 }
 
 type fakeOfferingRepo struct {
-	findByID     func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
-	findByUserID func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
-	save         func(ctx context.Context, offering *domain.Offering) error
-	update       func(ctx context.Context, offering *domain.Offering) error
-	delete       func(ctx context.Context, id uuid.UUID) error
-	saved        []*domain.Offering
-	updated      []*domain.Offering
-	deleted      []uuid.UUID
+	findByID              func(ctx context.Context, id uuid.UUID) (*domain.Offering, error)
+	findByUserID          func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error)
+	deactivateExpired     func(ctx context.Context, now time.Time) ([]domain.Offering, error)
+	save                  func(ctx context.Context, offering *domain.Offering) error
+	update                func(ctx context.Context, offering *domain.Offering) error
+	delete                func(ctx context.Context, id uuid.UUID) error
+	saved                 []*domain.Offering
+	updated               []*domain.Offering
+	deleted               []uuid.UUID
+	lastFindIncludeHidden bool
 }
 
 func newFakeOfferingRepo() *fakeOfferingRepo {
@@ -368,7 +370,8 @@ func (f *fakeOfferingRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.
 	return f.findByID(ctx, id)
 }
 
-func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID, _ bool) ([]domain.Offering, error) {
+func (f *fakeOfferingRepo) FindByUserID(ctx context.Context, companyID uuid.UUID, includeHidden bool) ([]domain.Offering, error) {
+	f.lastFindIncludeHidden = includeHidden
 	return f.findByUserID(ctx, companyID)
 }
 
@@ -385,7 +388,10 @@ func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (f *fakeOfferingRepo) DeactivateExpired(ctx context.Context, now time.Time) ([]domain.Offering, error) {
-	return nil, nil
+	if f.deactivateExpired == nil {
+		return nil, nil
+	}
+	return f.deactivateExpired(ctx, now)
 }
 
 type fakeReviewRepo struct {
@@ -714,7 +720,9 @@ func newFakeTimer() fakeTimer {
 	return fakeTimer{now: fixedTime}
 }
 
-type fakeFuzzyRetrival struct{}
+type fakeFuzzyRetrival struct {
+	deletedIDs []string
+}
 
 func (f *fakeFuzzyRetrival) Search(ctx context.Context, query *dto.SearchQuery) (*dto.SearchResponse, error) {
 	return &dto.SearchResponse{}, nil
@@ -729,6 +737,7 @@ func (f *fakeFuzzyRetrival) Update(ctx context.Context, id string, p *dto.IndexO
 }
 
 func (f *fakeFuzzyRetrival) Delete(ctx context.Context, id string) error {
+	f.deletedIDs = append(f.deletedIDs, id)
 	return nil
 }
 

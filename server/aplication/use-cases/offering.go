@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 
@@ -338,10 +339,10 @@ func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, 
 
 	user, err := uc.userRepo.FindByID(ctx, offering.UserID)
 	if err != nil {
-		return offeringToDTO(offering), nil
+		log.Printf("renew offering %s: load farmer %s for search index: %v", id, offering.UserID, err)
+	} else {
+		_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexRequestFor(offering, user))
 	}
-
-	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexRequestFor(offering, user))
 
 	_ = uc.searchInvalidator.InvalidateAll(ctx)
 

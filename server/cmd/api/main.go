@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -167,7 +168,12 @@ func main() {
 	go hub.Run()
 
 	workerCtx, workerCancel := context.WithCancel(context.Background())
-	go worker.Run(workerCtx)
+	var workerWG sync.WaitGroup
+	workerWG.Add(1)
+	go func() {
+		defer workerWG.Done()
+		worker.Run(workerCtx)
+	}()
 
 	chatHandler := ws.NewHandler(hub, messageUC, conversationUC)
 
@@ -201,6 +207,7 @@ func main() {
 
 	log.Println("shutting down server...")
 	workerCancel()
+	workerWG.Wait()
 	if err := srv.Shutdown(shutdown); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}

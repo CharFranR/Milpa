@@ -53,6 +53,9 @@ func (w *ExpiryWorker) sweep(ctx context.Context) {
 		if err := w.fuzzyRetrival.Delete(ctx, offering.ID.String()); err != nil {
 			log.Printf("expiry worker: delete offering %s from search index: %v", offering.ID, err)
 		}
+		if err := w.cache.Delete(ctx, "offering:"+offering.ID.String()); err != nil {
+			log.Printf("expiry worker: purge offering cache for %s: %v", offering.ID, err)
+		}
 		if err := w.cache.Delete(ctx, "offerings:byuser:"+offering.UserID.String()); err != nil {
 			log.Printf("expiry worker: purge catalogue cache for user %s: %v", offering.UserID, err)
 		}

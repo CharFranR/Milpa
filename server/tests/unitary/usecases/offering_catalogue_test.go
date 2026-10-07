@@ -322,6 +322,37 @@ func TestOfferingRenewIsOwnerOnlyAndReactivatesTheProduct(t *testing.T) {
 	}
 }
 
+// TestOfferingRenewInvalidatesSearchWhenTheFarmerCannotBeLoaded covers the
+// partial failure of the post-renewal search sync. The renewal itself already
+// committed, so the request must still succeed; but the search cache must be
+// invalidated regardless of whether the farmer profile could be loaded, or a
+// stale result set keeps serving the offering.
+func TestOfferingRenewInvalidatesSearchWhenTheFarmerCannotBeLoaded(t *testing.T) {
+	t.Parallel()
+
+	offeringRepo := newFakeOfferingRepo()
+	userRepo := newFakeUserRepo()
+	userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+		return nil, errFake
+	}
+	invalidator := &fakeInvalidator{}
+	uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, invalidator)
+
+	result, err := uc.RenewOffering(farmerCtx(), testOfferingID, dto.RenewOfferingRequest{ExpiresAt: fixedTime.Add(15 * 24 * time.Hour)})
+	if err != nil {
+		t.Fatalf("RenewOffering() error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("RenewOffering() returned a nil DTO after a successful renewal")
+	}
+	if len(offeringRepo.updated) != 1 {
+		t.Fatalf("updated = %d, want the renewal persisted", len(offeringRepo.updated))
+	}
+	if !invalidator.called {
+		t.Error("the search cache was not invalidated when the farmer lookup failed")
+	}
+}
+
 func TestIndexRequestPrefersTheProductLocation(t *testing.T) {
 	t.Parallel()
 

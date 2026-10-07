@@ -202,7 +202,7 @@ func (h *OfferingHandler) GetByUserID(w http.ResponseWriter, r *http.Request) {
 
 	includeHidden := false
 	switch value := r.URL.Query().Get("include_hidden"); value {
-	case "":
+	case "", "false", "0":
 	case "true", "1":
 		includeHidden = true
 	default:

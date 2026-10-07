@@ -332,3 +332,102 @@ func TestCachedCategoryReadAfterMutationSeesTheWrite(t *testing.T) {
 		t.Fatalf("GetAll() after the write = %+v, want the catalogue written by the mutation", got)
 	}
 }
+
+func intPtr(value int) *int {
+	return &value
+}
+
+func TestCategoryCreateRejectsANegativeDefaultExpiry(t *testing.T) {
+	t.Parallel()
+
+	categoryRepo := newFakeCategoryRepo()
+	uc := usecases.NewCategoryUseCase(categoryRepo)
+
+	_, err := uc.Create(adminCtx(), dto.CreateCategoryRequest{Name: "Granos", DefaultExpiryDays: intPtr(-1)})
+
+	if !errors.Is(err, domain.ErrInvalidInput) {
+		t.Fatalf("Create() error = %v, want ErrInvalidInput", err)
+	}
+	if len(categoryRepo.saved) != 0 {
+		t.Errorf("a refused create saved %d categories, want 0", len(categoryRepo.saved))
+	}
+}
+
+func TestCategoryCreateTreatsZeroDefaultExpiryAsNoDefault(t *testing.T) {
+	t.Parallel()
+
+	categoryRepo := newFakeCategoryRepo()
+	uc := usecases.NewCategoryUseCase(categoryRepo)
+
+	result, err := uc.Create(adminCtx(), dto.CreateCategoryRequest{Name: "Granos", DefaultExpiryDays: intPtr(0)})
+	if err != nil {
+		t.Fatalf("Create() error: %v", err)
+	}
+
+	if result.DefaultExpiryDays != nil {
+		t.Errorf("dto default expiry = %v, want nil", result.DefaultExpiryDays)
+	}
+	if len(categoryRepo.saved) != 1 {
+		t.Fatalf("saved = %d categories, want 1", len(categoryRepo.saved))
+	}
+	if categoryRepo.saved[0].DefaultExpiryDays != nil {
+		t.Errorf("stored default expiry = %v, want nil", categoryRepo.saved[0].DefaultExpiryDays)
+	}
+}
+
+// TestCategoryUpdateDefaultExpiry characterizes the update grammar: an omitted
+// key keeps the stored default, an explicit zero clears it to nil, and a
+// positive value replaces it. Negative values are invalid on every path.
+func TestCategoryUpdateDefaultExpiry(t *testing.T) {
+	t.Parallel()
+
+	existing := 10
+
+	tests := []struct {
+		name    string
+		request *int
+		want    *int
+		wantErr error
+	}{
+		{name: "omitted leaves the stored value", request: nil, want: intPtr(existing)},
+		{name: "zero clears the stored value", request: intPtr(0), want: nil},
+		{name: "positive sets the value", request: intPtr(30), want: intPtr(30)},
+		{name: "negative is invalid", request: intPtr(-1), wantErr: domain.ErrInvalidInput},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			categoryRepo := newFakeCategoryRepo()
+			categoryRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
+				category := mustCategory()
+				category.ID = id
+				days := existing
+				category.DefaultExpiryDays = &days
+				return category, nil
+			}
+			uc := usecases.NewCategoryUseCase(categoryRepo)
+
+			result, err := uc.Update(adminCtx(), testCategoryID, dto.UpdateCategoryRequest{DefaultExpiryDays: tt.request})
+
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("Update() error = %v, want %v", err, tt.wantErr)
+				}
+				if len(categoryRepo.saved) != 0 {
+					t.Errorf("a refused update saved %d categories, want 0", len(categoryRepo.saved))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Update() error: %v", err)
+			}
+			got := result.DefaultExpiryDays
+			if (got == nil) != (tt.want == nil) || (got != nil && *got != *tt.want) {
+				t.Errorf("default expiry = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
