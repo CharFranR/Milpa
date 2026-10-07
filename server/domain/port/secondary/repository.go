@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"time"
 
 	"milpa/aplication/dto"
 	domain "milpa/domain/entities"
@@ -32,6 +33,7 @@ type OfferingRepository interface {
 	Save(ctx context.Context, offering *domain.Offering) error
 	Update(ctx context.Context, offering *domain.Offering) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeactivateExpired(ctx context.Context, now time.Time) ([]domain.Offering, error)
 }
 
 type ReviewRepository interface {

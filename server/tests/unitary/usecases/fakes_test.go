@@ -384,6 +384,10 @@ func (f *fakeOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return f.delete(ctx, id)
 }
 
+func (f *fakeOfferingRepo) DeactivateExpired(ctx context.Context, now time.Time) ([]domain.Offering, error) {
+	return nil, nil
+}
+
 type fakeReviewRepo struct {
 	findByCompany  func(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error)
 	findByUser     func(ctx context.Context, userID uuid.UUID) ([]domain.Review, error)

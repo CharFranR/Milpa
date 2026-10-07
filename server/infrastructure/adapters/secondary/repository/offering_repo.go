@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -78,6 +79,36 @@ func (r *OfferingRepositoryImpl) FindByUserID(ctx context.Context, userID uuid.U
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("offering.FindByUser: %w", err)
+	}
+
+	return offerings, nil
+}
+
+func (r *OfferingRepositoryImpl) DeactivateExpired(ctx context.Context, now time.Time) ([]domain.Offering, error) {
+	query := `
+		UPDATE offerings
+		SET is_active = false, updated_at = $2
+		WHERE is_active AND expires_at <= $1
+		RETURNING ` + offeringColumns + `
+	`
+
+	rows, err := r.pool.Query(ctx, query, now, now)
+	if err != nil {
+		return nil, fmt.Errorf("offering.DeactivateExpired: %w", err)
+	}
+	defer rows.Close()
+
+	var offerings []domain.Offering
+	for rows.Next() {
+		offering, err := scanOffering(rows.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("offering.DeactivateExpired: %w", err)
+		}
+		offerings = append(offerings, offering)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("offering.DeactivateExpired: %w", err)
 	}
 
 	return offerings, nil

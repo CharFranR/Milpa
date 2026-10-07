@@ -138,6 +138,8 @@ func main() {
 	conversationUC = usecases.NewCachedConversationUseCase(conversationUC, cacheClient)
 	messageUC = usecases.NewCachedMessageUseCase(messageUC, cacheClient)
 
+	worker := usecases.NewExpiryWorker(offeringRepo, searchRepo, cacheClient, searchUC.(port.Invalidator), clock)
+
 	imageStore := storage.NewLocalImageStore("./uploads")
 
 	userHandler := handler.NewUserHandler(userUC, imageStore)
@@ -163,6 +165,9 @@ func main() {
 
 	hub := ws.NewHub()
 	go hub.Run()
+
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	go worker.Run(workerCtx)
 
 	chatHandler := ws.NewHandler(hub, messageUC, conversationUC)
 
@@ -195,6 +200,7 @@ func main() {
 	defer cancel()
 
 	log.Println("shutting down server...")
+	workerCancel()
 	if err := srv.Shutdown(shutdown); err != nil {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}

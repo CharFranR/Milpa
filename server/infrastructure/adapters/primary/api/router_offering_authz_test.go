@@ -64,6 +64,10 @@ func (r *ownershipOfferingRepo) Delete(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
+func (r *ownershipOfferingRepo) DeactivateExpired(ctx context.Context, now time.Time) ([]domain.Offering, error) {
+	return nil, nil
+}
+
 var _ port.OfferingRepository = (*ownershipOfferingRepo)(nil)
 
 type ownershipUserRepo struct {
@@ -95,6 +99,10 @@ func (r *ownershipUserRepo) Save(ctx context.Context, user *domain.User) (string
 
 func (r *ownershipUserRepo) Update(ctx context.Context, user *domain.User) error {
 	return nil
+}
+
+func (r *ownershipUserRepo) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	return nil, 0, nil
 }
 
 var _ port.UserRepository = (*ownershipUserRepo)(nil)

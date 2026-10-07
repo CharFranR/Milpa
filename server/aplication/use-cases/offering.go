@@ -279,6 +279,8 @@ func (uc *OfferingUseCaseImpl) DeactivateOffering(ctx context.Context, id uuid.U
 		return nil, err
 	}
 
+	_ = uc.fuzzyRetrival.Delete(ctx, id.String())
+
 	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
 	return offeringToDTO(offering), nil
@@ -307,6 +309,13 @@ func (uc *OfferingUseCaseImpl) RenewOffering(ctx context.Context, id uuid.UUID, 
 	if err := uc.offeringRepo.Update(ctx, offering); err != nil {
 		return nil, err
 	}
+
+	user, err := uc.userRepo.FindByID(ctx, offering.UserID)
+	if err != nil {
+		return offeringToDTO(offering), nil
+	}
+
+	_ = uc.fuzzyRetrival.Update(ctx, id.String(), indexRequestFor(offering, user))
 
 	_ = uc.searchInvalidator.InvalidateAll(ctx)
 
