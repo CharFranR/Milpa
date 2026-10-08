@@ -33,7 +33,22 @@ type CategoryStatusRequest struct {
 }
 
 type UnitOfMeasureDTO struct {
-	ID   uuid.UUID `json:"id"`
-	Code string    `json:"code"`
-	Name string    `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	Code     string    `json:"code"`
+	Name     string    `json:"name"`
+	IsActive bool      `json:"is_active"`
+}
+
+type CreateUnitOfMeasureRequest struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+type UpdateUnitOfMeasureRequest struct {
+	Code *string `json:"code"`
+	Name *string `json:"name"`
+}
+
+type UnitOfMeasureStatusRequest struct {
+	IsActive bool `json:"is_active"`
 }

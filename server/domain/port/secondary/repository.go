@@ -54,6 +54,9 @@ type CategoryRepository interface {
 
 type UnitOfMeasureRepository interface {
 	List(ctx context.Context) ([]domain.UnitOfMeasure, error)
+	FindAll(ctx context.Context) ([]domain.UnitOfMeasure, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.UnitOfMeasure, error)
+	Save(ctx context.Context, unit *domain.UnitOfMeasure) error
 }
 
 type InquiryRepository interface {
@@ -179,6 +182,10 @@ type TransactionRepository interface {
 	GetByID(ctx context.Context, transactionID uuid.UUID) (domain.Transaction, error)
 	Update(ctx context.Context, transaction *domain.Transaction) error
 	Delete(ctx context.Context, id uuid.UUID) error
+}
+
+type AdminStatsRepository interface {
+	Counts(ctx context.Context) (domain.AdminStats, error)
 }
 
 type SupplierInventoryRepository interface {

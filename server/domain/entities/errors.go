@@ -12,6 +12,7 @@ var (
 	ErrInvalidPrice         = errors.New("price must be greater than zero")
 	ErrInvalidRating        = errors.New("rating must be between 1 and 5")
 	ErrNameRequired         = errors.New("name is required")
+	ErrCodeRequired         = errors.New("code is required")
 	ErrInvalidOfferingType  = errors.New("offering type must be product or service")
 	ErrMessageRequired      = errors.New("message is required")
 	ErrEmailRequired        = errors.New("email is required")
