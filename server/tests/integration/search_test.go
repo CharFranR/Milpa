@@ -342,7 +342,7 @@ func TestSearchCacheIntegration(t *testing.T) {
 	searchUC := usecases.NewSearchImpl(adapter)
 
 	// Create real Redis cache
-	cacheClient := cacheAdapter.NewCacheImpl(TestRedisAddr, "", 0)
+	cacheClient := cacheAdapter.NewCacheImpl(TestRedisAddr, "", 0, false)
 
 	cachedUC := usecases.NewCachedSearchUseCase(searchUC, cacheClient)
 

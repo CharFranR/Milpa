@@ -83,7 +83,7 @@ func newConcFixture(t *testing.T) *concFixture {
 	unitOfWork := repository.NewUnitOfWork(TestPool)
 
 	recommendationUC := usecases.NewRecommendationUseCase(offerRepo, requestRepo, userRepo, inventoryRepo, matchRepo, nil)
-	cacheClient := cache.NewCacheImpl(TestRedisAddr, os.Getenv("REDIS_PASSWORD"), 0)
+	cacheClient := cache.NewCacheImpl(TestRedisAddr, os.Getenv("REDIS_PASSWORD"), 0, false)
 
 	return &concFixture{
 		requestRepo:   requestRepo,
