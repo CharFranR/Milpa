@@ -160,6 +160,9 @@ func TestBootstrapEnsureAdmin(t *testing.T) {
 				if saved.FirstName != "Admin" || saved.LastName != "Milpa" {
 					t.Errorf("saved name = %q %q, want Admin Milpa", saved.FirstName, saved.LastName)
 				}
+				if saved.PhoneNumber != placeholderAdminPhone {
+					t.Errorf("saved phone = %q, want %q", saved.PhoneNumber, placeholderAdminPhone)
+				}
 				if !saved.CreatedAt.Equal(fixedNow) || !saved.UpdatedAt.Equal(fixedNow) {
 					t.Errorf("saved timestamps = %v / %v, want %v", saved.CreatedAt, saved.UpdatedAt, fixedNow)
 				}

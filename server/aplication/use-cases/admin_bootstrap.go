@@ -13,6 +13,12 @@ import (
 
 const minAdminPasswordLength = 8
 
+// The user repository requires a non-empty phone number for every persisted
+// user (Save validates it) and the bootstrap has no real phone to collect.
+// A clearly fake placeholder keeps that contract; an operator can replace it
+// later through the profile update endpoint.
+const placeholderAdminPhone = "+505 0000 0000"
+
 type BootstrapAdminUseCaseImpl struct {
 	userRepo port.UserRepository
 	hasher   port.PasswordHasher
@@ -77,6 +83,7 @@ func (uc *BootstrapAdminUseCaseImpl) EnsureAdmin(ctx context.Context, email, pas
 			return nil, err
 		}
 		user.SetPasswordHash(hash)
+		user.PhoneNumber = placeholderAdminPhone
 
 		if _, err := uc.userRepo.Save(ctx, user); err != nil {
 			return nil, err
