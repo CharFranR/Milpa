@@ -128,6 +128,17 @@ El stack expone:
 
 Las migraciones de base de datos se aplican automáticamente al iniciar la API, o de forma explícita con el servicio `migrate` (binario `./migrate`). Para cargar datos de prueba: `make seed`.
 
+## Ejecución
+
+Con el stack levantado, cada componente del sistema se ejecuta así:
+
+| Componente | Comando | Acceso |
+|---|---|---|
+| Backend (API) | `docker compose up -d` (contenedor `api`) | `http://localhost:8080/api/v1` |
+| Cliente web | `cd frontend && npm run dev` (requiere Node.js ≥ 18) | `http://localhost:5173` (puerto por defecto de Vite) |
+| Adminer (UI de la base de datos) | `docker compose up -d` | `http://localhost:8081` |
+| Cliente móvil | `flutter pub get && flutter run` dentro de `flutter_application_1/` en [milpaClient](https://github.com/CharFranR/milpaClient) (requiere Flutter SDK) | Emulador o dispositivo |
+
 ## Variables de entorno
 
 | Variable | Descripción |
