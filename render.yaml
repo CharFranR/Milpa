@@ -50,6 +50,12 @@ services:
         value: "10"
       - key: ESCLIENT_INDEX
         value: "milpa-offerings"
+      # Imagenes de producto en Azure Blob Storage. La connection string se
+      # pega en el dashboard: no se puede poner un secreto en el repositorio.
+      - key: AZURE_STORAGE_CONNECTION_STRING
+        sync: false
+      - key: AZURE_STORAGE_CONTAINER
+        value: "images"
     healthCheckPath: /api/v1/categories
     autoDeployTrigger: commit
 
