@@ -48,7 +48,7 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	DatabaseURL := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
 		os.Getenv("POSTGRES_HOST"),
