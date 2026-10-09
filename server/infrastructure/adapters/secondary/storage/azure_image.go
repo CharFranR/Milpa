@@ -27,8 +27,6 @@ type AzureImageStoreImpl struct {
 	publicBaseURL string
 }
 
-// NewAzureImageStore construye el cliente con la connection string (Render no
-// tiene identidad administrada de Azure) y crea el contenedor si no existe.
 func NewAzureImageStore(connectionString, container, publicBaseURL string) (*AzureImageStoreImpl, error) {
 	client, err := azblob.NewClientFromConnectionString(connectionString, nil)
 	if err != nil {
@@ -95,14 +93,10 @@ func (AIS *AzureImageStoreImpl) Delete(ctx context.Context, filename string) err
 	return nil
 }
 
-// buildPublicImageURL arma la URL absoluta que sirve Get: el blob no es
-// público, así que el cliente siempre pasa por GET /api/v1/images/{filename}.
 func buildPublicImageURL(base, filename string) string {
 	return strings.TrimRight(base, "/") + "/api/v1/images/" + url.PathEscape(filename)
 }
 
-// resolveContentType prefiere la extensión del archivo y cae al sniffing de
-// contenido cuando el nombre no trae una extensión conocida.
 func resolveContentType(filename string, content []byte) string {
 	if contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filename))); contentType != "" {
 		return contentType
