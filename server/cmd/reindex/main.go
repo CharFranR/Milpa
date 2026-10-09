@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -57,11 +55,7 @@ func main() {
 	// invalidacion si hace falta al final, porque /search se cachea en Redis y
 	// un resultado vacio guardado seguiria sirviendo productos invisibles
 	// hasta que expirara el TTL.
-	cacheClient := cache.NewCacheImpl(
-		resolveRedisAddr(),
-		os.Getenv("REDIS_PASSWORD"),
-		0,
-	)
+	cacheClient := cache.NewCacheImpl(cfg.Redis.Addr, cfg.Redis.Password, 0, cfg.Redis.TLS)
 
 	offeringRepo := repo.NewOfferingRepository(pool)
 	userRepo := repo.NewUserRepository(pool)
@@ -91,18 +85,3 @@ func main() {
 	}
 }
 
-// resolveRedisAddr replica el helper de cmd/api para no duplicar el parseo de
-// REDIS_URL/REDIS_HOST.
-func resolveRedisAddr() string {
-	if url := os.Getenv("REDIS_URL"); url != "" {
-		host := strings.TrimPrefix(url, "redis://")
-		if idx := strings.Index(host, "@"); idx != -1 {
-			host = host[idx+1:]
-		}
-		if idx := strings.Index(host, "/"); idx != -1 {
-			host = host[:idx]
-		}
-		return host
-	}
-	return os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
-}

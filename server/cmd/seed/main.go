@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,7 +82,7 @@ func main() {
 	unitOfWork := repo.NewUnitOfWork(pool)
 
 	searchRepo := search.NewElasticSearchImpl(elasticSearchClient, cfg.ESClient.Index)
-	cacheClient := cache.NewCacheImpl(resolveRedisAddr(), os.Getenv("REDIS_PASSWORD"), 0)
+	cacheClient := cache.NewCacheImpl(cfg.Redis.Addr, cfg.Redis.Password, 0, cfg.Redis.TLS)
 
 	userUC := usecases.NewUserUseCase(userRepo, hasher, jwtProvider, clock)
 	cachedSearch := usecases.NewCachedSearchUseCase(usecases.NewSearchImpl(searchRepo), cacheClient)
@@ -308,18 +306,4 @@ func demoOfferings() []demoOffering {
 		{name: "Miel de abeja", variety: "Multifloral", category: "Otros", price: 180, quantity: 90, latitude: 11.974, longitude: -86.094, description: "Miel multifloral pura."},
 		{name: "Tomate cherry", variety: "Cherry", category: "Otros", price: 55, quantity: 120, latitude: 11.974, longitude: -86.094, description: "Tomate cherry dulce para ensaladas."},
 	}
-}
-
-func resolveRedisAddr() string {
-	if url := os.Getenv("REDIS_URL"); url != "" {
-		host := strings.TrimPrefix(url, "redis://")
-		if idx := strings.Index(host, "@"); idx != -1 {
-			host = host[idx+1:]
-		}
-		if idx := strings.Index(host, "/"); idx != -1 {
-			host = host[:idx]
-		}
-		return host
-	}
-	return os.Getenv("REDIS_HOST") + ":" + os.Getenv("REDIS_PORT")
 }
