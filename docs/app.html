@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Milpa — App móvil para Android</title>
+  <meta name="description" content="Descargá la app oficial de Milpa para Android: el mercado digital agropecuario de Nicaragua en tu teléfono. APK v1.1.0 desde GitHub Releases.">
+  <style>
+    :root {
+      --green-900: #14432a;
+      --green-700: #1d6a41;
+      --green-500: #2e9e5b;
+      --green-100: #e6f4ec;
+      --earth: #b7791f;
+      --ink: #1c2b24;
+      --muted: #5b6b63;
+      --bg: #fbfdfa;
+      --card: #ffffff;
+      --border: #dfe9e3;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    a { color: var(--green-700); }
+    .container { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: rgba(251, 253, 250, 0.94);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 0;
+    }
+    .brand {
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: var(--green-900);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+    .brand span { color: var(--earth); }
+    .nav ul { display: flex; gap: 1.4rem; list-style: none; }
+    .nav a { text-decoration: none; color: var(--muted); font-size: 0.95rem; }
+    .nav a:hover { color: var(--green-700); }
+    .nav a[aria-current="page"] { color: var(--green-700); font-weight: 600; }
+
+    .hero {
+      padding: 4.5rem 0 3.5rem;
+      text-align: center;
+      background:
+        radial-gradient(ellipse at top, var(--green-100) 0%, transparent 65%),
+        var(--bg);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      color: var(--green-900);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+    }
+    .hero > .container > p {
+      font-size: clamp(1rem, 2.2vw, 1.2rem);
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0 auto 2rem;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.4rem 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--green-700);
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .cta {
+      display: inline-block;
+      background: var(--green-700);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.85rem 2rem;
+      border-radius: 999px;
+      transition: background 0.15s ease;
+    }
+    .cta:hover { background: var(--green-900); }
+    .cta.secondary {
+      background: transparent;
+      color: var(--green-700);
+      box-shadow: inset 0 0 0 1.5px var(--green-700);
+    }
+    .cta.secondary:hover { background: var(--green-100); color: var(--green-900); }
+    .hero > .container > .hero-note {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0 auto;
+      max-width: 560px;
+    }
+
+    section { padding: 3.25rem 0; }
+    .section-title {
+      font-size: 1.7rem;
+      color: var(--green-900);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .section-sub {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 2.25rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .card h3 { color: var(--green-700); font-size: 1.05rem; margin-bottom: 0.5rem; }
+    .card p { color: var(--muted); font-size: 0.95rem; }
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 50%;
+      background: var(--green-700);
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .note {
+      background: var(--green-100);
+      border: 1px dashed var(--green-500);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      color: var(--ink);
+      font-size: 0.95rem;
+      text-align: center;
+    }
+
+    footer {
+      background: var(--green-900);
+      color: #cfe4d7;
+      padding: 2rem 0;
+      font-size: 0.9rem;
+    }
+    footer .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer a { color: #fff; }
+
+    @media (max-width: 640px) {
+      .nav ul { display: none; }
+      .hero { padding: 3rem 0 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="index.html">Mil<span>pa</span></a>
+      <nav>
+        <ul>
+          <li><a href="index.html#funciones">Funciones</a></li>
+          <li><a href="index.html#como-funciona">Cómo funciona</a></li>
+          <li><a href="app.html" aria-current="page">App móvil</a></li>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <span class="badge">v1.1.0 · Android · ~59 MB</span>
+        <h1>Lleva Milpa<br>en tu bolsillo</h1>
+        <p>
+          La app oficial de Milpa para Android: publicá tus productos, chateá con
+          compradores y manejá tu negocio del campo desde el teléfono, con la misma
+          cuenta que usás en la web.
+        </p>
+        <div class="hero-actions">
+          <a class="cta" href="https://github.com/CharFranR/milpaClient/releases/download/v1.1.0/milpa-v1.1.0.apk">Descargar APK</a>
+          <a class="cta secondary" href="https://github.com/CharFranR/milpaClient/releases/tag/v1.1.0" target="_blank" rel="noopener noreferrer">Ver en GitHub</a>
+        </div>
+        <p class="hero-note">
+          Descarga directa desde GitHub Releases, sin tienda de aplicaciones.
+        </p>
+      </div>
+    </section>
+
+    <section id="instalar">
+      <div class="container">
+        <h2 class="section-title">Cómo instalarla</h2>
+        <p class="section-sub">Tres pasos y quedás adentro.</p>
+        <div class="grid">
+          <div class="card">
+            <span class="step">1</span>
+            <h3>Descargá el APK</h3>
+            <p>Tocá «Descargar APK». Se guarda en tu teléfono el archivo <code>milpa-v1.1.0.apk</code> (~59 MB).</p>
+          </div>
+          <div class="card">
+            <span class="step">2</span>
+            <h3>Permití la instalación</h3>
+            <p>Si Android te lo pide, habilitá «Instalar apps de origen desconocidas» para el navegador o administrador de archivos que usaste.</p>
+          </div>
+          <div class="card">
+            <span class="step">3</span>
+            <h3>Abrilo e instalá</h3>
+            <p>Abrí el archivo descargado, tocá «Instalar» y entrá con la cuenta de la demo.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="novedades" class="flows">
+      <div class="container">
+        <h2 class="section-title">Novedades de v1.1.0</h2>
+        <p class="section-sub">Lo que trae esta versión de la app.</p>
+        <div class="grid">
+          <div class="card">
+            <span class="icon">🏪</span>
+            <h3>Mi negocio</h3>
+            <p>Creá y editá el perfil de tu empresa del agricultor directo desde la app.</p>
+          </div>
+          <div class="card">
+            <span class="icon">📎</span>
+            <h3>Empresa en tus publicaciones</h3>
+            <p>Al publicar, el producto queda asociado a tu empresa y el detalle muestra su tarjeta (con respaldo al perfil del productor).</p>
+          </div>
+          <div class="card">
+            <span class="icon">🌱</span>
+            <h3>Publicá sin bloqueos</h3>
+            <p>Publicar no exige tener empresa: te invitamos a crearla con un aviso que no te detiene.</p>
+          </div>
+          <div class="card">
+            <span class="icon">✏️</span>
+            <h3>Perfil completo</h3>
+            <p>Editá tu dirección desde «Mi cuenta», requisito de la API para poder publicar.</p>
+          </div>
+          <div class="card">
+            <span class="icon">🌐</span>
+            <h3>Conectada a la API</h3>
+            <p>Esta versión apunta al despliegue de la API de Milpa; el equipo puede recompilarla con otra URL si hace falta.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <p class="note">
+          La app se distribuye como APK por GitHub Releases (no está en Google Play).
+          <br>
+          Fuente del cliente: <a href="https://github.com/CharFranR/milpaClient" target="_blank" rel="noopener noreferrer">CharFranR/milpaClient</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <span>Milpa — Hackatón Nicaragua 2026</span>
+      <span><a href="privacy.html">Privacy Policy</a> · Contacto: <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a></span>
+    </div>
+  </footer>
+</body>
+</html>

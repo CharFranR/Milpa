@@ -86,6 +86,18 @@
       transition: background 0.15s ease;
     }
     .cta:hover { background: var(--green-900); }
+    .cta.secondary {
+      background: transparent;
+      color: var(--green-700);
+      box-shadow: inset 0 0 0 1.5px var(--green-700);
+    }
+    .cta.secondary:hover { background: var(--green-100); color: var(--green-900); }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+    }
 
     section { padding: 3.25rem 0; }
     .section-title {
@@ -165,6 +177,7 @@
         <ul>
           <li><a href="#funciones">Funciones</a></li>
           <li><a href="#como-funciona">Cómo funciona</a></li>
+          <li><a href="app.html">App móvil</a></li>
           <li><a href="privacy.html">Privacy Policy</a></li>
         </ul>
       </nav>
@@ -180,7 +193,10 @@
           productores de frutas y cítricos de Nicaragua con compradores minoristas y
           mayoristas: catálogo, chat, solicitudes de abastecimiento, matches y reputación.
         </p>
-        <a class="cta" href="#funciones">Conocé la plataforma</a>
+        <div class="hero-actions">
+          <a class="cta" href="#funciones">Conocé la plataforma</a>
+          <a class="cta secondary" href="app.html">Descargar la app</a>
+        </div>
       </div>
     </section>
 
@@ -253,7 +269,7 @@
   <footer>
     <div class="container">
       <span>Milpa — Hackatón Nicaragua 2026</span>
-      <span><a href="privacy.html">Privacy Policy</a> · Contacto: <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a></span>
+      <span><a href="app.html">App móvil</a> · <a href="privacy.html">Privacy Policy</a> · Contacto: <a href="mailto:oscarcisco.reyes@gmail.com">oscarcisco.reyes@gmail.com</a></span>
     </div>
   </footer>
 </body>
