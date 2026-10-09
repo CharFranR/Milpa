@@ -58,11 +58,6 @@ func main() {
 	database.MakeMigrations(context.Background(), dsn)
 	log.Println("migrations complete")
 
-	// The search index is bootstrapped on boot for the same reason the SQL
-	// migrations are: Elasticsearch infers a mapping from the first document it
-	// sees, which silently mis-types every later document, and an index that
-	// was never created makes every search fail. Running it on an index that
-	// already exists is a no-op and leaves the indexed documents alone.
 	log.Printf("bootstrapping elasticsearch index %q...", cfg.ESClient.Index)
 	if err := search.EnsureIndex(context.Background(), elasticSearchClient, cfg.ESClient.Index); err != nil {
 		log.Fatalf("failed to bootstrap elasticsearch index: %v", err)
