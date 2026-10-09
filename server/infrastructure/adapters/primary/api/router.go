@@ -119,6 +119,10 @@ func NewRouter(
 
 			r.Get("/search", search.Search)
 
+			// Public alias: the marketplace listing stays browsable without
+			// authentication, under a friendlier path than /search.
+			r.Get("/marketplace", search.Search)
+
 			r.Route("/reports", func(r chi.Router) {
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Post("/", report.Create)
 				r.With(authMW.Authenticate, suspensionMW.CheckSuspension, auditorMW.CheckReadOnly).Get("/", report.List)
