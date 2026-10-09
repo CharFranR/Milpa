@@ -55,22 +55,8 @@ export default function App() {
       <Routes>
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Landing />} />
-          <Route
-            path="/marketplace"
-            element={
-              <RequireRole roles={buyerRoles}>
-                <Marketplace />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/product/:id"
-            element={
-              <RequireRole roles={buyerRoles}>
-                <ProductDetail />
-              </RequireRole>
-            }
-          />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
           {/* Sin ruta que coincide, la landing conserva su header: fuera del
               layout se quedaria sin Navbar ni Footer. */}
           <Route path="*" element={<Landing />} />
