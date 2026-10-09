@@ -1,7 +1,7 @@
 # Feature: Azure Blob image storage and real uploads from the product form
 
-Status: WU1–WU2 done, all checks green including a live Azure smoke test. Pending: Render env var
-and push/PR (user decisions).
+Status: WU1–WU2 done, all checks green including a live Azure smoke test and an independent
+verification pass. Pending: Render env var and push/PR (user decisions).
 Owner: el Gentleman (orchestrator) + delegated writer
 Scope: `server/` (storage adapter, config, wiring) + `frontend/` (upload flow) + `render.yaml` + `README.md`
 Tracker: user report 2026-10-09 ("no se me suben al azure las imagenes"). No GitHub issue.
@@ -39,6 +39,9 @@ the ARM resource ID and does not compile.
       Commit `29d2a5c`
 - [x] WU2 — Frontend: FormData support in the HTTP helper + images service + form upload flow.
       Commit `a070eb6`
+- [x] Follow-up from independent verification: stale-upload guard in the form (monotonic token;
+      removing or cancelling a form no longer lets an in-flight upload re-attach its image).
+      Commit `210ce0b`
 
 ## Acceptance criteria
 
@@ -78,6 +81,14 @@ the ARM resource ID and does not compile.
   `server/.env`, gitignored — never committed): client from connection string, container
   `images` created, upload with content type, download roundtrip, delete, `BlobNotFound`
   after delete → ALL PASSED. Temporary smoke module deleted.
+- Independent verification (fresh read-only verifier over `78764e0..0737bb5`): VERIFIED, no
+  blockers. Re-ran storage tests (7/7), build/vet, frontend lint + 104/104 tests; confirmed
+  secret hygiene (no `AccountKey=` anywhere in the diff, `.env` untracked) and the config
+  resolution order. One SUGGESTION (stale-upload race) was applied afterwards as `210ce0b`
+  and validated with frontend build/lint + 104/104 tests.
+- Native assess (RDD off for this clone): risk `medium` (executable change; 514 changed lines,
+  slice budget reached). Review lifecycle NOT started — the switch is disabled, delivery follows
+  ordinary repository policy; no receipt, no fabricated approval.
 - Pending: paste `AZURE_STORAGE_CONNECTION_STRING` into the Render dashboard (`sync: false`);
   push branch and open the PR to `develop` (user decisions). Offerings published before this
   fix keep their legacy base64 `ImageBase64:` values until re-uploaded.
