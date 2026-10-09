@@ -11,11 +11,13 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	ESClient    dto.ESClient
-	JWTSecret   string
-	ServerPort  string
-	Redis       Redis
+	DatabaseURL  string
+	ESClient     dto.ESClient
+	JWTSecret    string
+	ServerPort   string
+	Redis        Redis
+	AzureStorage AzureStorage
+	PublicAPIURL string
 }
 
 type Redis struct {
@@ -24,9 +26,16 @@ type Redis struct {
 	TLS      bool
 }
 
+type AzureStorage struct {
+	ConnectionString string
+	Container        string
+}
+
 const DefaultESIndex = "milpa-offerings"
 
 const DefaultServerPort = "8080"
+
+const DefaultAzureStorageContainer = "images"
 
 func envOrDefault(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -39,7 +48,7 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	DatabaseURL := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
 		os.Getenv("POSTGRES_HOST"),
@@ -61,12 +70,19 @@ func Load() *Config {
 		Index:               envOrDefault("ESCLIENT_INDEX", DefaultESIndex),
 	}
 
+	serverPort := envOrDefault("SERVER_PORT", envOrDefault("PORT", DefaultServerPort))
+
 	return &Config{
 		DatabaseURL: DatabaseURL,
 		ESClient:    ESClient,
 		JWTSecret:   os.Getenv("JWT_SECRET"),
-		ServerPort:  envOrDefault("SERVER_PORT", envOrDefault("PORT", DefaultServerPort)),
+		ServerPort:  serverPort,
 		Redis:       loadRedis(),
+		AzureStorage: AzureStorage{
+			ConnectionString: os.Getenv("AZURE_STORAGE_CONNECTION_STRING"),
+			Container:        envOrDefault("AZURE_STORAGE_CONTAINER", DefaultAzureStorageContainer),
+		},
+		PublicAPIURL: envOrDefault("PUBLIC_API_URL", envOrDefault("RENDER_EXTERNAL_URL", "http://localhost:"+serverPort)),
 	}
 }
 

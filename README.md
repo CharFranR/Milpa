@@ -162,6 +162,10 @@ Con el stack levantado, cada componente del sistema se ejecuta así:
 | `ESCLIENT_ENDPOINT1` / `ESCLIENT_ENDPOINT2` | Endpoints de Elasticsearch |
 | `ESCLIENT_MAXID` | Máximo de conexiones idle por host hacia Elasticsearch |
 | `ESCLIENT_INDEX` | Índice de búsqueda (por defecto `milpa-offerings`) |
+| `AZURE_STORAGE_CONNECTION_STRING` | Cadena de conexión de Azure Blob Storage para las imágenes de producto |
+| `AZURE_STORAGE_CONTAINER` | Contenedor de Azure donde se guardan las imágenes (por defecto `images`) |
+
+Sin `AZURE_STORAGE_CONNECTION_STRING`, las imágenes se guardan en el disco local (`server/uploads`).
 
 ## API
 

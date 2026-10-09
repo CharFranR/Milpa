@@ -58,11 +58,6 @@ func main() {
 	database.MakeMigrations(context.Background(), dsn)
 	log.Println("migrations complete")
 
-	// The search index is bootstrapped on boot for the same reason the SQL
-	// migrations are: Elasticsearch infers a mapping from the first document it
-	// sees, which silently mis-types every later document, and an index that
-	// was never created makes every search fail. Running it on an index that
-	// already exists is a no-op and leaves the indexed documents alone.
 	log.Printf("bootstrapping elasticsearch index %q...", cfg.ESClient.Index)
 	if err := search.EnsureIndex(context.Background(), elasticSearchClient, cfg.ESClient.Index); err != nil {
 		log.Fatalf("failed to bootstrap elasticsearch index: %v", err)
@@ -140,7 +135,22 @@ func main() {
 
 	worker := usecases.NewExpiryWorker(offeringRepo, searchRepo, cacheClient, searchUC.(port.Invalidator), clock)
 
-	imageStore := storage.NewLocalImageStore("/subscriptions/01921853-7e63-45f6-942b-32c8fc7db84f/resourcegroups/milpaserver_group/providers/Microsoft.Storage/storageAccounts/milpaimages")
+	var imageStore port.ImageStore
+
+	if cfg.AzureStorage.ConnectionString != "" {
+		imageStore, err = storage.NewAzureImageStore(cfg.AzureStorage.ConnectionString, cfg.AzureStorage.Container, cfg.PublicAPIURL)
+		if err != nil {
+			log.Fatalf("failed to create azure image store: %v", err)
+		}
+		log.Printf("image store: azure blob storage (container %q)", cfg.AzureStorage.Container)
+	} else {
+		uploadsDir := "./uploads"
+		if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+			log.Fatalf("failed to create uploads directory: %v", err)
+		}
+		imageStore = storage.NewLocalImageStore(uploadsDir, cfg.PublicAPIURL)
+		log.Printf("image store: local disk (%s)", uploadsDir)
+	}
 
 	userHandler := handler.NewUserHandler(userUC, imageStore)
 	companyHandler := handler.NewCompanyHandler(companyUC)

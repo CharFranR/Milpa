@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button'
 import { useOfferings } from '../../hooks/useOfferings'
 import { useCompany } from '../../hooks/useCompany'
 import { useAuth } from '../../context/AuthContext'
-import { categories } from '../../services/api'
+import { categories, images } from '../../services/api'
 import { formatPrice } from '../../lib/format'
 import { setProductImage, getProductImage, embedImageInDescription, extractImageFromDescription, resolveOfferingImage } from '../../lib/productImages'
 import { compressImage } from '../../lib/imageCompression'
@@ -65,7 +65,9 @@ export default function ProducerProducts() {
   const [cats, setCats] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const fileRef = useRef(null)
+  const uploadSeq = useRef(0)
   const [imagePreview, setImagePreview] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     categories.getAll().then((data) => setCats(Array.isArray(data) ? data : [])).catch(() => {})
@@ -78,6 +80,7 @@ export default function ProducerProducts() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  // El token descarta respuestas de subidas viejas si la foto se quita o reemplaza.
   async function handleImageSelect(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -87,16 +90,35 @@ export default function ProducerProducts() {
       return
     }
 
+    const seq = ++uploadSeq.current
+    setFormError('')
     try {
       const dataUrl = await compressImage(file)
-      setForm((f) => ({ ...f, image_url: dataUrl }))
+      if (seq !== uploadSeq.current) return
       setImagePreview(dataUrl)
-    } catch {
-      setFormError('No se pudo leer la imagen.')
+      setUploadingImage(true)
+
+      const blob = await (await fetch(dataUrl)).blob()
+      const ext = blob.type === 'image/png' ? '.png' : blob.type === 'image/webp' ? '.webp' : '.jpg'
+      const uploadFile = new File([blob], `producto${ext}`, { type: blob.type || 'image/jpeg' })
+
+      const { path } = await images.upload(uploadFile)
+      if (seq !== uploadSeq.current) return
+      setForm((f) => ({ ...f, image_url: path }))
+    } catch (err) {
+      if (seq !== uploadSeq.current) return
+      setFormError(toSpanish(err.message || 'No se pudo subir la imagen.'))
+      setForm((f) => ({ ...f, image_url: '' }))
+      setImagePreview('')
+      if (fileRef.current) fileRef.current.value = ''
+    } finally {
+      if (seq === uploadSeq.current) setUploadingImage(false)
     }
   }
 
   function handleRemoveImage() {
+    uploadSeq.current += 1
+    setUploadingImage(false)
     setForm((f) => ({ ...f, image_url: '' }))
     setImagePreview('')
     if (fileRef.current) fileRef.current.value = ''
@@ -138,6 +160,8 @@ export default function ProducerProducts() {
   }
 
   function handleCancel() {
+    uploadSeq.current += 1
+    setUploadingImage(false)
     setForm({ ...EMPTY_FORM })
     setImagePreview('')
     setEditingId(null)
@@ -331,6 +355,9 @@ export default function ProducerProducts() {
                   </label>
                 )}
               </div>
+              {uploadingImage && (
+                <p className="mt-2 text-xs text-gray-500">Subiendo imagen...</p>
+              )}
             </div>
 
             <div>
@@ -412,7 +439,7 @@ export default function ProducerProducts() {
             <Button type="button" variant="outline" onClick={handleCancel} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" disabled={saving}>
+            <Button type="submit" variant="primary" disabled={saving || uploadingImage}>
               {saving ? (
                 <>
                   <Icon name="progress_activity" size={16} className="animate-spin" />
