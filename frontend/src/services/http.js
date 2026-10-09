@@ -31,6 +31,12 @@ export async function request(path, options = {}) {
     config.body = JSON.stringify(config.body)
   }
 
+  // El navegador arma el boundary de multipart: si dejamos el JSON por
+  // defecto, el backend recibe un Content-Type que no corresponde.
+  if (config.body instanceof FormData && config.headers) {
+    delete config.headers['Content-Type']
+  }
+
   let res
   try {
     res = await fetch(url, config)
