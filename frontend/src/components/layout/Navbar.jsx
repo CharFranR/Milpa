@@ -8,6 +8,7 @@ import Button from '../ui/Button'
 import Logo from '../../components/Logo'
 
 const NAV_LINKS = [
+  { id: 'marketplace', label: 'Marketplace', href: '/marketplace' },
   { id: 'inicio', label: 'Inicio' },
   { id: 'como-funciona', label: 'Cómo funciona' },
 ]
