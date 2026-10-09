@@ -89,6 +89,12 @@ the ARM resource ID and does not compile.
 - Native assess (RDD off for this clone): risk `medium` (executable change; 514 changed lines,
   slice budget reached). Review lifecycle NOT started — the switch is disabled, delivery follows
   ordinary repository policy; no receipt, no fabricated approval.
+- Orchestrator end-to-end against the rebuilt local stack (`image store: azure blob storage` in the
+  logs): registered a throwaway user, `POST /api/v1/images/` with `fondo-campo.jpeg` → returned
+  `http://localhost:8080/api/v1/images/img-0f51c46a-...jpeg`; `GET` roundtrip byte-identical
+  (sha256 `2e1d4992…`), `Content-Type: image/jpeg`; the `/app/uploads` volume stayed empty → the
+  bytes live in Azure, not on disk. Test blob deleted from the account afterwards. Test user
+  `imagetest-1791533586@example.com` remains in the local dev database.
 - Pending: paste `AZURE_STORAGE_CONNECTION_STRING` into the Render dashboard (`sync: false`);
   push branch and open the PR to `develop` (user decisions). Offerings published before this
   fix keep their legacy base64 `ImageBase64:` values until re-uploaded.
