@@ -128,6 +128,14 @@ El stack expone:
 
 Las migraciones de base de datos se aplican automáticamente al iniciar la API, o de forma explícita con el servicio `migrate` (binario `./migrate`). Para cargar datos de prueba: `make seed`.
 
+Para crear el primer administrador, configurar `ADMIN_EMAIL` y `ADMIN_PASSWORD` en `server/.env` y ejecutar:
+
+```bash
+make bootstrap
+```
+
+El comando es idempotente: si el correo ya pertenece a un administrador no hace nada, si existe con otro rol lo promueve y nunca restablece la contraseña de un usuario existente.
+
 ## Ejecución
 
 Con el stack levantado, cada componente del sistema se ejecuta así:
