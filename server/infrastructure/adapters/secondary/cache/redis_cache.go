@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"time"
 
@@ -12,15 +13,22 @@ type CacheImpl struct {
 	client *redis.Client
 }
 
-func NewCacheImpl(Addr string, Password string, DB int) *CacheImpl {
-	return &CacheImpl{
-
-		client: redis.NewClient(&redis.Options{
-			Addr:     Addr,
-			Password: Password,
-			DB:       DB,
-		}),
+// NewCacheImpl builds the client. useTLS comes from the connection URL: a
+// managed Redis that hands out a rediss:// URL (Render's external one) refuses
+// plain connections, and connecting without TLS there fails the handshake
+// instead of falling back to an unencrypted one.
+func NewCacheImpl(Addr string, Password string, DB int, useTLS bool) *CacheImpl {
+	options := &redis.Options{
+		Addr:     Addr,
+		Password: Password,
+		DB:       DB,
 	}
+
+	if useTLS {
+		options.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
+
+	return &CacheImpl{client: redis.NewClient(options)}
 }
 
 func (c *CacheImpl) Get(ctx context.Context, key string, dest any) (bool, error) {
@@ -69,6 +77,27 @@ func (c *CacheImpl) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *CacheImpl) DeleteByPrefix(ctx context.Context, prefix string) error {
+	pattern := prefix + "*"
+	var cursor uint64
+	for {
+		keys, nextCursor, err := c.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) > 0 {
+			if err := c.client.Del(ctx, keys...).Err(); err != nil {
+				return err
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
 	return nil
 }
 

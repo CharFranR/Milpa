@@ -6,21 +6,33 @@ import (
 	"github.com/google/uuid"
 )
 
-type CompanyDTO struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	CategoryID  uuid.UUID `json:"category_id"`
-	OwnerID     uuid.UUID `json:"owner_id"`
-	Address     string    `json:"address"`
-	Description string    `json:"description"`
-	PhoneNumber string    `json:"phone_number"`
-	Email       string    `json:"email"`
-	Website     string    `json:"website"`
-	Verified    bool      `json:"verified"`
-
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type CompanyView interface {
+	companyView()
 }
+
+type PublicCompanyDTO struct {
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	CategoryID   uuid.UUID `json:"category_id"`
+	OwnerID      uuid.UUID `json:"owner_id"`
+	Department   string    `json:"department"`
+	Municipality string    `json:"municipality"`
+	Description  string    `json:"description"`
+	Website      string    `json:"website"`
+	Verified     bool      `json:"verified"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type PrivateCompanyDTO struct {
+	PublicCompanyDTO
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
+	AddressLine string `json:"address_line"`
+}
+
+func (PublicCompanyDTO) companyView()  {}
+func (PrivateCompanyDTO) companyView() {}
 
 type RegisterCompanyRequest struct {
 	Name        string    `json:"name"`

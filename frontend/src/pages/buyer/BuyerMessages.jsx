@@ -1,116 +1,209 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Badge from '../../components/ui/Badge'
+import Button from '../../components/ui/Button'
 import Icon from '../../components/ui/Icon'
-import Avatar from '../../components/Avatar'
+import MessagesInbox from '../../components/messages/MessagesInbox'
+import { inquiries } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/cn'
-import { activeChatMessages, conversations } from '../../mocks/buyer'
+import { Link } from 'react-router-dom'
+
+const STATUS_MAP = {
+  pending: { label: 'Pendiente', tone: 'amber' },
+  read: { label: 'Leída', tone: 'brand' },
+  replied: { label: 'Respondida', tone: 'brand' },
+  closed: { label: 'Cerrada', tone: 'gray' },
+}
+
+const TABS = [
+  { id: 'conversations', label: 'Conversaciones' },
+  { id: 'inquiries', label: 'Consultas' },
+]
 
 export default function BuyerMessages() {
-  const [activeId, setActiveId] = useState(conversations[0].id)
-  const [messages, setMessages] = useState(activeChatMessages)
-  const [draft, setDraft] = useState('')
+  const { user } = useAuth()
+  const [tab, setTab] = useState('conversations')
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const activeConversation = conversations.find((conversation) => conversation.id === activeId)
+  function fetchInquiries() {
+    setLoading(true)
+    setError('')
+    inquiries.getByUser(user?.id)
+      .then((data) => {
+        setItems(Array.isArray(data) ? data : [])
+      })
+      .catch((err) => {
+        setError(err.message || 'Error al cargar mensajes.')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
 
-  function handleSend(e) {
-    e.preventDefault()
-    if (!draft.trim()) return
-    setMessages((current) => [...current, { from: 'me', text: draft.trim() }])
-    setDraft('')
+  useEffect(() => {
+    if (tab !== 'inquiries') return
+    fetchInquiries()
+  }, [tab, user?.id])
+
+  function handleClose(id) {
+    inquiries.updateStatus(id, 'closed')
+      .then(() => fetchInquiries())
+      .catch((err) => alert(err.message || 'Error al actualizar.'))
   }
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Mensajes</h1>
-        <p className="mt-1 text-sm text-gray-500">Coordina tus compras directamente con productores.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Conversaciones con agricultores y consultas que enviaste.
+        </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(280px,340px)_1fr]">
-        <ul
-          role="list"
-          aria-label="Conversaciones"
-          className="h-fit divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white"
-        >
-          {conversations.map((conversation) => (
-            <li key={conversation.id}>
-              <button
-                type="button"
-                onClick={() => setActiveId(conversation.id)}
-                aria-current={activeId === conversation.id || undefined}
-                className={cn(
-                  'flex w-full items-center gap-3 px-4 py-4 text-left transition-colors',
-                  activeId === conversation.id ? 'bg-brand-soft' : 'hover:bg-gray-50',
-                )}
-              >
-                <Avatar initials={conversation.initials} name={conversation.name} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-gray-900">{conversation.name}</span>
-                  <span className="block truncate text-xs text-gray-500">{conversation.lastMessage}</span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <time className="text-[11px] text-gray-400">{conversation.time}</time>
-                  {conversation.unread > 0 && (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">
-                      {conversation.unread}
-                    </span>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        <section
-          aria-label={`Conversación activa con ${activeConversation.name}`}
-          className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white"
-        >
-          <header className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
-            <Avatar initials={activeConversation.initials} name={activeConversation.name} size="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">{activeConversation.name}</p>
-              <p className="truncate text-xs text-gray-500">{activeConversation.farm}</p>
-            </div>
-          </header>
-
-          <div className="flex-1 space-y-3 p-5">
-            {messages.map((message, index) => (
-              <div key={index} className={cn('flex', message.from === 'me' ? 'justify-end' : 'justify-start')}>
-                <p
-                  className={cn(
-                    'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm',
-                    message.from === 'me'
-                      ? 'rounded-br-md bg-brand text-white'
-                      : 'rounded-bl-md bg-gray-100 text-gray-800',
-                  )}
-                >
-                  {message.text}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-gray-100 p-3">
-            <label htmlFor="chat-message" className="sr-only">
-              Escribe un mensaje
-            </label>
-            <input
-              id="chat-message"
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-            />
-            <button
-              type="submit"
-              aria-label="Enviar mensaje"
-              className="inline-flex items-center justify-center rounded-xl bg-brand p-2.5 text-white transition-colors hover:bg-brand-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <Icon name="send" size={18} />
-            </button>
-          </form>
-        </section>
+      <div className="flex gap-2 border-b border-gray-100 pb-3" aria-label="Secciones de mensajes">
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={tab === item.id}
+            onClick={() => setTab(item.id)}
+            className={cn(
+              'rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
+              tab === item.id
+                ? 'bg-brand text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
+
+      {tab === 'conversations' ? (
+        <MessagesInbox />
+      ) : (
+        <InquiriesPane
+          items={items}
+          loading={loading}
+          error={error}
+          onRetry={fetchInquiries}
+          onClose={handleClose}
+        />
+      )}
+    </div>
+  )
+}
+
+function InquiriesPane({ items, loading, error, onRetry, onClose }) {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse rounded-xl border border-gray-100 bg-white p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-40 rounded bg-gray-200" />
+                <div className="h-3 w-64 rounded bg-gray-200" />
+              </div>
+              <div className="h-6 w-20 rounded bg-gray-200" />
+            </div>
+            <div className="mt-3 h-3 w-full rounded bg-gray-200" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <Icon name="error" size={40} className="mx-auto text-red-400" />
+        <p className="mt-3 text-sm text-red-700">{error}</p>
+        <Button variant="outline" size="sm" onClick={onRetry} className="mt-4">
+          Reintentar
+        </Button>
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-100 bg-white p-12 text-center">
+        <Icon name="chat_bubble" size={48} className="mx-auto text-gray-300" />
+        <h2 className="mt-4 text-lg font-semibold text-gray-900">Sin mensajes</h2>
+        <p className="mt-2 text-sm text-gray-500">
+          Cuando envíes una consulta desde un producto, aparecerá aquí.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((item) => {
+        const status = STATUS_MAP[item.status] || STATUS_MAP.pending
+        return (
+          <article
+            key={item.id}
+            className="rounded-xl border border-gray-100 bg-white p-5 transition-colors hover:shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Link
+                    to={`/product/${item.offering_id}`}
+                    className="font-semibold text-gray-900 hover:text-brand hover:underline"
+                  >
+                    {item.offering_name || 'Producto'}
+                  </Link>
+                </div>
+                <time className="mt-0.5 block text-xs text-gray-400">
+                  {new Date(item.created_at).toLocaleDateString('es-NI', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </time>
+              </div>
+
+              <Badge tone={status.tone} className="shrink-0">
+                {status.label}
+              </Badge>
+            </div>
+
+            <p className="mt-3 text-sm text-gray-600 italic leading-relaxed">"{item.message}"</p>
+
+            {item.status === 'replied' && (
+              <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                <p className="text-sm text-green-700">
+                  El agricultor ha respondido. Para ver la respuesta, contacta directamente por WhatsApp desde la página del producto.
+                </p>
+                <Link
+                  to={`/product/${item.offering_id}`}
+                  className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-green-800 hover:underline"
+                >
+                  <Icon name="open_in_new" size={14} />
+                  Ver producto
+                </Link>
+              </div>
+            )}
+
+            {item.status === 'pending' && (
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onClose(item.id)}
+                >
+                  Cerrar consulta
+                </Button>
+              </div>
+            )}
+          </article>
+        )
+      })}
     </div>
   )
 }

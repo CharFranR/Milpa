@@ -8,18 +8,31 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserDTO struct {
-	ID          uuid.UUID          `json:"id"`
-	Email       string             `json:"email"`
-	FirstName   string             `json:"first_name"`
-	LastName    string             `json:"last_name"`
-	Address     string             `json:"address"`
-	PhoneNumber string             `json:"phone_number"`
-	Role        domain.RoleOptions `json:"role"`
-
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type UserView interface {
+	userView()
 }
+
+type PublicUserDTO struct {
+	ID           uuid.UUID          `json:"id"`
+	FirstName    string             `json:"first_name"`
+	LastName     string             `json:"last_name"`
+	Role         domain.RoleOptions `json:"role"`
+	Department   string             `json:"department"`
+	Municipality string             `json:"municipality"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+type PrivateUserDTO struct {
+	PublicUserDTO
+	Email       string `json:"email"`
+	PhoneNumber string `json:"phone_number"`
+	AddressLine string `json:"address_line"`
+	PhotoURL    string `json:"photo_url"`
+}
+
+func (PublicUserDTO) userView()  {}
+func (PrivateUserDTO) userView() {}
 
 type RegisterUserRequest struct {
 	Email           string             `json:"email"`
@@ -27,6 +40,10 @@ type RegisterUserRequest struct {
 	LastName        string             `json:"last_name"`
 	Role            domain.RoleOptions `json:"role"`
 	Address         string             `json:"address,omitempty"`
+	Department      string             `json:"department,omitempty"`
+	Municipality    string             `json:"municipality,omitempty"`
+	Latitude        *float64           `json:"latitude,omitempty"`
+	Longitude       *float64           `json:"longitude,omitempty"`
 	PhoneNumber     string             `json:"phone_number,omitempty"`
 	Password        string             `json:"password"`
 	ConfirmPassword string             `json:"confirm_password"`
@@ -38,15 +55,42 @@ type LoginRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Email       *string `json:"email,omitempty"`
-	FirstName   *string `json:"first_name,omitempty"`
-	LastName    *string `json:"last_name,omitempty"`
-	Address     *string `json:"address,omitempty"`
-	PhoneNumber *string `json:"phone_number,omitempty"`
+	Email        *string  `json:"email,omitempty"`
+	FirstName    *string  `json:"first_name,omitempty"`
+	LastName     *string  `json:"last_name,omitempty"`
+	Address      *string  `json:"address,omitempty"`
+	Department   *string  `json:"department,omitempty"`
+	Municipality *string  `json:"municipality,omitempty"`
+	Latitude     *float64 `json:"latitude,omitempty"`
+	Longitude    *float64 `json:"longitude,omitempty"`
+	PhoneNumber  *string  `json:"phone_number,omitempty"`
+	PhotoURL     *string  `json:"photo_url,omitempty"`
 }
 
 type LoginResponse struct {
-	AccessToken string  `json:"access_token"`
-	ExpiresIn   int64   `json:"expires_in"`
-	User        UserDTO `json:"user"`
+	AccessToken string         `json:"access_token"`
+	ExpiresIn   int64          `json:"expires_in"`
+	User        PrivateUserDTO `json:"user"`
+}
+
+type AdminUserDTO struct {
+	ID           uuid.UUID          `json:"id"`
+	FirstName    string             `json:"first_name"`
+	LastName     string             `json:"last_name"`
+	Email        string             `json:"email"`
+	PhoneNumber  string             `json:"phone_number"`
+	Role         domain.RoleOptions `json:"role"`
+	Department   string             `json:"department"`
+	Municipality string             `json:"municipality"`
+	SuspendedAt  *time.Time         `json:"suspended_at,omitempty"`
+	PhotoURL     string             `json:"photo_url"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+}
+
+type PaginatedUsersResponse struct {
+	Items []AdminUserDTO `json:"items"`
+	Total int            `json:"total"`
+	Page  int            `json:"page"`
+	Size  int            `json:"size"`
 }

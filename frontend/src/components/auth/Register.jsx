@@ -1,25 +1,51 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { regions } from '../../mocks/catalog'
-import { setSessionRole } from '../../lib/session'
+import Logo from '../../components/Logo'
+import { regions } from '../../lib/regions'
+import { auth } from '../../services/api'
+import { Link, useNavigate } from 'react-router-dom'
 
 const USER_TYPES = [
   {
-    key: 'buyer',
-    label: 'Comprador',
-    icon: 'shopping_basket',
-    desc: 'Quiero descubrir y comprar productos frescos directamente de productores locales.',
-  },
-  {
     key: 'producer',
-    label: 'Productor',
+    label: 'Agricultor',
     icon: 'agriculture',
     desc: 'Quiero publicar mis productos y venderlos sin intermediarios.',
+    role: 1,
+  },
+  {
+    key: 'minorista',
+    label: 'Comprador Minorista',
+    icon: 'shopping_basket',
+    desc: 'Quiero descubrir y comprar productos frescos directamente de agricultores locales.',
+    role: 2,
+  },
+  {
+    key: 'mayorista_detallista',
+    label: 'Comprador Mayorista Detallista',
+    icon: 'storefront',
+    desc: 'Compro en volumen para reventa y publico solicitudes de abastecimiento.',
+    role: 3,
+  },
+  {
+    key: 'mayorista_corporativo',
+    label: 'Comprador Mayorista Corporativo',
+    icon: 'business',
+    desc: 'Compro en altos volúmenes recurrentes con requerimientos específicos.',
+    role: 4,
   },
 ]
 
+function normalizePhone(raw) {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('505') && digits.length >= 11) return `+${digits}`
+  if (digits.length === 8) return `+505${digits}`
+  return `+505${digits}`
+}
+
 export default function Register() {
+  const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [userType, setUserType] = useState('')
   const [form, setForm] = useState({
@@ -29,6 +55,8 @@ export default function Register() {
     password: '',
     farm: '',
     region: '',
+    municipio: '',
+    direccion: '',
   })
   const [legal, setLegal] = useState(false)
   const [error, setError] = useState('')
@@ -52,40 +80,67 @@ export default function Register() {
       setError('Por favor completa todos los campos.')
       return
     }
-    if (isProducer && (!form.farm.trim() || !form.region)) {
-      setError('Por favor completa los datos de tu finca.')
-      return
-    }
     if (!legal) {
       setError('Debes aceptar los Términos de uso y la Política de privacidad.')
       return
     }
+    if (isProducer && (!form.region.trim() || !form.municipio.trim() || !form.direccion.trim())) {
+      setError('Para publicar productos necesitas departamento, municipio y dirección.')
+      return
+    }
     setError('')
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      if (userType === 'buyer') {
-        setSessionRole(userType)
-        window.location.hash = '#/dashboard'
-      } else if (userType === 'producer') {
-        setSessionRole(userType)
-        window.location.hash = '#/producer'
-      }
-    }, 1200)
+
+    const parts = form.name.trim().split(/\s+/)
+    const firstName = parts[0] || ''
+    const lastName = parts.slice(1).join(' ') || ''
+
+    const typeDef = USER_TYPES.find((t) => t.key === userType)
+    const role = typeDef ? typeDef.role : 2
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email: form.email.trim(),
+      role,
+      password: form.password,
+      confirm_password: form.password,
+    }
+
+    const phone = normalizePhone(form.phone)
+    if (phone) payload.phone_number = phone
+    if (isProducer) {
+      payload.department = form.region.trim()
+      payload.municipality = form.municipio.trim()
+      payload.address = form.direccion.trim()
+    }
+
+    auth.register(payload)
+      .then(() => {
+        alert('Cuenta creada correctamente. Ahora inicia sesión.')
+        navigate('/login')
+      })
+      .catch((err) => {
+        if (err.status === 409) {
+          setError('El correo ya está registrado. Intenta con otro.')
+        } else if (err.status === 400) {
+          setError(err.message || 'Datos inválidos. Verifica el formulario.')
+        } else {
+          setError(err.message || 'No se pudo crear la cuenta.')
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   return (
     <div className="m-0 flex min-h-screen items-center justify-center bg-gray-50 p-4 sm:p-8 md:m-0 md:min-h-screen md:justify-normal md:items-stretch md:gap-8">
       <aside className="hidden bg-brand text-white md:relative md:flex md:w-1/2 md:flex-col md:justify-between md:overflow-hidden md:rounded-3xl">
         <div className="p-8">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
-              <Icon name="eco" size={20} weight={600} className="text-accent" />
-            </span>
-            <span className="text-lg font-medium">
-              Mil<span className="font-extrabold">pa</span>
-            </span>
-          </a>
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+            <Logo className="h-9 w-auto" />
+          </Link>
         </div>
 
         <div className="p-10">
@@ -107,7 +162,7 @@ export default function Register() {
             </li>
             <li className="flex items-center gap-2.5">
               <Icon name="storefront" size={18} />
-              Perfil público para productores
+              Perfil público para agricultores
             </li>
           </ul>
         </div>
@@ -119,23 +174,17 @@ export default function Register() {
 
       <main className="w-full max-w-md space-y-6">
         <header className="flex justify-between">
-          <a href="#/" className="flex items-center gap-2" aria-label="Milpa — inicio">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-              <Icon name="eco" size={20} weight={600} className="text-white" />
-            </span>
-            <span className="text-lg font-medium text-gray-900">
-              Mil<span className="font-extrabold text-brand">pa</span>
-            </span>
-          </a>
+          <Link to="/" className="flex items-center gap-2" aria-label="Milpa — inicio">
+            <Logo className="h-9 w-auto" />
+          </Link>
           <p className="text-sm text-gray-500">
             ¿Ya tienes cuenta?{' '}
-            <a href="#/login" className="font-semibold text-brand hover:text-brand-dark">
+            <Link to="/login" className="font-semibold text-brand hover:text-brand-dark">
               Ingresar
-            </a>
+            </Link>
           </p>
         </header>
 
-        {/* Indicador de pasos */}
         <ol className="flex items-center gap-3">
           {[1, 2].map((n) => (
             <li key={n} className="flex flex-1 items-center gap-3">
@@ -217,7 +266,7 @@ export default function Register() {
         {step === 2 && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <h1 className="text-xl font-bold text-gray-900">
-              Crea tu cuenta de {isProducer ? 'productor' : 'comprador'}
+              Crea tu cuenta de {isProducer ? 'agricultor' : 'comprador'}
             </h1>
 
             <div>
@@ -260,7 +309,7 @@ export default function Register() {
                 required
                 value={form.phone}
                 onChange={(e) => setField('phone', e.target.value)}
-                placeholder="+504 0000-0000"
+                placeholder="8888-1234"
                 className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
@@ -298,10 +347,11 @@ export default function Register() {
                 </div>
                 <div>
                   <label htmlFor="reg-region" className="text-xs font-semibold text-gray-600">
-                    Departamento
+                    Departamento *
                   </label>
                   <select
                     id="reg-region"
+                    required
                     value={form.region}
                     onChange={(e) => setField('region', e.target.value)}
                     className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
@@ -313,6 +363,34 @@ export default function Register() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label htmlFor="reg-municipio" className="text-xs font-semibold text-gray-600">
+                    Municipio *
+                  </label>
+                  <input
+                    id="reg-municipio"
+                    type="text"
+                    required
+                    value={form.municipio}
+                    onChange={(e) => setField('municipio', e.target.value)}
+                    placeholder="Masaya, Estelí, Jinotega..."
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="reg-direccion" className="text-xs font-semibold text-gray-600">
+                    Dirección *
+                  </label>
+                  <input
+                    id="reg-direccion"
+                    type="text"
+                    required
+                    value={form.direccion}
+                    onChange={(e) => setField('direccion', e.target.value)}
+                    placeholder="Km 5 carretera a Masaya, al frente de..."
+                    className="mt-1.5 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  />
                 </div>
               </>
             )}
@@ -338,7 +416,7 @@ export default function Register() {
             </label>
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 whitespace-pre-line">{error}</p>
             )}
 
             <div className="flex gap-3 pt-1">

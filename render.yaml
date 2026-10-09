@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: milpa-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    # La API se publica desde develop, igual que el frontend en Pages: un PR
+    # mergeado a develop despliega las dos mitades.
+    branch: develop
+    envVars:
+      # Neon (Postgres gestionado). La contraseña se guarda en el dashboard:
+      # no se puede poner un secreto en el repositorio.
+      - key: POSTGRES_HOST
+        value: ep-aged-feather-b442b5n0.c-6.us-east-2.aws.neon.tech
+      - key: POSTGRES_PORT
+        value: "5432"
+      - key: POSTGRES_USER
+        value: neondb_owner
+      - key: POSTGRES_DB
+        value: neondb
+      - key: DB_SSLMODE
+        value: require
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      # La URL interna de Key Value (redis://host:6379, sin TLS y sin
+      # contraseña) es la que entiende resolveRedisAddr(); la externa es
+      # rediss:// con TLS y AUTH, que el cliente no negocia todavía.
+      - key: REDIS_URL
+        fromService:
+          name: milpa-redis
+          type: keyvalue
+          property: connectionString
+      - key: REDIS_PASSWORD
+        value: ""
+      # Elasticsearch no tiene equivalente en Render: se crea la instancia
+      # fuera ( Elastic Cloud, servidor propio, ... ) y su URL y credenciales
+      # se pegan en el dashboard. Sin ESCLIENT_ENDPOINT1 el API no arranca:
+      # el bootstrap del índice aborta el arranque.
+      - key: ESCLIENT_USER
+        sync: false
+      - key: ESCLIENT_PASSWORD
+        sync: false
+      - key: ESCLIENT_ENDPOINT1
+        sync: false
+      - key: ESCLIENT_ENDPOINT2
+        value: ""
+      - key: ESCLIENT_MAXID
+        value: "10"
+      - key: ESCLIENT_INDEX
+        value: "milpa-offerings"
+    healthCheckPath: /api/v1/categories
+    autoDeployTrigger: commit
+
+  # Cache de lectura. Las IP de entrada se dejan vacías a propósito: solo se
+  # conecta la API, por la red privada de Render. Eso exige que ambos
+  # recursos estén en la misma región; el puerto público 6379 tampoco queda
+  # expuesto a internet. maxmemoryPolicy allkeys-lru porque es caché.
+  - type: keyvalue
+    name: milpa-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+    # Con comillas: sin ellas YAML lee "off" como booleano.
+    persistenceMode: "off"

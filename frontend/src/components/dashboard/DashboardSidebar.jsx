@@ -1,21 +1,24 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import Icon from '../ui/Icon'
 import Avatar from '../Avatar'
-import { buyerProfile } from '../../mocks/buyer'
-import { clearSessionRole } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
+import { getInitials, getDisplayName } from '../../lib/user'
+import { BUYER_TAB_PATHS } from '../../lib/routes'
 import { cn } from '../../lib/cn'
+import { ROLE_LABELS } from '../../lib/roles'
 
-const TABS = [
-  { id: 'inicio', icon: 'home', label: 'Inicio' },
-  { id: 'favoritos', icon: 'favorite', label: 'Favoritos' },
+const MAYORISTA_TABS = [
+  { id: 'solicitudes', icon: 'view_list', label: 'Mis solicitudes' },
   { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
   { id: 'perfil', icon: 'person', label: 'Mi perfil' },
   { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
 ]
 
-function handleLogout() {
-  clearSessionRole()
-  window.location.hash = '#inicio'
-}
+const MINORISTA_TABS = [
+  { id: 'mensajes', icon: 'chat_bubble', label: 'Mensajes' },
+  { id: 'perfil', icon: 'person', label: 'Mi perfil' },
+  { id: 'marketplace', icon: 'storefront', label: 'Marketplace' },
+]
 
 function TabButton({ tab, active, onSelect, className }) {
   return (
@@ -36,28 +39,45 @@ function TabButton({ tab, active, onSelect, className }) {
   )
 }
 
-export default function DashboardSidebar({ activeTab, onTabChange }) {
+export default function DashboardSidebar() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const { user, role, logout } = useAuth()
+  const displayName = getDisplayName(user)
+  const displayRole = role ? ROLE_LABELS[role] : 'Comprador'
+
+  const tabs = role === 'mayorista' ? MAYORISTA_TABS : MINORISTA_TABS
+
+  function selectTab(id) {
+    navigate(BUYER_TAB_PATHS[id])
+  }
+
+  function handleLogout() {
+    navigate('/')
+    logout()
+  }
+
   return (
     <>
       <aside className="hidden w-64 shrink-0 lg:block">
         <div className="sticky top-20 rounded-2xl border border-gray-100 bg-white p-4">
           <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar initials={buyerProfile.initials} name={buyerProfile.name} size="md" />
+            <Avatar initials={getInitials(user)} name={displayName} size="md" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-900">{buyerProfile.name}</p>
+              <p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
               <p className="truncate text-xs text-gray-500">
-                {buyerProfile.role} · {buyerProfile.city}
+                {displayRole}
               </p>
             </div>
           </div>
 
           <nav aria-label="Secciones del dashboard" className="mt-4 space-y-1">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabButton
                 key={tab.id}
                 tab={tab}
-                active={activeTab === tab.id}
-                onSelect={onTabChange}
+                active={pathname === BUYER_TAB_PATHS[tab.id]}
+                onSelect={selectTab}
                 className="w-full"
               />
             ))}
@@ -78,13 +98,13 @@ export default function DashboardSidebar({ activeTab, onTabChange }) {
 
       <div className="sticky top-16 z-30 border-b border-gray-100 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-3">
-          <Avatar initials={buyerProfile.initials} name={buyerProfile.name} size="sm" />
-          {TABS.map((tab) => (
+          <Avatar initials={getInitials(user)} name={displayName} size="sm" />
+          {tabs.map((tab) => (
             <TabButton
               key={tab.id}
               tab={tab}
-              active={activeTab === tab.id}
-              onSelect={onTabChange}
+              active={pathname === BUYER_TAB_PATHS[tab.id]}
+              onSelect={selectTab}
               className="px-3 py-2 text-xs"
             />
           ))}

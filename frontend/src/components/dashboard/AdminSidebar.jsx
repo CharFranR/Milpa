@@ -1,12 +1,14 @@
+import { useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
-import { clearSessionRole } from '../../lib/session'
+import { useAuth } from '../../context/AuthContext'
+import { ADMIN_TAB_PATHS } from '../../lib/routes'
 
 const GESTION_TABS = [
   { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', badge: null },
   { id: 'usuarios', icon: 'group', label: 'Usuarios', badge: 3 },
-  { id: 'productores', icon: 'agriculture', label: 'Productores', badge: null },
+  { id: 'productores', icon: 'agriculture', label: 'Agricultores', badge: null },
   { id: 'productos', icon: 'inventory_2', label: 'Productos', badge: 7 },
   { id: 'moderacion', icon: 'shield', label: 'Moderación', badge: 2 },
   { id: 'reportes', icon: 'analytics', label: 'Reportes', badge: null },
@@ -17,11 +19,6 @@ const SISTEMA_TABS = [
 ]
 
 const ALL_TABS = [...GESTION_TABS, ...SISTEMA_TABS]
-
-function handleLogout() {
-  clearSessionRole()
-  window.location.hash = '#/'
-}
 
 function Badge({ count }) {
   if (!count) return null
@@ -52,7 +49,20 @@ function TabButton({ tab, active, onSelect, className, showBadge }) {
   )
 }
 
-export default function AdminSidebar({ activeTab, onTabChange }) {
+export default function AdminSidebar() {
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const { logout } = useAuth()
+
+  function selectTab(id) {
+    navigate(ADMIN_TAB_PATHS[id])
+  }
+
+  function handleLogout() {
+    navigate('/')
+    logout()
+  }
+
   return (
     <>
       <aside className="hidden w-64 shrink-0 lg:block">
@@ -78,8 +88,8 @@ export default function AdminSidebar({ activeTab, onTabChange }) {
               <TabButton
                 key={tab.id}
                 tab={tab}
-                active={activeTab === tab.id}
-                onSelect={onTabChange}
+                active={pathname === ADMIN_TAB_PATHS[tab.id]}
+                onSelect={selectTab}
                 className="w-full"
                 showBadge
               />
@@ -92,8 +102,8 @@ export default function AdminSidebar({ activeTab, onTabChange }) {
               <TabButton
                 key={tab.id}
                 tab={tab}
-                active={activeTab === tab.id}
-                onSelect={onTabChange}
+                active={pathname === ADMIN_TAB_PATHS[tab.id]}
+                onSelect={selectTab}
                 className="w-full"
               />
             ))}
@@ -128,8 +138,8 @@ export default function AdminSidebar({ activeTab, onTabChange }) {
             <TabButton
               key={tab.id}
               tab={tab}
-              active={activeTab === tab.id}
-              onSelect={onTabChange}
+              active={pathname === ADMIN_TAB_PATHS[tab.id]}
+              onSelect={selectTab}
               className="px-3 py-2 text-xs"
               showBadge
             />

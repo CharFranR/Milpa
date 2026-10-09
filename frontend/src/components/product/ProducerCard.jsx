@@ -1,5 +1,6 @@
 import { cn } from '../../lib/cn'
 import Button from '../ui/Button'
+import StarRating from '../StarRating'
 
 export default function ProducerCard({
   producer,
@@ -35,29 +36,36 @@ export default function ProducerCard({
             )}
           </div>
           <p className="mt-0.5 text-sm text-gray-500 truncate">{producer.farm}</p>
-          <p className="text-sm text-gray-500">
-            <span className="inline-flex items-center gap-1">
-              <span className="text-[10px] leading-none">📍</span>
-              {city}{region && `, ${region}`}
-            </span>
-          </p>
+          {(city || region) && (
+            <p className="text-sm text-gray-500">
+              <span className="inline-flex items-center gap-1">
+                <span className="text-[10px] leading-none">📍</span>
+                {city}{region && `, ${region}`}
+              </span>
+            </p>
+          )}
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-[10px] leading-none">📦</span>
-            {producer.productsCount} productos
-          </span>
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-[10px] leading-none">⭐</span>
-            {producer.rating}
-          </span>
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-[10px] leading-none">📅</span>
-            Desde {producer.since}
-          </span>
+          {producer.productsCount != null && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <span className="text-[10px] leading-none">📦</span>
+              {producer.productsCount} productos
+            </span>
+          )}
+          {producer.rating != null && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <StarRating rating={Number(producer.rating) || 0} size={14} showValue />
+            </span>
+          )}
+          {producer.since && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <span className="text-[10px] leading-none">📅</span>
+              Desde {producer.since}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap shrink-0">

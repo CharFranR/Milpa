@@ -20,19 +20,33 @@ func NewUserRepository(pool DB) *UserRepositoryImpl {
 	return &UserRepositoryImpl{pool: pool}
 }
 
-func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+const userColumns = `
+	SELECT u.id, u.first_name, u.last_name, u.role, u.created_at, u.updated_at,
+	       u.address_id, u.email, u.phone_number, u.password_hash, u.suspended_at,
+	       u.photo_url,
+	       COALESCE(a.department, ''), COALESCE(a.municipality, ''),
+	       COALESCE(a.address_line, ''), COALESCE(a.latitude, 0), COALESCE(a.longitude, 0)
+	FROM users u
+	LEFT JOIN addresses a ON a.id = u.address_id
+`
 
+func scanUser(row pgx.Row) (domain.User, error) {
 	var user domain.User
 
-	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash FROM users WHERE id = $1
-
-	`
-
-	err := userRepo.pool.QueryRow(ctx, query, id).Scan(
-		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email, &user.PhoneNumber,
-		&user.PasswordHash,
+	err := row.Scan(
+		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt,
+		&user.Address.ID, &user.Email, &user.PhoneNumber, &user.PasswordHash, &user.SuspendedAt,
+		&user.PhotoURL,
+		&user.Address.Department, &user.Address.Municipality, &user.Address.AddressLine,
+		&user.Address.Latitude, &user.Address.Longitude,
 	)
+
+	return user, err
+}
+
+func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+
+	user, err := scanUser(userRepo.pool.QueryRow(ctx, userColumns+" WHERE u.id = $1", id))
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -45,16 +59,8 @@ func (userRepo *UserRepositoryImpl) FindByID(ctx context.Context, id uuid.UUID) 
 }
 
 func (userRepo *UserRepositoryImpl) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
-	var user domain.User
 
-	query := `
-		SELECT id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash FROM users WHERE email = $1::text
-	`
-
-	err := userRepo.pool.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt, &user.Address.ID, &user.Email,
-		&user.PhoneNumber, &user.PasswordHash,
-	)
+	user, err := scanUser(userRepo.pool.QueryRow(ctx, userColumns+" WHERE u.email = $1::text", email))
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -142,9 +148,9 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 
 	var AddressID uuid.UUID
 
-	if user.Address.Department != "" {
+	if user.Address.HasData() {
 		query := `
-			INSERT INTO	addresses (id, department, municipality, address_line, latitude, longitude) 
+			INSERT INTO	addresses (id, department, municipality, address_line, latitude, longitude)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			returning id
 		`
@@ -161,12 +167,12 @@ func (userRepo *UserRepositoryImpl) Save(ctx context.Context, user *domain.User)
 	var id string
 
 	query := `
-		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash)
-		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO users (id, first_name, last_name, role, created_at, updated_at, address_id, email, phone_number, password_hash, suspended_at, photo_url)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		returning id
 	`
 	err = tx.QueryRow(ctx, query, user.ID, user.FirstName, user.LastName, user.Role, user.CreatedAt, user.UpdatedAt, nullUUID(AddressID), user.Email, user.PhoneNumber,
-		user.PasswordHash).Scan(&id)
+		user.PasswordHash, user.SuspendedAt, user.PhotoURL).Scan(&id)
 
 	if err != nil {
 		return "", fmt.Errorf("user.Save: insert user: %v", err)
@@ -221,8 +227,11 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 
 	defer tx.Rollback(ctx)
 
-	if user.Address.ID != uuid.Nil {
-		query := ` 
+	var addressID *uuid.UUID
+
+	switch {
+	case user.Address.ID != uuid.Nil:
+		query := `
 			UPDATE addresses
 			SET department = $1, municipality = $2, address_line = $3, latitude = $4, longitude = $5
 			WHERE id = $6
@@ -235,22 +244,79 @@ func (userRepo *UserRepositoryImpl) Update(ctx context.Context, user *domain.Use
 			return fmt.Errorf("user.Update: address update: %w", err)
 		}
 
+		addressID = nullUUID(user.Address.ID)
+	case user.Address.HasData():
+		query := `
+			INSERT INTO addresses (id, department, municipality, address_line, latitude, longitude)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			returning id
+		`
+
+		var insertedID uuid.UUID
+		err = tx.QueryRow(ctx, query, uuid.New(), user.Address.Department, user.Address.Municipality,
+			user.Address.AddressLine, user.Address.Latitude, user.Address.Longitude).Scan(&insertedID)
+
+		if err != nil {
+			return fmt.Errorf("user.Update: address insert: %w", err)
+		}
+
+		addressID = nullUUID(insertedID)
 	}
 
 	query := `
 		UPDATE users
-		SET first_name = $1, last_name = $2, role = $3,  updated_at = $4, address_id = $5, email = $6, phone_number = $7, password_hash = $8
-		WHERE id = $9
+		SET first_name = $1, last_name = $2, role = $3, updated_at = $4, address_id = COALESCE($5, address_id), email = $6, phone_number = $7, password_hash = $8, suspended_at = $9, photo_url = $10
+		WHERE id = $11
 	`
 
-	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, nullUUID(user.Address.ID), user.Email,
-		user.PhoneNumber, user.PasswordHash, user.ID)
+	_, err = tx.Exec(ctx, query, user.FirstName, user.LastName, user.Role, user.UpdatedAt, addressID, user.Email,
+		user.PhoneNumber, user.PasswordHash, user.SuspendedAt, user.PhotoURL, user.ID)
 
 	if err != nil {
 		return fmt.Errorf("user.Update: %w", err)
 	}
 
 	return tx.Commit(ctx)
+}
+
+func (userRepo *UserRepositoryImpl) List(ctx context.Context, page, pageSize int) ([]domain.User, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	offset := (page - 1) * pageSize
+
+	countQuery := `SELECT COUNT(*) FROM users`
+	var total int
+	err := userRepo.pool.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("user.List: count: %w", err)
+	}
+
+	query := userColumns + ` ORDER BY u.created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := userRepo.pool.Query(ctx, query, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("user.List: query: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]domain.User, 0, pageSize)
+	for rows.Next() {
+		user, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("user.List: scan: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("user.List: rows: %w", err)
+	}
+
+	return users, total, nil
 }
 
 var _ port.UserRepository = (*UserRepositoryImpl)(nil)

@@ -1,24 +1,26 @@
 import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/cn'
+import { HOME_BY_ROLE } from '../../lib/routes'
+import { useAuth } from '../../context/AuthContext'
 import Icon from '../ui/Icon'
 import Button from '../ui/Button'
+import Logo from '../../components/Logo'
 
 const NAV_LINKS = [
-  { label: 'Inicio', href: '#inicio' },
-  { label: 'Cómo funciona', href: '#como-funciona' },
+  { id: 'inicio', label: 'Inicio' },
+  { id: 'como-funciona', label: 'Cómo funciona' },
 ]
-
-function isLandingPage() {
-  if (typeof window === 'undefined') return false
-  const hash = window.location.hash
-  return hash === '' || hash === '#/' || hash === '#inicio' || hash === '#como-funciona'
-}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { isAuthenticated, role } = useAuth()
 
-  const isLanding = isLandingPage()
+  const isLanding = pathname === '/'
+  const panelPath = HOME_BY_ROLE[role] || '/'
   const transparent = isLanding && !scrolled && !open
 
   useEffect(() => {
@@ -28,7 +30,20 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const textColor = transparent ? 'text-gray-900' : 'text-gray-900'
+  function goToSection(id) {
+    setOpen(false)
+    if (pathname !== '/') navigate('/')
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    }, 0)
+  }
+
+  function handleLogo(event) {
+    setOpen(false)
+    if (pathname !== '/') return
+    event.preventDefault()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <header
@@ -39,42 +54,59 @@ export default function Navbar() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <a href="#inicio" className="flex items-center gap-2" aria-label="Milpa — inicio">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white">
-            <Icon name="eco" size={20} weight={600} />
-          </span>
-          <span className={cn('text-lg tracking-tight', textColor)}>
-            <span className={cn('font-extrabold', transparent ? 'text-brand' : 'text-brand')}>
-              Mil
-            </span>
-            <span className="font-medium">pa</span>
-          </span>
-        </a>
+        <Link to="/" onClick={handleLogo} className="flex items-center gap-2" aria-label="Milpa — inicio">
+          <Logo className="h-9 w-auto" />
+        </Link>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Principal">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className={cn(
-                'rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                transparent
-                  ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
-                  : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
-              )}
-            >
-              {link.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((link) =>
+            link.href ? (
+              <Link
+                key={link.label}
+                to={link.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  transparent
+                    ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
+                    : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
+                )}
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <button
+                key={link.label}
+                type="button"
+                onClick={() => goToSection(link.id)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  transparent
+                    ? 'text-gray-900/80 hover:bg-gray-100 hover:text-brand'
+                    : 'text-gray-600 hover:bg-brand-soft hover:text-brand',
+                )}
+              >
+                {link.label}
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <a href="#/login">
-            <Button variant={transparent ? 'ghost' : 'ghost'}>Ingresar</Button>
-          </a>
-          <a href="#/register" className="w-full sm:w-auto">
-            <Button variant="accent">Registrarse gratis</Button>
-          </a>
+          {isAuthenticated ? (
+            <Button variant="accent" onClick={() => navigate(panelPath)}>
+              Ir a mi panel
+            </Button>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost">Ingresar</Button>
+              </Link>
+              <Link to="/register" className="w-full sm:w-auto">
+                <Button variant="accent">Registrarse gratis</Button>
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -94,27 +126,47 @@ export default function Navbar() {
       {open && (
         <div className="border-t border-gray-100 bg-white px-4 pb-6 pt-3 md:hidden">
           <nav className="flex flex-col" aria-label="Menú móvil">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="rounded-xl px-3 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {link.label}
-              </a>
-            ))}
+            {NAV_LINKS.map((link) =>
+              link.href ? (
+                <Link
+                  key={link.label}
+                  to={link.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <button
+                  key={link.label}
+                  type="button"
+                  onClick={() => goToSection(link.id)}
+                  className="rounded-xl px-3 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {link.label}
+                </button>
+              ),
+            )}
           </nav>
           <div className="mt-4 flex flex-col gap-2">
-            <a href="#/login" className="w-full">
-              <Button variant="outline" className="w-full">
-                Ingresar
+            {isAuthenticated ? (
+              <Button variant="accent" className="w-full" onClick={() => { setOpen(false); navigate(panelPath) }}>
+                Ir a mi panel
               </Button>
-            </a>
-            <a href="#/register" className="w-full">
-              <Button variant="accent" className="w-full">
-                Registrarse gratis
-              </Button>
-            </a>
+            ) : (
+              <>
+                <Link to="/login" className="w-full">
+                  <Button variant="outline" className="w-full">
+                    Ingresar
+                  </Button>
+                </Link>
+                <Link to="/register" className="w-full">
+                  <Button variant="accent" className="w-full">
+                    Registrarse gratis
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

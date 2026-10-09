@@ -19,6 +19,7 @@ var fixedTime2 time.Time = time.Date(2026, 8, 13, 10, 0, 0, 0, time.UTC)
 
 func setupCompanyTestData(t *testing.T) {
 	t.Helper()
+	cleanupTables(t)
 
 	userRepo := repository.NewUserRepository(TestPool)
 	catRepo := repository.NewCategoryRepository(TestPool)
@@ -27,7 +28,7 @@ func setupCompanyTestData(t *testing.T) {
 		ID:           testOwnerID,
 		FirstName:    "Owner",
 		LastName:     "User",
-		Role:         domain.RoleMIPYME,
+		Role:         domain.RoleCompradorMinorista,
 		Email:        "owner@example.com",
 		PhoneNumber:  "0000-0000",
 		PasswordHash: "hash",
@@ -221,16 +222,16 @@ func TestCompanyFindByOwner(t *testing.T) {
 	}
 
 	tests := []struct {
-		Name         string
-		OwnerID      uuid.UUID
-		ExpectedLen  int
-		ExpectedErr  error
+		Name          string
+		OwnerID       uuid.UUID
+		ExpectedLen   int
+		ExpectedErr   error
 		ExpectedNames []string
 	}{
 		{
-			Name:         "Owner with companies",
-			OwnerID:      testOwnerID,
-			ExpectedLen:  2,
+			Name:          "Owner with companies",
+			OwnerID:       testOwnerID,
+			ExpectedLen:   2,
 			ExpectedNames: []string{"Empresa Uno", "Empresa Dos"},
 		},
 		{

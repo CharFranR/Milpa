@@ -10,6 +10,27 @@ import (
 	port "milpa/domain/port/secondary"
 )
 
+const reviewColumns = `id, author_id, target_type, target_id, company_id, rating, comment, created_at, transaction_id`
+
+func scanReview(scan func(dest ...any) error) (domain.Review, error) {
+	var review domain.Review
+	var companyID *uuid.UUID
+
+	err := scan(
+		&review.ID, &review.AuthorID, &review.TargetType, &review.TargetID, &companyID,
+		&review.Rating, &review.Comment, &review.CreatedAt, &review.TransactionID,
+	)
+	if err != nil {
+		return domain.Review{}, err
+	}
+
+	if companyID != nil {
+		review.CompanyID = *companyID
+	}
+
+	return review, nil
+}
+
 type ReviewRepositoryImpl struct {
 	pool DB
 }
@@ -20,7 +41,7 @@ func NewReviewRepository(pool DB) *ReviewRepositoryImpl {
 
 func (r *ReviewRepositoryImpl) FindByCompany(ctx context.Context, companyID uuid.UUID) ([]domain.Review, error) {
 	query := `
-		SELECT id, user_id, company_id, rating, comment, created_at
+		SELECT ` + reviewColumns + `
 		FROM reviews
 		WHERE company_id = $1
 	`
@@ -33,10 +54,8 @@ func (r *ReviewRepositoryImpl) FindByCompany(ctx context.Context, companyID uuid
 
 	var reviews []domain.Review
 	for rows.Next() {
-		var review domain.Review
-		if err := rows.Scan(
-			&review.ID, &review.UserID, &review.CompanyID, &review.Rating, &review.Comment, &review.CreatedAt,
-		); err != nil {
+		review, err := scanReview(rows.Scan)
+		if err != nil {
 			return nil, fmt.Errorf("review.FindByCompany: %w", err)
 		}
 		reviews = append(reviews, review)
@@ -51,9 +70,9 @@ func (r *ReviewRepositoryImpl) FindByCompany(ctx context.Context, companyID uuid
 
 func (r *ReviewRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID) ([]domain.Review, error) {
 	query := `
-		SELECT id, user_id, company_id, rating, comment, created_at
+		SELECT ` + reviewColumns + `
 		FROM reviews
-		WHERE user_id = $1
+		WHERE author_id = $1
 	`
 
 	rows, err := r.pool.Query(ctx, query, userID)
@@ -64,10 +83,8 @@ func (r *ReviewRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID)
 
 	var reviews []domain.Review
 	for rows.Next() {
-		var review domain.Review
-		if err := rows.Scan(
-			&review.ID, &review.UserID, &review.CompanyID, &review.Rating, &review.Comment, &review.CreatedAt,
-		); err != nil {
+		review, err := scanReview(rows.Scan)
+		if err != nil {
 			return nil, fmt.Errorf("review.FindByUser: %w", err)
 		}
 		reviews = append(reviews, review)
@@ -80,18 +97,76 @@ func (r *ReviewRepositoryImpl) FindByUser(ctx context.Context, userID uuid.UUID)
 	return reviews, nil
 }
 
+func (r *ReviewRepositoryImpl) FindByTarget(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) ([]domain.Review, error) {
+	query := `
+		SELECT ` + reviewColumns + `
+		FROM reviews
+		WHERE target_type = $1 AND target_id = $2
+	`
+
+	rows, err := r.pool.Query(ctx, query, targetType, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("review.FindByTarget: %w", err)
+	}
+	defer rows.Close()
+
+	var reviews []domain.Review
+	for rows.Next() {
+		review, err := scanReview(rows.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("review.FindByTarget: %w", err)
+		}
+		reviews = append(reviews, review)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("review.FindByTarget: %w", err)
+	}
+
+	return reviews, nil
+}
+
+func (r *ReviewRepositoryImpl) AverageRating(ctx context.Context, targetType domain.ReviewTargetType, targetID uuid.UUID) (float64, int, error) {
+	query := `
+		SELECT COALESCE(AVG(rating), 0), COUNT(*)
+		FROM reviews
+		WHERE target_type = $1 AND target_id = $2
+	`
+
+	var average float64
+	var count int
+	if err := r.pool.QueryRow(ctx, query, targetType, targetID).Scan(&average, &count); err != nil {
+		return 0, 0, fmt.Errorf("review.AverageRating: %w", err)
+	}
+
+	return average, count, nil
+}
+
 func (r *ReviewRepositoryImpl) Save(ctx context.Context, review *domain.Review) error {
 	query := `
-		INSERT INTO reviews (id, user_id, company_id, rating, comment, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO reviews (id, author_id, target_type, target_id, company_id, rating, comment, created_at, transaction_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	_, err := r.pool.Exec(ctx, query,
-		review.ID, review.UserID, review.CompanyID, review.Rating, review.Comment, review.CreatedAt,
+		review.ID, review.AuthorID, review.TargetType, review.TargetID, nullUUID(review.CompanyID),
+		review.Rating, review.Comment, review.CreatedAt, review.TransactionID,
 	)
 	if err != nil {
 		return fmt.Errorf("review.Save: %w", err)
 	}
 	return nil
+}
+
+func (r *ReviewRepositoryImpl) ExistsByTransactionAndAuthor(ctx context.Context, transactionID, authorID uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM reviews WHERE transaction_id = $1 AND author_id = $2)`,
+		transactionID, authorID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("review.ExistsByTransactionAndAuthor: %w", err)
+	}
+	return exists, nil
 }
 
 var _ port.ReviewRepository = (*ReviewRepositoryImpl)(nil)

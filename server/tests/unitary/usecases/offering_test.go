@@ -1,0 +1,447 @@
+package usecases_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/google/uuid"
+
+	"milpa/aplication/dto"
+	usecases "milpa/aplication/use-cases"
+	domain "milpa/domain/entities"
+	"milpa/internal/auth"
+)
+
+func TestOfferingUseCaseCreateOffering(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		ctx       context.Context
+		req       dto.CreateOfferingRequest
+		userErr   error
+		saveErr   error
+		wantErr   error
+		wantPrice float64
+	}{
+		{
+			name:      "happy path",
+			ctx:       farmerCtx(),
+			req:       completeCatalogueRequest(),
+			wantPrice: 10.5,
+		},
+		{
+			name: "zero price ignored",
+			ctx:  farmerCtx(),
+			req: func() dto.CreateOfferingRequest {
+				req := completeCatalogueRequest()
+				req.Price = 0
+				return req
+			}(),
+		},
+		{
+			name:    "a service is not an agricultural product",
+			ctx:     farmerCtx(),
+			req:     withType(completeCatalogueRequest(), domain.OfferingService),
+			wantErr: domain.ErrInvalidOfferingType,
+		},
+		{name: "unauthenticated", ctx: context.Background(), req: completeCatalogueRequest(), wantErr: auth.ErrUnauthenticated},
+		{name: "user error", ctx: farmerCtx(), req: completeCatalogueRequest(), userErr: errFake, wantErr: errFake},
+		{name: "user not found", ctx: farmerCtx(), req: completeCatalogueRequest(), userErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+		{name: "forbidden", ctx: farmerCtx(), req: withUser(completeCatalogueRequest(), testOtherID), wantErr: domain.ErrForbidden},
+		{name: "empty name", ctx: farmerCtx(), req: withName(completeCatalogueRequest(), ""), wantErr: domain.ErrNameRequired},
+		{name: "invalid type", ctx: farmerCtx(), req: withType(completeCatalogueRequest(), domain.OfferingType(99)), wantErr: domain.ErrInvalidOfferingType},
+		{name: "save error", ctx: farmerCtx(), req: completeCatalogueRequest(), saveErr: errFake, wantErr: errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			userRepo := newFakeUserRepo()
+			if tt.userErr != nil {
+				userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+					return nil, tt.userErr
+				}
+			}
+			offeringRepo := newFakeOfferingRepo()
+			if tt.saveErr != nil {
+				offeringRepo.save = func(ctx context.Context, offering *domain.Offering) error {
+					return tt.saveErr
+				}
+			}
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			got, err := uc.CreateOffering(tt.ctx, tt.req)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(offeringRepo.saved) != 0 {
+					t.Errorf("a refused request saved %d offerings, want 0", len(offeringRepo.saved))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.ID == uuid.Nil {
+				t.Error("expected a generated ID, got nil UUID")
+			}
+			if got.UserID != tt.req.UserID {
+				t.Errorf("user id = %v, want %v", got.UserID, tt.req.UserID)
+			}
+			if got.Type != tt.req.Type {
+				t.Errorf("type = %v, want %v", got.Type, tt.req.Type)
+			}
+			if got.Name != tt.req.Name {
+				t.Errorf("name = %q, want %q", got.Name, tt.req.Name)
+			}
+			if got.Description != tt.req.Description {
+				t.Errorf("description = %q, want %q", got.Description, tt.req.Description)
+			}
+			if got.Price != tt.wantPrice {
+				t.Errorf("price = %v, want %v", got.Price, tt.wantPrice)
+			}
+			if got.ImageURL != tt.req.ImageURL {
+				t.Errorf("image url = %q, want %q", got.ImageURL, tt.req.ImageURL)
+			}
+			if !got.CreatedAt.Equal(fixedTime) || !got.UpdatedAt.Equal(fixedTime) {
+				t.Errorf("timestamps = %v / %v, want %v", got.CreatedAt, got.UpdatedAt, fixedTime)
+			}
+			if len(offeringRepo.saved) != 1 {
+				t.Fatalf("saved offerings = %d, want 1", len(offeringRepo.saved))
+			}
+			if saved := offeringRepo.saved[0]; saved.Price != tt.wantPrice {
+				t.Errorf("saved price = %v, want %v", saved.Price, tt.wantPrice)
+			}
+		})
+	}
+}
+
+// TestOfferingUseCaseCreateOfferingRequiresCompleteAddress is the RF-03 gate.
+//
+// The interesting cases are the partial ones, not the empty one. A farmer who
+// typed an address line and stopped still owns that line, so HasData would
+// happily keep it; only IsComplete refuses. A user with no department at all is
+// the case a hand-written "is the address non-empty" check would wave through.
+func TestOfferingUseCaseCreateOfferingRequiresCompleteAddress(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		address domain.Address
+		wantErr error
+	}{
+		{
+			name:    "no address at all",
+			address: domain.Address{},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name: "address line but no coordinates and no municipality",
+			// HasData() is true here, IsComplete() is false.
+			address: domain.Address{ID: testAddressID, AddressLine: "Barrio San Francisco"},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "no department",
+			address: domain.Address{ID: testAddressID, Municipality: "Leon", AddressLine: "Barrio San Francisco"},
+			wantErr: domain.ErrInvalidInput,
+		},
+		{
+			name:    "fully located farmer publishes",
+			address: domain.Address{ID: testAddressID, Department: "Leon", Municipality: "Leon", AddressLine: "Barrio San Francisco", Latitude: 12.4379, Longitude: -86.8781},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			userRepo := newFakeUserRepo()
+			userRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+				user := mustUser()
+				user.ID = id
+				user.Address = tt.address
+				return user, nil
+			}
+			offeringRepo := newFakeOfferingRepo()
+			uc := usecases.NewOfferingUseCase(offeringRepo, userRepo, newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			got, err := uc.CreateOffering(farmerCtx(), completeCatalogueRequest())
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if len(offeringRepo.saved) != 0 {
+					t.Errorf("saved offerings = %d, want 0: nothing may be persisted for an incomplete profile", len(offeringRepo.saved))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.ID == uuid.Nil {
+				t.Error("expected a generated ID, got nil UUID")
+			}
+			if len(offeringRepo.saved) != 1 {
+				t.Fatalf("saved offerings = %d, want 1", len(offeringRepo.saved))
+			}
+		})
+	}
+}
+
+func TestOfferingUseCaseGetByID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "happy path"},
+		{name: "repo error", repoErr: errFake, wantErr: errFake},
+		{name: "not found", repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			offeringRepo := newFakeOfferingRepo()
+			if tt.repoErr != nil {
+				offeringRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
+					return nil, tt.repoErr
+				}
+			}
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			got, err := uc.GetByID(context.Background(), testOfferingID)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.ID != testOfferingID {
+				t.Errorf("id = %v, want %v", got.ID, testOfferingID)
+			}
+			if got.UserID != testUserID {
+				t.Errorf("user id = %v, want %v", got.UserID, testUserID)
+			}
+			if got.Type != domain.OfferingProduct {
+				t.Errorf("type = %v, want %v", got.Type, domain.OfferingProduct)
+			}
+			if got.Name != "Organic Corn" {
+				t.Errorf("name = %q, want %q", got.Name, "Organic Corn")
+			}
+			if got.Description != "Fresh organic corn" {
+				t.Errorf("description = %q, want %q", got.Description, "Fresh organic corn")
+			}
+			if got.Price != 10.0 {
+				t.Errorf("price = %v, want 10", got.Price)
+			}
+			if got.ImageURL != "http://images.milpa.com/corn.png" {
+				t.Errorf("image url = %q, want %q", got.ImageURL, "http://images.milpa.com/corn.png")
+			}
+			if !got.CreatedAt.Equal(fixedTime) || !got.UpdatedAt.Equal(fixedTime) {
+				t.Errorf("timestamps = %v / %v, want %v", got.CreatedAt, got.UpdatedAt, fixedTime)
+			}
+		})
+	}
+}
+
+func TestOfferingUseCaseGetByCompany(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		offerings []domain.Offering
+		repoErr   error
+		wantLen   int
+		wantErr   error
+	}{
+		{
+			name: "happy path",
+			offerings: func() []domain.Offering {
+				first := *mustOffering()
+				second := *mustOffering()
+				second.ID = testOtherID
+				second.Name = "Honey"
+				return []domain.Offering{first, second}
+			}(),
+			wantLen: 2,
+		},
+		{name: "empty", offerings: []domain.Offering{}, wantLen: 0},
+		{name: "repo error", repoErr: errFake, wantErr: errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			offeringRepo := newFakeOfferingRepo()
+			if tt.repoErr != nil {
+				offeringRepo.findByUserID = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+					return nil, tt.repoErr
+				}
+			} else {
+				offeringRepo.findByUserID = func(ctx context.Context, companyID uuid.UUID) ([]domain.Offering, error) {
+					return tt.offerings, nil
+				}
+			}
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			got, err := uc.GetByUserID(context.Background(), testCompanyID, false)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(got) != tt.wantLen {
+				t.Fatalf("dtos = %d, want %d", len(got), tt.wantLen)
+			}
+			for i, dto := range got {
+				if dto.ID != tt.offerings[i].ID {
+					t.Errorf("dto %d id = %v, want %v", i, dto.ID, tt.offerings[i].ID)
+				}
+				if dto.Name != tt.offerings[i].Name {
+					t.Errorf("dto %d name = %q, want %q", i, dto.Name, tt.offerings[i].Name)
+				}
+				if dto.UserID != tt.offerings[i].UserID {
+					t.Errorf("dto %d company id = %v, want %v", i, dto.UserID, tt.offerings[i].UserID)
+				}
+			}
+		})
+	}
+}
+
+func TestOfferingUseCaseUpdateOffering(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		ctx       context.Context
+		req       dto.UpdateOfferingRequest
+		repoErr   error
+		deleteErr error
+		wantErr   error
+		wantType  domain.OfferingType
+		wantName  string
+		wantDesc  string
+		wantPrice float64
+		wantImage string
+	}{
+		{name: "unauthenticated", ctx: context.Background(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantErr: auth.ErrUnauthenticated},
+		{name: "foreign user", ctx: principalCtxFor(testOtherID), req: dto.UpdateOfferingRequest{Name: strPtr("Hijacked")}, wantErr: domain.ErrForbidden},
+		{name: "no fields", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{
+			name:      "all fields",
+			ctx:       farmerCtx(),
+			req:       dto.UpdateOfferingRequest{Name: strPtr("Delivery"), Description: strPtr("Fast delivery"), Price: floatPtr(25.0), ImageURL: strPtr("http://img.milpa.com/delivery.png")},
+			wantType:  domain.OfferingProduct,
+			wantName:  "Delivery",
+			wantDesc:  "Fast delivery",
+			wantPrice: 25.0,
+			wantImage: "http://img.milpa.com/delivery.png",
+		},
+		{name: "a service is not an agricultural product", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Type: offeringTypePtr(domain.OfferingService)}, wantErr: domain.ErrInvalidOfferingType},
+		{name: "name only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, wantType: domain.OfferingProduct, wantName: "Delivery", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "description only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Description: strPtr("Fast delivery")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fast delivery", wantPrice: 10.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "price only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(25.0)}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 25.0, wantImage: "http://images.milpa.com/corn.png"},
+		{name: "image only", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{ImageURL: strPtr("http://img.milpa.com/delivery.png")}, wantType: domain.OfferingProduct, wantName: "Organic Corn", wantDesc: "Fresh organic corn", wantPrice: 10.0, wantImage: "http://img.milpa.com/delivery.png"},
+		{name: "admin cannot pass the farmer guard", ctx: reportAdminCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Moderated")}, wantErr: domain.ErrForbidden},
+		{name: "invalid price", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Price: floatPtr(0)}, wantErr: domain.ErrInvalidPrice},
+		{name: "repo error", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: errFake, wantErr: errFake},
+		{name: "not found", ctx: farmerCtx(), req: dto.UpdateOfferingRequest{Name: strPtr("Delivery")}, repoErr: domain.ErrNotFound, wantErr: domain.ErrNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			offeringRepo := newFakeOfferingRepo()
+			if tt.repoErr != nil {
+				offeringRepo.findByID = func(ctx context.Context, id uuid.UUID) (*domain.Offering, error) {
+					return nil, tt.repoErr
+				}
+			}
+			uc := usecases.NewOfferingUseCase(offeringRepo, newFakeUserRepo(), newFakeCategoryRepo(), newFakeTimer(), &fakeFuzzyRetrival{}, &fakeInvalidator{})
+
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = farmerCtx()
+			}
+
+			err := uc.UpdateOffering(ctx, testOfferingID, tt.req)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("expected error %q, got %v", tt.wantErr, err)
+				}
+				if tt.wantErr == domain.ErrInvalidPrice && len(offeringRepo.updated) != 0 {
+					t.Errorf("updated offerings = %d, want 0", len(offeringRepo.updated))
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(offeringRepo.updated) != 1 {
+				t.Fatalf("updated offerings = %d, want 1", len(offeringRepo.updated))
+			}
+			updated := offeringRepo.updated[0]
+			if updated.Type != tt.wantType {
+				t.Errorf("type = %v, want %v", updated.Type, tt.wantType)
+			}
+			if updated.Name != tt.wantName {
+				t.Errorf("name = %q, want %q", updated.Name, tt.wantName)
+			}
+			if updated.Description != tt.wantDesc {
+				t.Errorf("description = %q, want %q", updated.Description, tt.wantDesc)
+			}
+			if updated.Price != tt.wantPrice {
+				t.Errorf("price = %v, want %v", updated.Price, tt.wantPrice)
+			}
+			if updated.ImageURL != tt.wantImage {
+				t.Errorf("image url = %q, want %q", updated.ImageURL, tt.wantImage)
+			}
+			if !updated.UpdatedAt.Equal(fixedTime) {
+				t.Errorf("updated at = %v, want %v", updated.UpdatedAt, fixedTime)
+			}
+		})
+	}
+}

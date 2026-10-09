@@ -1,0 +1,464 @@
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Registro e inicio de sesión
+
+|#EFF7F0|Usuario|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Base de datos|
+
+|Usuario|
+start
+:Completar registro\n(email, nombre, contraseña, teléfono, rol);
+
+|API Milpa|
+if (¿El rol está entre 1 y 4?) then (No)
+  :Responder 400 invalid input;
+  stop
+else (Sí)
+endif
+if (¿Campos completos y contraseñas coinciden?) then (No)
+  :Responder 400 de validación;
+  stop
+else (Sí)
+endif
+
+|Base de datos|
+:Verificar que el correo no exista;
+|API Milpa|
+if (¿El correo ya está registrado?) then (Sí)
+  :Responder 409 email already registered;
+  stop
+else (No)
+  :Crear usuario con contraseña cifrada (bcrypt);
+  :Responder 201 Created;
+endif
+
+|Usuario|
+:Enviar credenciales (email, contraseña);
+|API Milpa|
+if (¿El usuario existe?) then (No)
+  :Responder 404;
+  stop
+else (Sí)
+endif
+if (¿La contraseña es correcta?) then (No)
+  :Responder 401 unauthorized;
+  stop
+else (Sí)
+  :Emitir JWT HS256 (24 h)\ncon id de usuario y rol;
+  :Responder 200 con access_token;
+endif
+:Validar el token en cada solicitud protegida;
+if (¿El token es válido y está vigente?) then (No)
+  :Responder 401 invalid or expired token;
+  stop
+else (Sí)
+endif
+if (¿La cuenta está suspendida?) then (Sí)
+  :Responder 403 cuenta suspendida;
+  stop
+else (No)
+  :Procesar la solicitud;
+endif
+stop
+@enduml
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Publicación de una oferta de producto
+
+|#EFF7F0|Agricultor (rol 1)|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Base de datos|
+
+|Agricultor (rol 1)|
+start
+:Completar perfil y dirección\n(departamento, municipio, dirección);
+|API Milpa|
+if (¿El perfil y la dirección están completos?) then (No)
+  :Responder 400 dirección incompleta;
+  stop
+else (Sí)
+endif
+|Agricultor (rol 1)|
+:Enviar datos de la oferta\n(nombre, tipo, variedad, unidad, cantidad, categoría, precio, expiración);
+|API Milpa|
+if (¿El solicitante es agricultor y dueño de la cuenta?) then (No)
+  :Responder 403 forbidden;
+  stop
+else (Sí)
+endif
+if (¿El nombre no está vacío y el tipo es producto? (NewOffering)) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+endif
+if (¿Variedad, unidad de medida y categoría presentes? (RequirePublishable)) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+endif
+if (¿La cantidad disponible es mayor que 0? (RequirePublishable)) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+endif
+if (¿Se indicó fecha de expiración?) then (No)
+  :Calcular expiración con\nlos default_expiry_days de la categoría;
+else (Sí)
+  :Usar la fecha indicada;
+endif
+|Base de datos|
+:Persistir la oferta activa (is_active = true);
+|API Milpa|
+:Responder 201 OfferingDTO;
+:Publicar en catálogo y búsqueda;
+
+|Agricultor (rol 1)|
+:La oferta permanece visible hasta expirar o desactivarse;
+|API Milpa|
+if (¿La oferta expiró o fue desactivada?) then (Sí)
+  :Ocultarla del marketplace;
+  |Agricultor (rol 1)|
+  :Renovar con una nueva fecha;
+  |API Milpa|
+  :Reactivar la oferta (is_active = true);
+else (No)
+  :Sigue visible en el marketplace;
+endif
+stop
+@enduml
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Cadena de abastecimiento: solicitud, oferta y match
+
+|#EFF7F0|Comprador mayorista (roles 3 y 4)|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Agricultor (rol 1)|
+
+|Comprador mayorista (roles 3 y 4)|
+start
+:Crear solicitud\n(producto, monto total, unidad, fechas, dirección);
+|API Milpa|
+if (¿El rol es 3 o 4?) then (No)
+  :Responder 403 forbidden;
+  stop
+else (Sí)
+endif
+if (¿Monto total > 0 y fechas coherentes?) then (No)
+  :Responder 400 de validación;
+  stop
+else (Sí)
+  :Publicar la solicitud\n(status = open, actual_amount = total_amount);
+endif
+
+|Agricultor (rol 1)|
+:Consultar solicitudes disponibles;
+:Enviar oferta\n(monto, precio por unidad, entrega, comentarios);
+|API Milpa|
+if (¿El rol es agricultor?) then (No)
+  :Responder 403 forbidden;
+  stop
+else (Sí)
+endif
+if (¿Monto > 0, precio > 0 y oferta no duplicada?) then (No)
+  :Responder 400 o 409;
+  stop
+else (Sí)
+  :Registrar la oferta (status = active);
+endif
+
+|Agricultor (rol 1)|
+if (¿Mantiene la oferta?) then (No)
+  :Retirar la oferta (status = withdrawn);
+  stop
+else (Sí)
+endif
+
+|Comprador mayorista (roles 3 y 4)|
+:Evaluar ofertas priorizadas\n(distancia, disponibilidad, reputación, precio, tiempo);
+if (¿Acepta la oferta?) then (No)
+  |API Milpa|
+  :Descartar la oferta (status = rejected);
+  stop
+else (Sí)
+  |API Milpa|
+  :Crear match y transacción en una sola operación;
+  :Reservar el monto y marcar la oferta (status = matched);
+  :Rechazar las ofertas competidoras\nsi la solicitud no es multiproveedor;
+  :Abrir la conversación post-match;
+  :Responder 201 MatchCreatedDTO;
+endif
+
+|Comprador mayorista (roles 3 y 4)|
+if (¿Alguna parte cancela antes de completar?) then (Sí)
+  :Cancelar la transacción (motivo obligatorio);
+  |API Milpa|
+  :Liberar el monto, cancelar el match\ny devolver la oferta a status = active;
+  stop
+else (No)
+endif
+:Confirmar inicio de la transacción;
+|Agricultor (rol 1)|
+:Confirmar inicio de la transacción;
+|API Milpa|
+if (¿Ambos participantes confirmaron el inicio?) then (Sí)
+  :status = in_progress;
+else (No)
+  :La primera confirmación no cambia el estado;
+endif
+
+|Comprador mayorista (roles 3 y 4)|
+:Confirmar entrega;
+|Agricultor (rol 1)|
+:Confirmar entrega;
+|API Milpa|
+if (¿Ambos participantes confirmaron la entrega?) then (Sí)
+  :status = completed;
+  if (¿La suma completada cubre el total solicitado?) then (Sí)
+    :Completar la solicitud y dejar actual_amount = 0;
+  else (No)
+    :La solicitud sigue abierta para más ofertas;
+  endif
+else (No)
+  :La primera confirmación no cambia el estado;
+endif
+stop
+@enduml
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Oferta de liquidación: interés y asignación
+
+|#EFF7F0|Agricultor (rol 1)|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Comprador (roles 2 a 4)|
+
+|Agricultor (rol 1)|
+start
+:Publicar lote\n(producto, cantidad, unidad, precios, visibilidad, método de asignación);
+|API Milpa|
+if (¿El rol es agricultor?) then (No)
+  :Responder 403 forbidden;
+  stop
+else (Sí)
+endif
+if (¿Cantidad > 0, precios > 0 y visibilidad válida?) then (No)
+  :Responder 400 o 500 según la validación;
+  stop
+else (Sí)
+  :Publicar la liquidación (status = open);
+endif
+
+|Comprador (roles 2 a 4)|
+:Consultar liquidaciones abiertas;
+|API Milpa|
+if (¿La liquidación es visible para el comprador?) then (No)
+  :Responder 404 (no visible);
+  stop
+else (Sí)
+endif
+|Comprador (roles 2 a 4)|
+:Registrar interés en el lote;
+|API Milpa|
+if (¿Ya expresó interés o la liquidación no está abierta?) then (Sí)
+  :Responder 409;
+  stop
+else (No)
+  :Registrar el interés (created_at = ahora);
+endif
+
+|Agricultor (rol 1)|
+:Consultar la lista de interesados;
+if (¿Asignar el lote ahora?) then (No)
+  |API Milpa|
+  :Al vencer expires_at sin asignación:\nstatus = expired;
+  stop
+else (Sí)
+endif
+if (¿Método de asignación?) then (Primero en llegar)
+  :Seleccionar el interés más antiguo;
+else (Manual)
+  :Elegir un comprador interesado;
+endif
+|API Milpa|
+if (¿El comprador elegido expresó interés?) then (No)
+  :Responder 409 (no hay interés que asignar);
+  stop
+else (Sí)
+  :Asignar y cerrar el lote\n(status = assigned, assigned_buyer_id, closed_at);
+endif
+stop
+@enduml
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Conversación (chat): inicio, mensajes y lectura
+
+|#EFF7F0|Comprador (roles 2 a 4)|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Agricultor (rol 1)|
+
+|Comprador (roles 2 a 4)|
+start
+if (¿Cómo se origina la conversación?) then (Chat directo)
+  :Iniciar conversación desde una oferta\n(farmer_id + offering_id);
+  |API Milpa|
+  if (¿El rol es comprador y el destino es agricultor?) then (No)
+    :Responder 400, 403 o 404;
+    stop
+  else (Sí)
+  endif
+else (Post-match)
+  |API Milpa|
+  :El match crea la conversación automáticamente\n(match_id, offering_id = cero);
+endif
+:Crear la conversación (visibility = true);
+
+|Comprador (roles 2 a 4)|
+:Enviar mensaje (WebSocket o POST /messages);
+|API Milpa|
+if (¿El contenido no está vacío?) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+endif
+if (¿El remitente es participante?) then (No)
+  :Responder 403;
+  stop
+else (Sí)
+  :Persistir y difundir el mensaje\n(máximo 4096 bytes);
+endif
+
+|Agricultor (rol 1)|
+:Recibir el mensaje en tiempo real;
+:Listar los mensajes de la conversación;
+|API Milpa|
+:Marcar la conversación como leída\npara el usuario;
+|Agricultor (rol 1)|
+:Ver el contador de no leídos actualizado;
+stop
+@enduml
+
+@startuml
+skinparam activity {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  DiamondBackgroundColor #FDFDFD
+  DiamondBorderColor #2E6E4E
+}
+skinparam swimlane {
+  BorderColor #2E6E4E
+  TitleBackgroundColor #EFF7F0
+}
+title Calificación mutua y reporte con moderación
+
+|#EFF7F0|Comprador o agricultor|
+|#FDFDFD|API Milpa|
+|#EFF7F0|Administrador (rol 5)|
+
+|Comprador o agricultor|
+start
+:Transacción completada (status = completed);
+:Enviar calificación\n(rating 1 a 5, comentario, transaction_id, objetivo);
+|API Milpa|
+if (¿El autor es parte de la transacción?) then (No)
+  :Responder 403;
+  stop
+else (Sí)
+endif
+if (¿La transacción está completada?) then (No)
+  :Responder 409;
+  stop
+else (Sí)
+endif
+if (¿Rating entre 1 y 5 y objetivo = contraparte?) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+endif
+if (¿Ya calificó esta transacción?) then (Sí)
+  :Responder 409 (calificación duplicada);
+  stop
+else (No)
+  :Registrar la calificación y actualizar el promedio;
+endif
+:La contraparte puede calificar de forma mutua;
+
+|Comprador o agricultor|
+:Reportar publicación o usuario\n(motivo de 10 a 500 caracteres);
+|API Milpa|
+if (¿Tipo de objetivo válido y sin auto-reporte?) then (No)
+  :Responder 400;
+  stop
+else (Sí)
+  :Registrar el reporte (status = pending);
+  :Registrar auditoría (report_created);
+endif
+
+|Administrador (rol 5)|
+:Revisar la bandeja de reportes;
+if (¿Aprueba el reporte?) then (Sí)
+  |API Milpa|
+  :Suspender al usuario o eliminar la publicación;
+  :Registrar auditoría\n(report_approved, user_suspended, offering_deleted);
+else (No)
+  |API Milpa|
+  :Marcar el reporte como rechazado (status = rejected);
+  :Registrar auditoría (report_rejected);
+endif
+stop
+@enduml

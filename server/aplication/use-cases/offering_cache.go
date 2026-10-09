@@ -44,16 +44,20 @@ func (uc *CachedOfferingUseCase) GetByID(ctx context.Context, id uuid.UUID) (*dt
 	return offering, err
 }
 
-func (uc *CachedOfferingUseCase) GetByCompany(ctx context.Context, companyID uuid.UUID) ([]*dto.OfferingDTO, error) {
+func (uc *CachedOfferingUseCase) GetByUserID(ctx context.Context, userID uuid.UUID, includeHidden bool) ([]*dto.OfferingDTO, error) {
+	if includeHidden {
+		return uc.next.GetByUserID(ctx, userID, includeHidden)
+	}
+
 	var offering []*dto.OfferingDTO
 
 	_, err := uc.cache.Remember(
 		ctx,
-		"offerings:bycompany:"+companyID.String(),
+		"offerings:byuser:"+userID.String(),
 		5*time.Minute,
 		&offering,
 		func() error {
-			result, err := uc.next.GetByCompany(ctx, companyID)
+			result, err := uc.next.GetByUserID(ctx, userID, includeHidden)
 			if err != nil {
 				return err
 			}
@@ -71,7 +75,7 @@ func (uc *CachedOfferingUseCase) CreateOffering(ctx context.Context, req dto.Cre
 		return nil, err
 	}
 
-	_ = uc.cache.Delete(ctx, "offerings:bycompany:"+result.CompanyID.String())
+	_ = uc.cache.Delete(ctx, "offerings:byuser:"+result.UserID.String())
 
 	return result, nil
 }
@@ -84,7 +88,47 @@ func (uc *CachedOfferingUseCase) UpdateOffering(ctx context.Context, id uuid.UUI
 
 	_ = uc.cache.Delete(ctx, "offering:"+id.String())
 
+	updated, err := uc.next.GetByID(ctx, id)
+	if err == nil {
+		_ = uc.cache.Delete(ctx, "offerings:byuser:"+updated.UserID.String())
+	}
+
 	return nil
+}
+
+func (uc *CachedOfferingUseCase) DeleteOffering(ctx context.Context, id uuid.UUID) error {
+	err := uc.next.DeleteOffering(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	_ = uc.cache.Delete(ctx, "offering:"+id.String())
+
+	return nil
+}
+
+func (uc *CachedOfferingUseCase) DeactivateOffering(ctx context.Context, id uuid.UUID) (*dto.OfferingDTO, error) {
+	result, err := uc.next.DeactivateOffering(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = uc.cache.Delete(ctx, "offering:"+id.String())
+	_ = uc.cache.Delete(ctx, "offerings:byuser:"+result.UserID.String())
+
+	return result, nil
+}
+
+func (uc *CachedOfferingUseCase) RenewOffering(ctx context.Context, id uuid.UUID, req dto.RenewOfferingRequest) (*dto.OfferingDTO, error) {
+	result, err := uc.next.RenewOffering(ctx, id, req)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = uc.cache.Delete(ctx, "offering:"+id.String())
+	_ = uc.cache.Delete(ctx, "offerings:byuser:"+result.UserID.String())
+
+	return result, nil
 }
 
 var _ primary.OfferingUseCase = (*CachedOfferingUseCase)(nil)

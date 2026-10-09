@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import Icon from '../ui/Icon'
+import Logo from '../../components/Logo'
+import { Link } from 'react-router-dom'
 
 const PLATFORM_LINKS = [
-  { label: 'Para compradores', href: '#' },
-  { label: 'Para productores', href: '#' },
-  { label: 'Registrarse', href: '#/register' },
-  { label: 'Iniciar sesión', href: '#/login' },
+  { label: 'Para compradores' },
+  { label: 'Para agricultores' },
+  { label: 'Registrarse', to: '/register' },
+  { label: 'Iniciar sesión', to: '/login' },
 ]
 
 const COMPANY_LINKS = ['Sobre nosotros', 'Contacto']
@@ -27,16 +29,10 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <p className="flex items-center gap-2 text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand">
-                <Icon name="eco" size={20} weight={600} className="text-accent" />
-              </span>
-              <span className="text-lg tracking-tight">
-                <span className="font-extrabold text-accent">Mil</span>
-                <span className="font-medium">pa</span>
-              </span>
+              <Logo className="h-9 w-auto" />
             </p>
             <p className="mt-4 max-w-xs text-sm text-gray-400">
-              Conectando el campo con la ciudad. Productos frescos, directamente del productor a tu
+              Conectando el campo con la ciudad. Productos frescos, directamente del agricultor a tu
               mesa.
             </p>
           </div>
@@ -46,9 +42,13 @@ export default function Footer() {
             <ul className="mt-4 space-y-2.5">
               {PLATFORM_LINKS.map((link) => (
                 <li key={link.label}>
-                  <a href={link.href} className="text-sm text-gray-400 transition-colors hover:text-white">
-                    {link.label}
-                  </a>
+                  {link.to ? (
+                    <Link to={link.to} className="text-sm text-gray-400 transition-colors hover:text-white">
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-gray-400">{link.label}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -87,7 +87,7 @@ export default function Footer() {
                     setSent(false)
                   }}
                   placeholder="tu@correo.com"
-                  className="w-full bg-transparent px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none"
+                  className="w-full bg-transparent px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none focus-visible:outline-2 focus-visible:outline-white"
                 />
                 <button
                   type="submit"
@@ -107,7 +107,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
-          <p className="text-sm text-gray-500">© 2025 Milpa. Todos los derechos reservados.</p>
+          <p className="text-sm text-gray-500">© 2026 Milpa. Todos los derechos reservados.</p>
           <ul className="flex gap-5">
             {['Privacidad', 'Términos', 'Cookies'].map((label) => (
               <li key={label}>

@@ -1,0 +1,267 @@
+@startuml
+left to right direction
+
+skinparam actor {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+}
+skinparam usecase {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+}
+skinparam rectangle {
+  BackgroundColor #FDFDFD
+  BorderColor #2E6E4E
+}
+skinparam note {
+  BackgroundColor #FDF9E7
+  BorderColor #B9A24B
+}
+
+title Milpa — Eco-Mercado Digital\nCasos de uso (API v1)\nBasado en API.md y router.go
+
+actor "Agricultor\n(rol 1)" as AGR
+actor "Comprador minorista\n(rol 2)" as C_MIN
+actor "Comprador mayorista detallista\n(rol 3)" as C_DET
+actor "Comprador mayorista corporativo\n(rol 4)" as C_COR
+actor "Administrador\n(rol 5)" as ADM
+actor "Auditor\n(rol 6)" as AUD
+
+rectangle "Milpa — Eco-Mercado Digital" {
+
+  usecase "Registrarse en la plataforma" as UC_REG
+  usecase "Iniciar sesión" as UC_LOGIN
+  usecase "Cerrar sesión" as UC_LOGOUT
+  usecase "Validar token y rol (RBAC)" as UC_AUTH
+
+  usecase "Gestionar perfil y foto" as UC_PROFILE
+  usecase "Registrar y gestionar empresa agrícola" as UC_COMPANY
+
+  usecase "Buscar y navegar catálogo" as UC_CATALOG
+  usecase "Publicar oferta de producto" as UC_OFFER_PUB
+  usecase "Gestionar oferta (editar, desactivar, renovar)" as UC_OFFER_MAN
+  usecase "Gestionar inventario de productos" as UC_INV
+
+  usecase "Abrir solicitud de abastecimiento" as UC_SR_CREATE
+  usecase "Gestionar solicitud (editar, cancelar, expirar)" as UC_SR_MAN
+  usecase "Consultar solicitudes disponibles" as UC_SR_AVAIL
+  usecase "Ofertar a una solicitud" as UC_OFFER_SEND
+  usecase "Evaluar ofertas priorizadas" as UC_EVAL
+  usecase "Aceptar oferta y formar match" as UC_MATCH
+  usecase "Descartar oferta" as UC_PASS
+  usecase "Gestionar transacción del match" as UC_TX
+
+  usecase "Publicar oferta de liquidación" as UC_LIQ_PUB
+  usecase "Consultar liquidaciones abiertas" as UC_LIQ_VIEW
+  usecase "Registrar interés en liquidación" as UC_LIQ_INT
+  usecase "Asignar liquidación (manual o FCFS)" as UC_LIQ_ASSIGN
+
+  usecase "Iniciar conversación (chat directo o post-match)" as UC_CONV
+  usecase "Enviar y leer mensajes" as UC_MSG
+
+  usecase "Calificar transacción (1 a 5)" as UC_REVIEW
+  usecase "Reportar publicación o usuario" as UC_REPORT
+
+  usecase "Moderar reportes" as UC_MOD
+  usecase "Gestionar usuarios y roles" as UC_USERS_ADMIN
+  usecase "Gestionar categorías y unidades de medida" as UC_CAT_ADMIN
+  usecase "Consultar estadísticas de la plataforma" as UC_STATS
+  usecase "Consultar registros de auditoría" as UC_AUDIT
+
+}
+
+' =====================================================================
+' ACTORES: AUTENTICACIÓN Y CUENTA
+' =====================================================================
+
+AGR --> UC_REG
+AGR --> UC_LOGIN
+AGR --> UC_LOGOUT
+AGR --> UC_PROFILE
+AGR --> UC_COMPANY
+
+C_MIN --> UC_REG
+C_MIN --> UC_LOGIN
+C_MIN --> UC_LOGOUT
+C_MIN --> UC_PROFILE
+
+C_DET --> UC_REG
+C_DET --> UC_LOGIN
+C_DET --> UC_LOGOUT
+C_DET --> UC_PROFILE
+
+C_COR --> UC_REG
+C_COR --> UC_LOGIN
+C_COR --> UC_LOGOUT
+C_COR --> UC_PROFILE
+
+ADM --> UC_LOGIN
+ADM --> UC_LOGOUT
+ADM --> UC_PROFILE
+
+AUD --> UC_LOGIN
+AUD --> UC_LOGOUT
+
+' =====================================================================
+' CATÁLOGO
+' =====================================================================
+
+AGR --> UC_CATALOG
+AGR --> UC_OFFER_PUB
+AGR --> UC_OFFER_MAN
+AGR --> UC_INV
+C_MIN --> UC_CATALOG
+C_DET --> UC_CATALOG
+C_COR --> UC_CATALOG
+AUD --> UC_CATALOG
+
+' =====================================================================
+' ABASTECIMIENTO
+' =====================================================================
+
+C_DET --> UC_SR_CREATE
+C_DET --> UC_SR_MAN
+C_DET --> UC_EVAL
+C_DET --> UC_MATCH
+C_DET --> UC_PASS
+C_DET --> UC_TX
+
+C_COR --> UC_SR_CREATE
+C_COR --> UC_SR_MAN
+C_COR --> UC_EVAL
+C_COR --> UC_MATCH
+C_COR --> UC_PASS
+C_COR --> UC_TX
+
+AGR --> UC_SR_AVAIL
+AGR --> UC_OFFER_SEND
+AGR --> UC_TX
+
+' =====================================================================
+' LIQUIDACIONES
+' =====================================================================
+
+AGR --> UC_LIQ_PUB
+AGR --> UC_LIQ_ASSIGN
+C_MIN --> UC_LIQ_VIEW
+C_MIN --> UC_LIQ_INT
+C_DET --> UC_LIQ_VIEW
+C_DET --> UC_LIQ_INT
+C_COR --> UC_LIQ_VIEW
+C_COR --> UC_LIQ_INT
+AUD --> UC_LIQ_VIEW
+
+' =====================================================================
+' COMUNICACIÓN
+' =====================================================================
+
+AGR --> UC_CONV
+AGR --> UC_MSG
+C_MIN --> UC_CONV
+C_MIN --> UC_MSG
+C_DET --> UC_CONV
+C_DET --> UC_MSG
+C_COR --> UC_CONV
+C_COR --> UC_MSG
+
+' =====================================================================
+' REPUTACIÓN, REPORTES Y ADMINISTRACIÓN
+' =====================================================================
+
+AGR --> UC_REVIEW
+AGR --> UC_REPORT
+C_DET --> UC_REVIEW
+C_DET --> UC_REPORT
+C_COR --> UC_REVIEW
+C_COR --> UC_REPORT
+C_MIN --> UC_REPORT
+
+ADM --> UC_MOD
+ADM --> UC_USERS_ADMIN
+ADM --> UC_CAT_ADMIN
+ADM --> UC_STATS
+ADM --> UC_AUDIT
+AUD --> UC_AUDIT
+
+' =====================================================================
+' AUTENTICACIÓN INCLUIDA EN CASOS PROTEGIDOS
+' =====================================================================
+
+UC_PROFILE ..> UC_AUTH : <<include>>
+UC_COMPANY ..> UC_AUTH : <<include>>
+UC_OFFER_PUB ..> UC_AUTH : <<include>>
+UC_OFFER_MAN ..> UC_AUTH : <<include>>
+UC_INV ..> UC_AUTH : <<include>>
+UC_SR_CREATE ..> UC_AUTH : <<include>>
+UC_SR_MAN ..> UC_AUTH : <<include>>
+UC_SR_AVAIL ..> UC_AUTH : <<include>>
+UC_OFFER_SEND ..> UC_AUTH : <<include>>
+UC_EVAL ..> UC_AUTH : <<include>>
+UC_MATCH ..> UC_AUTH : <<include>>
+UC_PASS ..> UC_AUTH : <<include>>
+UC_TX ..> UC_AUTH : <<include>>
+UC_LIQ_PUB ..> UC_AUTH : <<include>>
+UC_LIQ_INT ..> UC_AUTH : <<include>>
+UC_LIQ_ASSIGN ..> UC_AUTH : <<include>>
+UC_CONV ..> UC_AUTH : <<include>>
+UC_MSG ..> UC_AUTH : <<include>>
+UC_REVIEW ..> UC_AUTH : <<include>>
+UC_REPORT ..> UC_AUTH : <<include>>
+UC_MOD ..> UC_AUTH : <<include>>
+UC_USERS_ADMIN ..> UC_AUTH : <<include>>
+UC_CAT_ADMIN ..> UC_AUTH : <<include>>
+UC_STATS ..> UC_AUTH : <<include>>
+UC_AUDIT ..> UC_AUTH : <<include>>
+
+' =====================================================================
+' RESTRICCIONES REALES
+' =====================================================================
+
+note right of UC_SR_CREATE
+  Solo los compradores mayoristas
+  (roles 3 y 4) pueden abrir y
+  gestionar solicitudes de
+  abastecimiento.
+end note
+
+note right of UC_OFFER_SEND
+  Solo el agricultor (rol 1) puede
+  ofertar a solicitudes, publicar
+  ofertas y liquidaciones, y
+  gestionar su inventario.
+end note
+
+note right of UC_AUDIT
+  El auditor (rol 6) tiene acceso de
+  solo lectura: no puede crear, editar
+  ni eliminar contenido.
+  En la implementación actual el panel
+  de administración —incluidos los
+  registros de auditoría— está reservado
+  al administrador; el resto de la API
+  es legible por el auditor.
+end note
+
+note bottom of UC_MOD
+  El administrador (rol 5) modera
+  reportes, gestiona usuarios y roles,
+  administra categorías y unidades de
+  medida, y consulta estadísticas.
+end note
+
+note right of UC_AUTH
+  Los casos protegidos incluyen la
+  validación del token JWT y del rol.
+  Cerrar sesión es local: el cliente
+  descarta el token (no hay endpoint).
+end note
+
+note bottom of UC_REVIEW
+  La calificación requiere una
+  transacción completada y solo la
+  emiten sus partes (agricultor y
+  comprador mayorista).
+end note
+
+@enduml

@@ -7,9 +7,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type DB interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
+type Querier interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// DB can open a TOP-LEVEL transaction. Only *pgxpool.Pool implements this.
+type DB interface {
+	Querier
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
