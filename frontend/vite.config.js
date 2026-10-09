@@ -8,6 +8,10 @@ export default defineConfig({
     // Binds the dev server to all interfaces (0.0.0.0) so it is reachable
     // from the network, not only from localhost.
     host: true,
+    // The demo URL requires this exact port: fail instead of silently
+    // switching ports when 5173 is already in use.
+    port: 5173,
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',
