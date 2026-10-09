@@ -1,0 +1,601 @@
+@startuml
+hide circle
+skinparam linetype ortho
+skinparam nodesep 12
+skinparam ranksep 22
+skinparam defaultFontSize 12
+skinparam class {
+  BackgroundColor #EFF7F0
+  BorderColor #2E6E4E
+  ArrowColor #2E6E4E
+  FontColor #1F3B2C
+}
+skinparam enum {
+  BackgroundColor #FDF9E7
+  BorderColor #B9A24B
+  ArrowColor #2E6E4E
+}
+skinparam package {
+  BackgroundColor #FDFDFD
+  BorderColor #2E6E4E
+  FontColor #2E6E4E
+}
+skinparam note {
+  BackgroundColor #FDF9E7
+  BorderColor #B9A24B
+}
+
+title Milpa — Eco-Mercado Digital\nDiagrama de clases del dominio\nBasado en server/domain/entities (Go)
+
+package "Usuarios y empresas" {
+
+  class User {
+    + ID : uuid.UUID
+    + FirstName : string
+    + LastName : string
+    + Email : string
+    + PhoneNumber : string
+    + PasswordHash : string
+    + PhotoURL : string
+    + Role : RoleOptions
+    + SuspendedAt : time.Time?
+    + Address : Address
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewUser(email, firstName, lastName : string, now : time.Time) : User
+    + FullName() : string
+    + IsAdmin() : bool
+    + HasRole(role : RoleOptions) : bool
+    + SetPasswordHash(hash : string)
+    + Suspend(now : time.Time)
+    + Reactivate(now : time.Time)
+    + IsSuspended() : bool
+  }
+
+  enum RoleOptions {
+    RolePending = 0
+    RoleAgricultor = 1
+    RoleCompradorMinorista = 2
+    RoleCompradorMayoristaDetallista = 3
+    RoleCompradorMayoristaCorporativo = 4
+    RoleAdmin = 5
+    RoleAuditor = 6
+  }
+
+  class Company {
+    + ID : uuid.UUID
+    + Name : string
+    + Category : []Category
+    + Owner : User
+    + Address : Address
+    + Description : string
+    + PhoneNumber : string
+    + Email : string
+    + Website : string
+    + Verified : bool
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewCompany(owner : User, name : string, now : time.Time) : Company
+    + IsVerified() : bool
+    + Verify()
+    + ChangeOwner(newOwner : User) : error
+  }
+
+  class Address {
+    + ID : uuid.UUID
+    + Department : string
+    + Municipality : string
+    + AddressLine : string
+    + Latitude : float64
+    + Longitude : float64
+    --
+    + NewAddress(department, municipality, addressLine : string) : Address
+    + FullAddress() : string
+    + HasCoordinates() : bool
+    + DistanceKM(other : Address) : (float64, bool)
+    + HasData() : bool
+    + ValidateCoordinates() : error
+    + IsComplete() : bool
+  }
+
+}
+
+package "Catálogo" {
+
+  class Category {
+    + ID : uuid.UUID
+    + Name : string
+    + Description : string
+    + MainCategory : string
+    + IsActive : bool
+    + DefaultUnitOfMeasureID : uuid.UUID?
+    + DefaultExpiryDays : int?
+    --
+    + NewCategory(name : string) : Category
+    + Deactivate()
+    + Activate()
+  }
+
+  class UnitOfMeasure {
+    + ID : uuid.UUID
+    + Code : string
+    + Name : string
+    + IsActive : bool
+    --
+    + NewUnitOfMeasure(code, name : string) : UnitOfMeasure
+    + SetCode(code : string) : error
+    + SetName(name : string) : error
+    + Activate()
+    + Deactivate()
+  }
+
+  enum MeasurementOptions {
+    Kg = 0
+    Lb = 1
+    Tn = 2
+  }
+
+  class Offering {
+    + ID : uuid.UUID
+    + UserID : uuid.UUID
+    + Type : OfferingType
+    + Name : string
+    + Description : string
+    + Price : float64
+    + ImageURL : string
+    + Variety : string
+    + UnitOfMeasureID : uuid.UUID?
+    + QuantityAvailable : float64
+    + ExpiresAt : time.Time?
+    + IsActive : bool
+    + CategoryID : uuid.UUID?
+    + CompanyID : uuid.UUID?
+    + Latitude : float64?
+    + Longitude : float64?
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewOffering(userID : uuid.UUID, name : string, offeringType : OfferingType, now : time.Time) : Offering
+    + IsProduct() : bool
+    + IsService() : bool
+    + IsExpired(now : time.Time) : bool
+    + IsVisibleAt(now : time.Time) : bool
+    + HasLocation() : bool
+    + RequirePublishable() : error
+    + UpdatePrice(price : float64, now : time.Time) : error
+    + UpdateDescription(description : string, now : time.Time)
+    + UpdateImage(imageURL : string, now : time.Time)
+    + SetVariety(variety : string, now : time.Time)
+    + SetUnitOfMeasure(unitID : uuid.UUID?, now : time.Time)
+    + SetQuantity(quantity : float64, now : time.Time)
+    + SetCategory(categoryID : uuid.UUID?, now : time.Time)
+    + SetCompany(companyID : uuid.UUID?, now : time.Time)
+    + SetExpiry(expiresAt : time.Time?, now : time.Time)
+    + SetLocation(latitude, longitude : float64?, now : time.Time) : error
+    + Deactivate()
+    + Renew(expiresAt : time.Time, now : time.Time)
+  }
+
+  enum OfferingType {
+    OfferingProduct = 0
+    OfferingService = 1
+  }
+
+  class SupplierInventory {
+    + ID : uuid.UUID
+    + SupplierID : uuid.UUID
+    + ProductName : string
+    + Quantity : float64
+    + AmountUnit : MeasurementOptions
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewSupplierInventory(supplierID : uuid.UUID, productName : string, quantity : float64, unit : MeasurementOptions) : SupplierInventory
+    + SetQuantity(quantity : float64) : error
+  }
+
+}
+
+package "Abastecimiento" {
+
+  class SupplyRequest {
+    + ID : uuid.UUID
+    + BuyerID : uuid.UUID
+    + ProductName : string
+    + TotalAmount : float64
+    + ActualAmount : float64
+    + AmountUnit : MeasurementOptions
+    + NumberOfUnits : float64
+    + AmountPerUnit : float64
+    + UnitOfMeasure : MeasurementOptions
+    + Address : Address
+    + RequestDeadline : time.Time
+    + DeliveryDeadline : time.Time
+    + Description : string
+    + MultipleProviders : bool
+    + MinAmountPerProvider : float64
+    + Status : SupplyRequestStatus
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewSupplyRequest(...) : SupplyRequest
+    + IsOpen() : bool
+    + RemainingAmount() : float64
+    + Cancel() : error
+    + Complete() : error
+    + Expire() : error
+    + ReserveAmount(amount : float64) : error
+    + ReleaseAmount(amount : float64) : error
+  }
+
+  enum SupplyRequestStatus {
+    SupplyRequestOpen = 0
+    SupplyRequestCancelled = 1
+    SupplyRequestCompleted = 2
+    SupplyRequestExpired = 3
+  }
+
+  class SupplyOffer {
+    + ID : uuid.UUID
+    + SupplierID : uuid.UUID
+    + SupplyRequest : uuid.UUID
+    + TotalAmount : float64
+    + AmountUnit : MeasurementOptions
+    + PricePerUnit : float64?
+    + Comments : string
+    + ProposedDeliveryDay : time.Time
+    + DeliveryAvailable : bool
+    + Status : OfferStatus
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewSupplyOffer(...) : SupplyOffer
+    + IsActionable() : bool
+    + Withdraw() : error
+    + Reject() : error
+    + MarkMatched() : error
+  }
+
+  enum OfferStatus {
+    OfferActive = 0
+    OfferMatched = 1
+    OfferRejected = 2
+    OfferWithdrawn = 3
+  }
+
+  class Match {
+    + ID : uuid.UUID
+    + SupplyOffer : uuid.UUID
+    + SupplyRequest : uuid.UUID
+    + Status : MatchStatus
+    + MatchedAmount : float64
+    + AmountUnit : MeasurementOptions
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewMatch(supplyOffer, supplyRequest : uuid.UUID, matchedAmount : float64, unit : MeasurementOptions) : Match
+    + IsActive() : bool
+    + Cancel() : error
+  }
+
+  enum MatchStatus {
+    MatchActive = 0
+    MatchCancelled = 1
+  }
+
+}
+
+package "Liquidaciones" {
+
+  class Liquidation {
+    + ID : uuid.UUID
+    + SupplierID : uuid.UUID
+    + ProductName : string
+    + Quantity : float64
+    + UnitOfMeasure : string
+    + TotalPrice : float64
+    + UnitPrice : float64
+    + DeliveryTime : string
+    + LocationID : uuid.UUID
+    + Visibility : string
+    + AllocationMethod : AllocationMethod
+    + Status : LiquidationStatus
+    + ClosedAt : time.Time?
+    + ExpiresAt : time.Time?
+    + AssignedBuyerID : uuid.UUID?
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewLiquidation(...) : Liquidation
+    + IsOpen() : bool
+    + CanReceiveInterest() : bool
+    + IsExpired(now : time.Time) : bool
+    + Close(now : time.Time) : error
+    + Expire(now : time.Time) : error
+    + Assign(buyerID : uuid.UUID, now : time.Time) : error
+    + UpdateDeliveryTime(deliveryTime : string, now : time.Time)
+    + UpdateVisibility(visibility : string, now : time.Time) : error
+    + SetExpiry(expiresAt : time.Time, now : time.Time)
+  }
+
+  enum LiquidationStatus {
+    LiquidationOpen = 0
+    LiquidationClosed = 1
+    LiquidationExpired = 2
+    LiquidationAssigned = 3
+  }
+
+  enum AllocationMethod {
+    AllocationManual = 0
+    AllocationFirstCome = 1
+  }
+
+  class LiquidationInterest {
+    + ID : uuid.UUID
+    + LiquidationID : uuid.UUID
+    + BuyerID : uuid.UUID
+    + CreatedAt : time.Time
+    --
+    + NewLiquidationInterest(liquidationID, buyerID : uuid.UUID, now : time.Time) : LiquidationInterest
+  }
+
+}
+
+package "Transacciones" {
+
+  class Transaction {
+    + ID : uuid.UUID
+    + MatchID : uuid.UUID
+    + Status : TransactionStatus
+    + BuyerStartConfirmedAt : time.Time?
+    + SupplierStartConfirmedAt : time.Time?
+    + BuyerDeliveryConfirmedAt : time.Time?
+    + SupplierDeliveryConfirmedAt : time.Time?
+    + CancelledBy : uuid.UUID?
+    + CancelReason : string
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewTransaction(matchID : uuid.UUID) : Transaction
+    + IsActive() : bool
+    + ConfirmStart(p : TransactionParticipant, now : time.Time) : error
+    + ConfirmDelivery(p : TransactionParticipant, now : time.Time) : error
+    + Cancel(cancelledBy : uuid.UUID, reason : string, now : time.Time) : error
+  }
+
+  enum TransactionStatus {
+    TransactionMatched = 0
+    TransactionInProgress = 1
+    TransactionCompleted = 2
+    TransactionCancelled = 3
+  }
+
+  enum TransactionParticipant {
+    BuyerParticipant = 0
+    SupplierParticipant = 1
+  }
+
+}
+
+package "Comunicación" {
+
+  class Conversation {
+    + ID : uuid.UUID
+    + FarmerID : uuid.UUID
+    + BuyerID : uuid.UUID
+    + OfferingID : uuid.UUID
+    + MatchID : uuid.UUID?
+    + Visibility : bool
+    + Created_at : time.Time
+    + Updated_at : time.Time
+    --
+    + NewConvesation(farmerID, buyerID, offeringID : uuid.UUID, matchID : uuid.UUID?, now : time.Time) : Conversation
+    + IsConversationParticipant(userID : uuid.UUID) : bool
+  }
+
+  class Message {
+    + ID : uuid.UUID
+    + ConversationID : uuid.UUID
+    + SenderID : uuid.UUID
+    + Content : string
+    + Visibility : bool
+    + Created_at : time.Time
+    --
+    + NewMessage(conversationID, senderID : uuid.UUID, content : string, now : time.Time) : Message
+  }
+
+}
+
+package "Reputación y moderación" {
+
+  class Review {
+    + ID : uuid.UUID
+    + AuthorID : uuid.UUID
+    + TargetType : ReviewTargetType
+    + TargetID : uuid.UUID
+    + CompanyID : uuid.UUID
+    + Rating : int
+    + Comment : string
+    + TransactionID : uuid.UUID
+    + CreatedAt : time.Time
+    --
+    + NewReview(authorID : uuid.UUID, targetType : ReviewTargetType, targetID, companyID : uuid.UUID, rating : int, comment : string, now : time.Time, transactionID : uuid.UUID) : Review
+  }
+
+  enum ReviewTargetType {
+    ReviewTargetCompany = company
+    ReviewTargetUser = user
+  }
+
+  class Report {
+    + ID : uuid.UUID
+    + ReporterID : uuid.UUID
+    + TargetType : ReportTargetType
+    + TargetID : uuid.UUID
+    + Reason : string
+    + Status : ReportStatus
+    + ResolvedBy : uuid.UUID?
+    + ResolvedAt : time.Time?
+    + CreatedAt : time.Time
+    + UpdatedAt : time.Time
+    --
+    + NewReport(reporterID : uuid.UUID, targetType : ReportTargetType, targetID : uuid.UUID, reason : string, now : time.Time) : Report
+    + Approve(adminID : uuid.UUID, now : time.Time)
+    + Reject(adminID : uuid.UUID, now : time.Time)
+    + IsPending() : bool
+    + IsResolved() : bool
+  }
+
+  enum ReportTargetType {
+    ReportTargetOffering = offering
+    ReportTargetUser = user
+  }
+
+  enum ReportStatus {
+    ReportPending = pending
+    ReportApproved = approved
+    ReportRejected = rejected
+  }
+
+}
+
+package "Auditoría" {
+
+  class AuditLog {
+    + ID : uuid.UUID
+    + ActorID : uuid.UUID
+    + Action : string
+    + TargetType : string
+    + TargetID : uuid.UUID
+    + Metadata : json.RawMessage
+    + CreatedAt : time.Time
+    --
+    + NewAuditLog(actorID : uuid.UUID, action : string, targetType : string, targetID : uuid.UUID, metadata : json.RawMessage, now : time.Time) : AuditLog
+  }
+
+  enum AuditAction {
+    report_created
+    report_approved
+    report_rejected
+    user_suspended
+    user_reactivated
+    user_role_updated
+    offering_deleted
+  }
+
+}
+
+' =====================================================================
+' RELACIONES
+' =====================================================================
+
+' Usuarios y empresas
+User "1" -- "0..1" Address : ubicación
+Company "1" -- "0..1" Address : ubicación
+User "1" -- "0..*" Company : posee
+Company "0..*" -- "0..*" Category : categoriza
+User ..> RoleOptions : rol
+
+' Catálogo
+User "1" -- "0..*" Offering : publica
+Offering "0..*" -- "0..1" Company : respalda
+Offering "0..*" -- "1" Category : clasifica
+Offering "0..*" -- "0..1" UnitOfMeasure : usa
+Offering ..> OfferingType : tipo
+User "1" -- "0..*" SupplierInventory : mantiene
+SupplierInventory ..> MeasurementOptions : unidad
+
+' Abastecimiento
+User "1" -- "0..*" SupplyRequest : solicita
+SupplyRequest "1" -- "1" Address : punto de entrega
+SupplyRequest "1" -- "0..*" SupplyOffer : recibe
+User "1" -- "0..*" SupplyOffer : oferta
+SupplyRequest "1" -- "0..*" Match : genera
+SupplyOffer "1" -- "0..1" Match : seleccionada
+SupplyRequest ..> SupplyRequestStatus : estado
+SupplyOffer ..> OfferStatus : estado
+Match ..> MatchStatus : estado
+SupplyRequest ..> MeasurementOptions : montos y unidad
+SupplyOffer ..> MeasurementOptions : unidad
+Match ..> MeasurementOptions : unidad
+
+' Liquidaciones
+User "1" -- "0..*" Liquidation : publica
+Liquidation "0..*" -- "0..1" User : asignada a
+Liquidation "0..*" -- "0..1" Address : ubicación
+Liquidation "1" -- "0..*" User : interesa
+(Liquidation, User) .. LiquidationInterest
+Liquidation ..> LiquidationStatus : estado
+Liquidation ..> AllocationMethod : asignación
+
+' Transacciones
+Match "1" -- "1" Transaction : origina
+Transaction ..> TransactionStatus : estado
+Transaction ..> TransactionParticipant : confirma
+
+' Comunicación
+User "1" -- "0..*" Conversation : comprador
+User "1" -- "0..*" Conversation : agricultor
+Conversation "0..*" -- "0..1" Offering : sobre
+Conversation "0..*" -- "0..1" Match : post-match
+Conversation "1" -- "0..*" Message : contiene
+User "1" -- "0..*" Message : envía
+
+' Reputación y moderación
+User "1" -- "0..*" Review : autor
+Review "0..*" -- "0..1" User : objetivo usuario
+Review "0..*" -- "0..1" Company : objetivo empresa
+Review "0..*" -- "1" Transaction : califica
+Review ..> ReviewTargetType : tipo
+User "1" -- "0..*" Report : reporta
+Report "0..*" -- "0..1" User : resuelto por
+Report "0..*" -- "0..1" User : objetivo usuario
+Report "0..*" -- "0..1" Offering : objetivo
+Report ..> ReportStatus : estado
+Report ..> ReportTargetType : tipo
+
+' Auditoría
+User "1" -- "0..*" AuditLog : actor
+AuditLog ..> AuditAction : acción
+
+' =====================================================================
+' NOTAS
+' =====================================================================
+
+note bottom of Address
+  Value object compartido: usuarios,
+  empresas, solicitudes y liquidaciones
+  referencian una dirección.
+end note
+
+note bottom of LiquidationInterest
+  Clase de asociación entre Liquidation
+  y User (comprador): un comprador
+  registra interés una sola vez por
+  liquidación.
+end note
+
+note bottom of Report
+  Report.TargetID es polimórfico:
+  apunta a una Offering o a un User
+  según Report.TargetType.
+end note
+
+note bottom of AuditLog
+  TargetID es polimórfico (usuario,
+  offering o reporte) y Action toma
+  los valores del enum AuditAction.
+end note
+
+legend right
+  Modelo derivado de server/domain/entities.
+  Se omiten AdminStats y LastMessage por
+  ser modelos de lectura, no entidades
+  persistidas.
+  El contacto comprador–agricultor se
+  realiza mediante Conversation.
+end legend
+
+@enduml

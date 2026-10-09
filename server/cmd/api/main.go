@@ -140,7 +140,7 @@ func main() {
 
 	worker := usecases.NewExpiryWorker(offeringRepo, searchRepo, cacheClient, searchUC.(port.Invalidator), clock)
 
-	imageStore := storage.NewLocalImageStore("./uploads")
+	imageStore := storage.NewLocalImageStore("/subscriptions/01921853-7e63-45f6-942b-32c8fc7db84f/resourcegroups/milpaserver_group/providers/Microsoft.Storage/storageAccounts/milpaimages")
 
 	userHandler := handler.NewUserHandler(userUC, imageStore)
 	companyHandler := handler.NewCompanyHandler(companyUC)
