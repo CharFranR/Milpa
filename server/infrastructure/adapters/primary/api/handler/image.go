@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -45,8 +46,10 @@ func (h *ImageHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path, err := h.imgRepo.Upload(r.Context(), data, uploadedImageFilename(header.Filename))
+	name := uploadedImageFilename(header.Filename)
+	path, err := h.imgRepo.Upload(r.Context(), data, name)
 	if err != nil {
+		log.Printf("image store upload failed for %q: %v", name, err)
 		respondError(w, http.StatusBadRequest, "failed to store image")
 		return
 	}
